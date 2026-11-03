@@ -2185,3 +2185,25 @@ body.hub-tour-active .hub-stage-wrap .px-stage {
   font-size: 0.9rem;
   line-height: 1.45;
 }
+
+
+/* v2.0 合擊 HUD */
+.combat-combo-hud {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  border: 2px solid #3a2a1a;
+  background: #1a1410;
+  color: #e8d5a3;
+  max-width: 16rem;
+}
+.combat-combo-hud[hidden] { display: none !important; }
+.combat-combo-hud b { color: #c9a227; font-weight: 700; }
+.combat-combo-hud.ready { border-color: #c9a227; background: #241c10; }
+.combat-combo-hud.armed { border-color: #c45c3e; color: #f0e6d0; }
+.combat-combo-hud.used { opacity: 0.72; border-color: #5a4a3a; }
+.combat-combo-line { margin: 0.25rem 0 0.4rem; }

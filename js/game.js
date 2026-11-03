@@ -1,12 +1,12 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v1.9.0：版本提示／空狀態／暫停點）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v2.0.0：合擊／坐客點菜／Boss 入場）
  */
 (function () {
   'use strict';
 
   const {
     GAME, INN_LEVELS, GUESTS, RUMORS, XIAOER_LINES, GUEST_EVENTS, SCENE_EVENTS, HERO_TEMPLATES, ENEMY_WAVES, TRAIN,
-    MARTIAL_ARTS, BOND_EVENTS, DUO_BOND_EVENTS, RECRUIT_ARRIVALS, LIBRARY, formatWavePreview, waveRiskStars, guestPhaseMul, XIAOER_PHASE_LINES,
+    MARTIAL_ARTS, BOND_EVENTS, DUO_BOND_EVENTS, DUO_COMBOS, resolvePartyCombo, RECRUIT_ARRIVALS, LIBRARY, formatWavePreview, waveRiskStars, guestPhaseMul, XIAOER_PHASE_LINES,
     OUTPOSTS, FACILITIES, QUEST_TEMPLATES,
     STORY_CHAPTERS, BOSS_ENCOUNTERS, ACHIEVEMENTS,
     weightedPick, randInt, heroStatsAtLevel,
@@ -1810,6 +1810,62 @@
   }
 
   // ——— 戰鬥 ———
+  function resolveActiveCombo() {
+    const fn = (typeof resolvePartyCombo === 'function')
+      ? resolvePartyCombo
+      : (WuxiaData && WuxiaData.resolvePartyCombo);
+    if (!fn) return null;
+    return fn(state.party || [], state.duoBondDone || []);
+  }
+
+  function syncComboHudUI() {
+    let el = $('combat-combo-hud');
+    if (!el) {
+      const host = document.querySelector('.combat-overlay-head') || $('combat-speed');
+      if (host) {
+        el = document.createElement('span');
+        el.id = 'combat-combo-hud';
+        el.className = 'combat-combo-hud';
+        el.setAttribute('aria-live', 'polite');
+        if (host.id === 'combat-speed') host.appendChild(el);
+        else host.insertBefore(el, host.querySelector('#btn-combat-back') || null);
+      }
+    }
+    if (!el) return;
+    const combo = resolveActiveCombo();
+    if (!battle) {
+      if (combo) {
+        el.hidden = false;
+        el.className = 'combat-combo-hud ready';
+        el.innerHTML = '<b>合擊</b> 「' + combo.name + '」· 出戰可放';
+      } else {
+        el.hidden = true;
+        el.textContent = '';
+      }
+      return;
+    }
+    const st = battle.getComboState ? battle.getComboState() : null;
+    if (!st || !st.available) {
+      el.hidden = true;
+      el.textContent = '';
+      return;
+    }
+    el.hidden = false;
+    if (st.used) {
+      el.className = 'combat-combo-hud used';
+      el.innerHTML = '<b>合擊</b> 「' + (st.name || '') + '」· 本場已用';
+    } else if (st.armed) {
+      el.className = 'combat-combo-hud armed';
+      el.innerHTML = '<b>合擊</b> 「' + (st.name || '') + '」· 施放中';
+    } else if (st.ready) {
+      el.className = 'combat-combo-hud ready';
+      el.innerHTML = '<b>合擊</b> 「' + (st.name || '') + '」· 可用';
+    } else {
+      el.className = 'combat-combo-hud';
+      el.innerHTML = '<b>合擊</b> 「' + (st.name || '') + '」· 等條件';
+    }
+  }
+
   function preparePartyAllies() {
     if (battle) {
       pushLog('已在戰鬥中。', 'warn');
@@ -2085,26 +2141,34 @@
     audioSetBgm('bgm_combat');
     const speedMul = normalizeCombatSpeed(state.combatSpeed);
     state.combatSpeed = speedMul;
+    const combo = resolveActiveCombo();
     battle = createBattle(allies, enemies, {
       tickMs: GAME.combatTickMs,
       speedMul: speedMul,
+      combo: combo,
       onLog(msg, kind) {
         appendCombatLog(msg, kind);
       },
       onUpdate(snap) {
         renderBattleUnits(snap.units);
+        syncComboHudUI();
       },
       onAction(evt) {
         if (evt && evt.kind === 'counter') {
           state.countersLanded = (state.countersLanded || 0) + 1;
         }
-        if (evt && evt.kind) audioPlayAction(evt.kind);
+        if (evt && evt.kind) {
+          const k = evt.kind === 'combo' || evt.kind === 'combo_windup' ? 'skill' : evt.kind;
+          audioPlayAction(k);
+        }
         if (globalThis.WuxiaStages && WuxiaStages.Combat && WuxiaStages.Combat.isMounted()) {
           WuxiaStages.Combat.playAction(evt);
         }
+        syncComboHudUI();
       },
       onEnd(result, units) {
         finishBattleCommon(result, units, bondInfo, rewardOpts);
+        syncComboHudUI();
       }
     });
     // 確保戰鬥舞台已掛載；用 clone 後穩定 id 同步首幀
@@ -2115,13 +2179,37 @@
       WuxiaStages.Combat.sync(battle.getUnits().map((u) => Object.assign({}, u)));
     }
     syncCombatSpeedUI();
+    syncComboHudUI();
     if (rewardOpts.isBoss) {
-      appendCombatLog(`—— Boss 戰：${rewardOpts.boss.name} ——`, 'system');
+      appendCombatLog('—— Boss 戰：' + rewardOpts.boss.name + ' ——', 'system');
     }
-    battle.start();
-    renderCombat();
-    syncCombatAutoTipUI();
-    syncCombatTutorUI(true);
+    if (combo) {
+      appendCombatLog('合擊「' + combo.name + '」已備（一場一次，自動施放）', 'skill');
+    }
+
+    function startFight() {
+      if (!battle) return;
+      battle.start();
+      renderCombat();
+      syncCombatAutoTipUI();
+      syncCombatTutorUI(true);
+      syncComboHudUI();
+    }
+
+    if (rewardOpts.isBoss && rewardOpts.boss && WuxiaStages && WuxiaStages.Combat && WuxiaStages.Combat.playBossIntro) {
+      appendCombatLog('Boss 入場……（點擊／Esc 可跳過）', 'system');
+      WuxiaStages.Combat.playBossIntro({
+        name: rewardOpts.boss.name,
+        emoji: rewardOpts.boss.emoji,
+        id: rewardOpts.boss.id,
+        dur: 1700 + Math.floor(Math.random() * 700)
+      }, startFight);
+      renderCombat();
+      syncCombatAutoTipUI();
+      syncCombatTutorUI(true);
+    } else {
+      startFight();
+    }
   }
 
   function stopBattle() {
@@ -2805,7 +2893,7 @@
       });
     }
     if (WuxiaStages.Inn.setTipHandler) {
-      WuxiaStages.Inn.setTipHandler((amt) => {
+      WuxiaStages.Inn.setTipHandler((amt, kind) => {
         let n = Math.max(0, Math.round(amt || 0));
         if (!n) return;
         // 舞台已乘日夜；此處再乘茶寮（唔重複乘 ambient）
@@ -2814,8 +2902,33 @@
         state.totalEarned += n;
         audioPlay('coin');
         const tea = facilityLevel('teahouse');
-        pushLog('雅座賞銀 +' + n + ' 兩' + (tea ? '（茶寮 Lv.' + tea + '）' : '') + '。', 'earn');
+        const k = kind || 'table';
+        if (k === 'order_ok') {
+          if (Math.random() < 0.45) {
+            state.reputation += 1;
+            pushLog('坐客點菜滿意，賞銀 +' + n + ' 兩，好感微升（望 +1）' + (tea ? ' · 茶寮' : '') + '。', 'earn');
+            showUiToast('🍵 滿意', '賞 +' + n + ' · 望 +1', 'earn');
+          } else {
+            pushLog('坐客點菜滿意，賞銀 +' + n + ' 兩' + (tea ? '（茶寮 Lv.' + tea + '）' : '') + '。', 'earn');
+            showUiToast('🍵 落單', '賞 +' + n + ' 兩', 'earn');
+          }
+          // 輕推同隊好感（在場俠客隨機一人）
+          const ids = Object.keys(state.heroes).filter(function (id) {
+            return state.heroes[id] && state.heroes[id].recruited;
+          });
+          if (ids.length && Math.random() < 0.35) {
+            const hid = ids[Math.floor(Math.random() * ids.length)];
+            const prev = state.heroes[hid].favor || 0;
+            state.heroes[hid].favor = Math.min(100, prev + 1);
+          }
+        } else if (k === 'order_late') {
+          pushLog('坐客等得不耐煩，只賞 +' + n + ' 兩……下回快啲斟茶啦。', 'warn');
+          showUiToast('⏳ 遲咗', '賞只有 +' + n, 'warn');
+        } else {
+          pushLog('雅座賞銀 +' + n + ' 兩' + (tea ? '（茶寮 Lv.' + tea + '）' : '') + '。', 'earn');
+        }
         updateTopbar();
+        save(true);
       });
     }
     if (WuxiaStages.Inn.setAmbientChange) {
@@ -3293,6 +3406,12 @@
           return (b.label || b.id) + '×' + (b.forceMul || 1) + '（餘' + b.battlesLeft + '）';
         }).join('、') + '</p>'
       : '';
+    const comboInfo = resolveActiveCombo();
+    const comboLine = comboInfo
+      ? '<p class="muted combat-combo-line">合擊：「' + comboInfo.name + '」已解鎖 · 同隊自動施放（一場一次）</p>'
+      : ((state.duoBondDone || []).length
+        ? '<p class="muted combat-combo-line">合擊：完成雙人羈絆後，相關俠客同隊可開</p>'
+        : '');
     const partyHtml = state.party.length
       ? state.party.map((id) => {
           const r = heroRuntime(id);
@@ -3351,6 +3470,7 @@
         </header>
         <div class="party-bar">隊伍：${partyHtml}</div>
         ${buffLine}
+        ${comboLine}
         ${battle ? '<div class="btn-row"><button class="btn danger" id="btn-flee">鳴金收兵</button></div>' : `
         <h4 class="subhead">普通敵軍</h4>
         <div class="wave-list" id="wave-list"></div>
@@ -3747,6 +3867,11 @@
         ev.preventDefault();
         return;
       }
+      if (WuxiaStages && WuxiaStages.Combat && WuxiaStages.Combat.isBossIntroPlaying && WuxiaStages.Combat.isBossIntroPlaying()) {
+        WuxiaStages.Combat.skipBossIntro();
+        ev.preventDefault();
+        return;
+      }
       const menu = $('hub-menu');
       if (menu && !menu.classList.contains('hidden')) {
         closeMenu();
@@ -3787,6 +3912,7 @@
     });
     syncCombatSpeedUI();
     syncCombatAutoTipUI();
+    syncComboHudUI();
     const btnTutor = $('btn-combat-tutor-dismiss');
     if (btnTutor) btnTutor.addEventListener('click', () => {
       audioUiClick();

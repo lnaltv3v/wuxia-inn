@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v1.9.0
+ * v2.0.0
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '1.9.0',
+    version: '2.0.0',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -1265,6 +1265,57 @@
     }
   ];
 
+
+  /**
+   * v2.0 雙人合擊：需已完成對應雙人羈絆事件（duoBondDone），且雙方同隊存活。
+   * 一場戰鬥最多施放一次；自動戰鬥條件滿足時觸發。
+   */
+  const DUO_COMBOS = [
+    {
+      id: 'combo_sword_herb',
+      duoId: 'duo_sword_herb',
+      name: '劍藥同心',
+      heroes: ['qingyi', 'tiezhang'],
+      damageMul: 1.9,
+      breakMit: 0.2,
+      telegraph: '劍鋒挾藥勁',
+      resultLine: '青衣一劍，鐵掌跟掌——破防！'
+    },
+    {
+      id: 'combo_blade_moon',
+      duoId: 'duo_blade_moon',
+      name: '刀劍邀月',
+      heroes: ['qingyi', 'langren'],
+      damageMul: 2.0,
+      breakMit: 0.18,
+      telegraph: '刀光劍影錯落',
+      resultLine: '浪人橫刀，青衣順勢——合擊破敵！'
+    }
+  ];
+
+  const SIT_ORDER_LINES = {
+    wait: ['等茶…', '今日有咩菜？', '慢慢嚟都得'],
+    order: ['來壺熱茶', '兩碟小菜', '斟滿啲', '掌櫃，落單啦'],
+    happy: ['好味！', '再來一盅', '賞你', '坐得舒服'],
+    impatient: ['等咗好耐…', '茶呢？', '走唔走得成', '小二——']
+  };
+
+  function getDuoCombo(id) {
+    return DUO_COMBOS.find(function (c) { return c.id === id || c.duoId === id; }) || null;
+  }
+
+  /** partyIds: 出戰 id 列表；doneIds: state.duoBondDone */
+  function resolvePartyCombo(partyIds, doneIds) {
+    const party = partyIds || [];
+    const done = doneIds || [];
+    for (let i = 0; i < DUO_COMBOS.length; i++) {
+      const c = DUO_COMBOS[i];
+      if (done.indexOf(c.duoId) < 0) continue;
+      if (c.heroes.every(function (h) { return party.indexOf(h) >= 0; })) return c;
+    }
+    return null;
+  }
+
   /** 招募抵達短景（Hub 泡泡／行人） */
   const RECRUIT_ARRIVALS = {
     tiezhang: {
@@ -1529,6 +1580,8 @@
     BOND_TIERS,
     BOND_EVENTS,
     DUO_BOND_EVENTS,
+    DUO_COMBOS,
+    SIT_ORDER_LINES,
     RECRUIT_ARRIVALS,
     LIBRARY,
     OUTPOSTS,
@@ -1544,6 +1597,8 @@
     getBondTier,
     nextBondTier,
     pairBondMul,
+    getDuoCombo,
+    resolvePartyCombo,
     getOutpost,
     getFacility,
     getQuestTemplate,

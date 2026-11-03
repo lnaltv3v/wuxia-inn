@@ -1,7 +1,8 @@
 /**
- * 俠客棧 — 自動即時走位戰鬥（v1.2.0：招架反打窗口）
+ * 俠客棧 — 自動即時走位戰鬥（v2.0.0：雙人合擊）
  * 戰場 960×540；狀態機：idle→approach→windup→strike→recover（hurt／parry／dodge）
  * 幀語意 v0.9；舞台鏡頭／VFX 加厚見 stages；僅 strike 判定幀傷害；近戰須接觸；速度 0.5–2×
+ * v2.0：已解鎖雙人羈絆同隊時可一場一次合擊（額外傷害＋短暫破防）
  */
 (function (global) {
   'use strict';
@@ -300,6 +301,10 @@
     let result = null;
     let holdTicks = 0;
     let paused = false;
+    const comboDef = (hooks && hooks.combo) ? hooks.combo : null;
+    let comboUsed = false;
+    let comboArmed = false; // 讀招中（雙方已進 windup）
+    let comboReadyHint = false;
 
     function effectiveTickMs() {
       return Math.max(120, Math.round(baseTickMs / speedMul));
@@ -349,7 +354,8 @@
       if (hooks && hooks.onAction) hooks.onAction(evt);
       if (!evt) return;
       if (evt.kind === 'hit') holdTicks = Math.max(holdTicks, evt.clash ? FEEL.hitStopOnClash : FEEL.hitStopOnHit);
-      else if (evt.kind === 'skill') holdTicks = Math.max(holdTicks, FEEL.hitStopOnSkill);
+      else if (evt.kind === 'skill' || evt.kind === 'combo') holdTicks = Math.max(holdTicks, FEEL.hitStopOnSkill);
+      else if (evt.kind === 'combo_windup') holdTicks = Math.max(holdTicks, 1);
       else if (evt.kind === 'parry' || evt.kind === 'clash') holdTicks = Math.max(holdTicks, FEEL.hitStopOnClash);
       else if (evt.kind === 'ko') holdTicks = Math.max(holdTicks, FEEL.hitStopOnKo);
     }
@@ -487,8 +493,9 @@
       const skillMul = pending.skillMul || 1;
       const skillName = pending.skillName || null;
       const usedSkill = !!(pending.usedSkill && skillMul > 1);
+      const isCombo = !!(pending && pending.isCombo);
 
-      if (tryDefend(attacker, target, skillName)) {
+      if (!isCombo && tryDefend(attacker, target, skillName)) {
         return { defended: true, clash: !!clash };
       }
 
@@ -498,10 +505,18 @@
         hitMul = skillMul * 1.4;
         attacker._counterStrike = false;
       }
+      if (isCombo && pending.comboMul) hitMul = pending.comboMul;
       let dmg = calcDamage(attacker, target, hitMul);
+      if (isCombo && pending.breakMit) {
+        target.weaken = Math.max(target.weaken || 0, pending.breakMit);
+        target.mitBonus = Math.max(0, (target.mitBonus || 0) - pending.breakMit * 0.5);
+      }
       applyDamage(target, dmg);
       attacker.comboHits = (attacker.comboHits || 0) + 1;
-      if (isCounter) {
+      if (isCombo) {
+        comboArmed = false;
+        log('合擊「' + (skillName || '同心') + '」打中 ' + target.name + '（' + dmg + '）' + (pending.breakMit ? ' · 破防' : ''), 'skill');
+      } else if (isCounter) {
         log(attacker.emoji + attacker.name + ' 招架反打 ' + target.name + '（' + dmg + '）', 'skill');
       } else if (skillName && skillMul > 1) {
         log(attacker.emoji + attacker.name + '「' + skillName + '」打中 ' + target.name + '（' + dmg + '）', 'skill');
@@ -515,16 +530,19 @@
       const contactDist = dist(attacker, target);
       const wasContact = !pending.ranged && contactDist <= FIELD.contactRange + FEEL.contactSlack;
       emitAction({
-        kind: isCounter ? 'counter' : (usedSkill ? 'skill' : 'hit'),
+        kind: isCombo ? 'combo' : (isCounter ? 'counter' : (usedSkill ? 'skill' : 'hit')),
         attackerId: attacker.id,
         targetId: target.id,
+        partnerId: pending.partnerId || null,
         damage: dmg,
-        skillName: isCounter ? '反打' : skillName,
+        skillName: isCombo ? (skillName || '合擊') : (isCounter ? '反打' : skillName),
         side: attacker.side,
         ranged: !!pending.ranged,
         contact: wasContact || !pending.ranged,
         clash: !!clash,
         counter: isCounter,
+        isCombo: isCombo,
+        breakMit: pending.breakMit || 0,
         combo: attacker.comboHits || 1,
         phase: 'strike',
         ax: attacker.x, ay: attacker.y, tx: target.x, ty: target.y
@@ -532,7 +550,7 @@
 
       applyHitKnock(attacker, target, wasContact);
       if (target.hp > 0) {
-        enterHurt(target, usedSkill);
+        enterHurt(target, usedSkill || isCombo);
       } else {
         log(target.emoji + target.name + ' 倒下！', 'ko');
         emitAction({
@@ -1001,6 +1019,88 @@
       });
     }
 
+
+    function getComboState() {
+      const avail = !!comboDef;
+      const partnersOk = avail && comboDef.heroes.every(function (hid) {
+        const u = findById(hid);
+        return u && u.hp > 0;
+      });
+      return {
+        available: avail,
+        ready: avail && !comboUsed && partnersOk,
+        used: comboUsed,
+        armed: comboArmed,
+        name: comboDef ? comboDef.name : null,
+        heroes: comboDef ? comboDef.heroes.slice() : []
+      };
+    }
+
+    function tryTriggerCombo() {
+      if (!comboDef || comboUsed || comboArmed) return false;
+      if (turn < 4) return false;
+      const a = findById(comboDef.heroes[0]);
+      const b = findById(comboDef.heroes[1]);
+      if (!a || !b || a.hp <= 0 || b.hp <= 0) return false;
+      if (!canControlMove(a) || !canControlMove(b)) return false;
+      if (a.atkCd > 0 && b.atkCd > 0) return false;
+      const target = pickTarget(units, 'enemy', a) || pickTarget(units, 'enemy', b);
+      if (!target) return false;
+      // 至少一人接近，或回合稍後自動釋放
+      const near = dist(a, target) <= FIELD.skillRange || dist(b, target) <= FIELD.skillRange;
+      if (!near && turn < 8) return false;
+      if (Math.random() > (near ? 0.72 : 0.4) && turn < 14) return false;
+
+      comboUsed = true;
+      comboArmed = true;
+      comboReadyHint = false;
+      const mul = comboDef.damageMul || 1.9;
+      const brk = comboDef.breakMit || 0.18;
+      const cname = comboDef.name || '合擊';
+
+      function armPartner(u, partnerId, primary) {
+        u.pending = {
+          targetId: target.id,
+          skillMul: mul,
+          comboMul: primary ? mul : Math.max(1.2, mul * 0.55),
+          skillName: cname,
+          usedSkill: true,
+          ranged: false,
+          isCombo: true,
+          breakMit: primary ? brk : brk * 0.5,
+          partnerId: partnerId
+        };
+        u.hitDone = false;
+        u.telegraph = true;
+        u.facing = target.x >= u.x ? 1 : -1;
+        u.atkCd = 3;
+        // 微進場感
+        const toward = target.x >= u.x ? 1 : -1;
+        u.vx += toward * 10;
+        u.x = clampX(u, u.x + toward * 18);
+        setState(u, STATES.WINDUP, Math.max(FEEL.windupTicks, 2));
+        emitAction({
+          kind: 'combo_windup',
+          attackerId: u.id,
+          partnerId: partnerId,
+          targetId: target.id,
+          skillName: cname,
+          side: 'ally',
+          telegraph: true,
+          isCombo: true,
+          primary: !!primary,
+          phase: 'windup',
+          ax: u.x, ay: u.y, tx: target.x, ty: target.y
+        });
+      }
+
+      armPartner(a, b.id, true);
+      armPartner(b, a.id, false);
+      log('合擊「' + cname + '」——' + (comboDef.telegraph || '二人齊進！'), 'skill');
+      holdTicks = Math.max(holdTicks, 1);
+      return true;
+    }
+
     function step() {
       if (finished) return;
       if (holdTicks > 0) {
@@ -1042,13 +1142,17 @@
         }
       });
 
-      // 6) 自由單位開讀招（每 tick 最多 2 人）
-      const order = alive.filter(canControlMove).slice().sort(function (a, b) {
-        return (b.nei + b.force * 0.5) - (a.nei + a.force * 0.5) + (Math.random() - 0.5);
-      });
-      let started = 0;
-      for (let i = 0; i < order.length && started < 2; i++) {
-        if (tryStartAttack(order[i])) started += 1;
+      // 6) 合擊優先（一場一次），再普通讀招
+      if (tryTriggerCombo()) {
+        // 合擊佔用本 tick 出手額度
+      } else {
+        const order = alive.filter(canControlMove).slice().sort(function (a, b) {
+          return (b.nei + b.force * 0.5) - (a.nei + a.force * 0.5) + (Math.random() - 0.5);
+        });
+        let started = 0;
+        for (let i = 0; i < order.length && started < 2; i++) {
+          if (tryStartAttack(order[i])) started += 1;
+        }
       }
 
       if (!living(units, 'enemy').length) {
@@ -1076,6 +1180,10 @@
       });
       if (withBond.length) {
         log('羈絆加持，同隊出手更利（×' + withBond[0].bondMul.toFixed(2) + '）', 'skill');
+      }
+      if (comboDef) {
+        log('合擊「' + comboDef.name + '」已備——條件滿足時自動施放（一場一次）', 'skill');
+        comboReadyHint = true;
       }
       emit();
       timer = setInterval(step, effectiveTickMs());
@@ -1110,7 +1218,8 @@
       getUnits: function () { return units; },
       isFinished: function () { return finished; },
       setPaused: setPaused,
-      isPaused: function () { return paused; }
+      isPaused: function () { return paused; },
+      getComboState: getComboState
     };
   }
 

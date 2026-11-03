@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v1.6.0：成就領獎／結算卡／敵人剪影接入／guest_walk 64／養成泡泡／Hub v2.1／960×540）
+ * 俠客棧 — 墨點江湖舞台（v2.0.0：坐客點菜／Boss 入場／合擊 VFX）
  * Hub 面板開仍呼吸；熱點墨框／硃標；戰鬥 shake 下調；招名飄字；戰場分層
  */
 (function (global) {
@@ -83,10 +83,12 @@
     clash: { frames: 6 }
   };
 
-  /** 資產快取戳：跟 GAME.version 對齊，確保 v1.2.0 精靈／場景換檔後瀏覽器重拉 */
+  /** 資產快取戳：GAME.version；四俠 sheet 另加 r3 戳，換檔後硬刷 */
   const ASSET_VER = (typeof global !== 'undefined' && global.WuxiaData && global.WuxiaData.GAME && global.WuxiaData.GAME.version)
     ? global.WuxiaData.GAME.version
-    : '0.8.3';
+    : '2.0.0';
+  const HERO_SHEET_R3 = { qingyi: 1, tiezhang: 1, langren: 1, qinshi: 1 };
+  const HERO_SHEET_VER = 'r3';
 
   function loadImg(src) {
     return new Promise(function (resolve) {
@@ -94,8 +96,12 @@
       img.decoding = 'async';
       img.onload = function () { resolve(img); };
       img.onerror = function () { resolve(null); };
+      let ver = ASSET_VER;
+      // 四俠正式 64 sheet：?v=r3（兼帶 GAME.version）
+      const m = /assets\/sprites\/64\/(qingyi|tiezhang|langren|qinshi)\.png/.exec(src);
+      if (m && HERO_SHEET_R3[m[1]]) ver = HERO_SHEET_VER + '-' + ASSET_VER;
       const sep = src.indexOf('?') >= 0 ? '&' : '?';
-      img.src = src + sep + 'v=' + encodeURIComponent(ASSET_VER);
+      img.src = src + sep + 'v=' + encodeURIComponent(ver);
     });
   }
 
@@ -427,6 +433,7 @@
     let innTitle = '俠客棧';
     let walkerPhase = 0;
     let seatedGuests = [];
+    let seatedLinePool = { wait: ['等茶…'], order: ['來壺熱茶'], happy: ['好味！'], impatient: ['等咗好耐…'] };
     let doorOpen = 0;
     let tipBurst = null;
     let accelerateFlash = 0;
@@ -845,6 +852,11 @@
     function onTableInteract(h) {
       const cx = h.x + h.w / 2;
       const cy = h.y + 8;
+      // v2.0：優先服務坐客點菜／不耐煩
+      const seated = nearestSeatedForTable(h);
+      if (seated && (seated.order === 'order' || seated.order === 'impatient' || seated.order === 'wait')) {
+        if (serveSeatedGuest(seated, h)) return;
+      }
       if (phase === 'enter' || phase === 'serve') {
         const elapsed = performance.now() - t0;
         const target = phase === 'enter' ? PHASE_MS.enter : PHASE_MS.serve;
@@ -885,7 +897,7 @@
         phase = 'idle';
         doorOpen = 0;
         seatOccupiedKey = null;
-        setCaption(innTitle + ' · 點擊場景熱點 · 雅座可催單／小費');
+        setCaption(innTitle + ' · 點擊場景熱點 · 雅座可點菜／催單／小費');
         return;
       }
       const job = queue.shift();
@@ -931,14 +943,119 @@
     }
 
     function seedSeated() {
-      // 只放 2–3 位常駐坐客，留空位畀進場動畫，避免重疊
+      // 常駐坐客＋點菜狀態（wait→order→happy／impatient）；留空位畀進場
+      const lines = (global.WuxiaData && WuxiaData.SIT_ORDER_LINES) || {
+        wait: ['等茶…'], order: ['來壺熱茶'], happy: ['好味！'], impatient: ['等咗好耐…']
+      };
+      function mk(x, y, robe, frame, key, stagger) {
+        return {
+          x: x, y: y, robe: robe, frame: frame, key: key,
+          order: 'wait',
+          patience: stagger || 0,
+          bubbleCd: 30 + (stagger || 0) % 50,
+          lastLine: ''
+        };
+      }
       seatedGuests = [
-        { x: 108, y: 396, robe: C.teal, frame: 0, key: 'a' },
-        { x: 216, y: 412, robe: C.jadeBright, frame: 4, key: 'b' },
-        { x: 496, y: 428, robe: C.violet, frame: 3, key: 'd' },
-        { x: 756, y: 416, robe: C.wood, frame: 5, key: 'f' }
+        mk(108, 396, C.teal, 0, 'a', 20),
+        mk(216, 412, C.jadeBright, 4, 'b', 80),
+        mk(496, 428, C.violet, 3, 'd', 140),
+        mk(756, 416, C.wood, 5, 'f', 200)
       ];
       seatOccupiedKey = null;
+      seatedLinePool = lines;
+    }
+
+    function pickSitLine(phase) {
+      const pool = (seatedLinePool && seatedLinePool[phase]) || ['…'];
+      return pool[Math.floor(Math.random() * pool.length)] || '…';
+    }
+
+    function updateSeatedGuests(now) {
+      if (!seatedGuests || !seatedGuests.length) return;
+      const night = isNightNow(now);
+      seatedGuests.forEach(function (g) {
+        if (seatOccupiedKey && g.key === seatOccupiedKey) return;
+        g.patience = (g.patience || 0) + 1;
+        g.bubbleCd = (g.bubbleCd || 0) - 1;
+        const waitNeed = night ? 150 : 200;
+        const orderNeed = night ? 200 : 260;
+        if (g.order === 'wait' && g.patience >= waitNeed) {
+          g.order = 'order';
+          g.patience = 0;
+          g.lastLine = pickSitLine('order');
+          if (g.bubbleCd <= 0) {
+            pushBubble(g.lastLine, g.x + 18, g.y - 36, 1.05);
+            g.bubbleCd = 100;
+            setCaption('坐客招呼：' + g.lastLine);
+          }
+        } else if (g.order === 'order' && g.patience >= orderNeed) {
+          g.order = 'impatient';
+          g.patience = 0;
+          g.lastLine = pickSitLine('impatient');
+          pushBubble(g.lastLine, g.x + 18, g.y - 36, 1.15);
+          g.bubbleCd = 110;
+          setCaption('坐客不耐煩：「' + g.lastLine + '」');
+        } else if (g.order === 'happy' && g.patience >= 220) {
+          g.order = 'wait';
+          g.patience = 0;
+        } else if (g.order === 'impatient' && g.patience >= 320) {
+          // 耐性耗盡：重置為等待，少賞（經 table 互動才結算）
+          g.order = 'wait';
+          g.patience = 0;
+        } else if (g.order === 'order' && g.bubbleCd <= 0 && Math.random() < 0.01) {
+          g.lastLine = pickSitLine('order');
+          pushBubble(g.lastLine, g.x + 16, g.y - 34, 0.9);
+          g.bubbleCd = 140;
+        }
+      });
+    }
+
+    function nearestSeatedForTable(h) {
+      if (!h || !seatedGuests) return null;
+      const cx = h.x + h.w / 2;
+      const cy = h.y + h.h / 2;
+      let best = null;
+      let bestD = 9999;
+      seatedGuests.forEach(function (g) {
+        if (seatOccupiedKey && g.key === seatOccupiedKey) return;
+        const d = Math.abs(g.x - cx) + Math.abs(g.y - cy) * 0.7;
+        if (d < bestD && d < 140) { bestD = d; best = g; }
+      });
+      return best;
+    }
+
+    function serveSeatedGuest(g, h) {
+      if (!g) return false;
+      const cx = h ? h.x + h.w / 2 : g.x;
+      const cy = h ? h.y + 8 : g.y - 10;
+      const wasImp = g.order === 'impatient';
+      const wasOrder = g.order === 'order' || g.order === 'wait';
+      if (!wasImp && !wasOrder && g.order !== 'happy') return false;
+      const mul = getTipMul();
+      let tip;
+      let kind;
+      if (wasImp) {
+        tip = Math.max(1, Math.round((1 + Math.floor(Math.random() * 2)) * mul * 0.75));
+        kind = 'order_late';
+        g.order = 'wait';
+        g.lastLine = '哼…總算嚟。';
+        setCaption('坐客略帶不悅，仍付少許賞銀');
+      } else {
+        tip = Math.max(1, Math.round((2 + Math.floor(Math.random() * 4)) * mul * (g.order === 'order' ? 1.25 : 1.05)));
+        kind = 'order_ok';
+        g.order = 'happy';
+        g.lastLine = pickSitLine('happy');
+        setCaption('坐客點菜滿意：「' + g.lastLine + '」');
+      }
+      g.patience = 0;
+      g.bubbleCd = 90;
+      tipBurst = { x: cx, y: cy, life: 28, max: 28, amt: tip };
+      floatLabel = { text: '+' + tip + '賞', x: cx - 8, y: cy - 12, life: 1 };
+      pushBubble(g.lastLine, g.x + 16, g.y - 36, 1.1);
+      if (tipHandler) tipHandler(tip, kind, { order: g.order, happy: !wasImp });
+      playHubSfx('serve');
+      return true;
     }
 
     /** 全日循環約 64 秒；夜間窗加長，方便睇到 lanterns_night */
@@ -1275,6 +1392,7 @@
       updateSceneEvent(now);
 
       maybeEmitAmbient(now);
+      updateSeatedGuests(now);
       updateXiaoer(now);
 
       if (phase === 'enter') {
@@ -1410,6 +1528,14 @@
         } else {
           drawFigure(ctx, g.x, g.y, { robe: g.robe, accent: C.gold, skin: C.skin, hair: C.inkSoft }, { scale: hubScaleFor('guest_sit') });
         }
+        // 點菜狀態小標（盤內色硬邊）
+        if (g.order === 'order') {
+          drawRect(ctx, g.x + 10, g.y - 22, 8, 8, C.gold);
+        } else if (g.order === 'impatient') {
+          drawRect(ctx, g.x + 10, g.y - 22, 8, 8, C.cinnabarBright);
+        } else if (g.order === 'happy') {
+          drawRect(ctx, g.x + 10, g.y - 22, 8, 8, C.jadeBright);
+        }
       });
 
       // 小二：idle／walk／serve／wipe（wipe＝幀 9–12，唔當 attack）
@@ -1537,6 +1663,8 @@
     let hitStop = 0;       // 命中停頓幀（凍結動畫推進）
     let screenFlash = 0;   // 全屏閃白
     let speedMul = 1;      // 對齊戰鬥速度：縮短動畫／hit-stop wall-clock
+    let bossIntro = null;  // v2.0 入場：{ name, emoji, bossId, t0, dur, onDone, done }
+    let bossIntroKeyBound = false;
 
     function setSpeedMul(mul) {
       let m = Number(mul);
@@ -1773,6 +1901,37 @@
       const atk = units.find((u) => u.id === evt.attackerId);
       const tgt = units.find((u) => u.id === evt.targetId);
 
+      if (evt.kind === 'combo' && atk) {
+        const dir = atk.side === 'ally' ? 1 : -1;
+        anims[atk.id] = { kind: 'lunge', t: 0, dur: scaleDur(56), dir: dir, ranged: false, reach: 72 };
+        const partner = evt.partnerId ? units.find(function (u) { return u.id === evt.partnerId; }) : null;
+        if (partner) {
+          anims[partner.id] = { kind: 'lunge', t: 0, dur: scaleDur(52), dir: dir, ranged: false, reach: 56 };
+          partner.flash = Math.max(partner.flash || 0, 16);
+        }
+        spawnBladeFx(atk, tgt, true, true);
+        fx.push({
+          kind: 'text', text: '合擊「' + (evt.skillName || '同心') + '」',
+          x: (tgt ? tgt.x : atk.x) - 28, y: (tgt ? tgt.y : atk.y) - 56,
+          life: scaleDur(55), max: scaleDur(55),
+          color: C.gold, strong: true
+        });
+        if (evt.breakMit) {
+          fx.push({
+            kind: 'text', text: '破防',
+            x: (tgt ? tgt.x : atk.x) + 8, y: (tgt ? tgt.y : atk.y) - 36,
+            life: scaleDur(40), max: scaleDur(40),
+            color: C.cinnabarBright, strong: true
+          });
+        }
+        screenFlash = Math.max(screenFlash, 8);
+        hitStop = Math.max(hitStop, scaleStop(14));
+        bumpCamera('mid'); // 減震維持：唔用 heavy
+        if (atk) atk.flash = Math.max(atk.flash || 0, 18);
+        if (tgt) tgt.flash = Math.max(tgt.flash || 0, 16);
+        return;
+      }
+
       // v0.8：讀招 telegraph
       if (evt.kind === 'windup' && atk) {
         const dir = atk.side === 'ally' ? 1 : -1;
@@ -1801,6 +1960,31 @@
           color: evt.skillName ? C.gold : C.mist,
           soft: true
         });
+        return;
+      }
+
+      if (evt.kind === 'combo_windup' && atk) {
+        const dir = atk.side === 'ally' ? 1 : -1;
+        anims[atk.id] = { kind: 'windup', t: 0, dur: scaleDur(56), dir: dir, ranged: false };
+        atk.flash = Math.max(atk.flash || 0, 16);
+        fx.push({
+          kind: 'text', text: '合擊「' + (evt.skillName || '同心') + '」',
+          x: atk.x - 24, y: atk.y - 52, life: scaleDur(50), max: scaleDur(50),
+          color: C.gold, strong: true
+        });
+        pushFxSheet('slash', atk.x + (dir > 0 ? 10 : -18), atk.y - 4, {
+          flip: dir < 0, dur: scaleDur(22), scale: 1.3
+        });
+        fx.push({ kind: 'burst', x: atk.x + 12, y: atk.y, life: scaleDur(28), max: scaleDur(28), color: C.gold });
+        if (evt.primary) {
+          fx.push({
+            kind: 'text', text: '來！',
+            x: 440, y: 120, life: scaleDur(36), max: scaleDur(36),
+            color: C.cinnabarBright, strong: true
+          });
+        }
+        hitStop = Math.max(hitStop, scaleStop(8));
+        bumpCamera('light');
         return;
       }
 
@@ -2720,6 +2904,122 @@
         ctx.globalAlpha = 1;
         ctx.restore();
       }
+      // v2.0 Boss 入場層（最頂）
+      if (bossIntro && !bossIntro.done) drawBossIntro(performance.now());
+    }
+
+    function finishBossIntro() {
+      if (!bossIntro || bossIntro.done) return;
+      bossIntro.done = true;
+      const cb = bossIntro.onDone;
+      bossIntro.onDone = null;
+      unbindBossIntroSkip();
+      // 短暫收尾再清
+      const kept = bossIntro;
+      setTimeout(function () {
+        if (bossIntro === kept) bossIntro = null;
+      }, 120);
+      if (typeof cb === 'function') {
+        try { cb(); } catch (e) { /* ignore */ }
+      }
+    }
+
+    function onBossIntroSkip(ev) {
+      if (!bossIntro || bossIntro.done) return;
+      if (ev) {
+        if (ev.type === 'keydown' && ev.key !== 'Escape' && ev.key !== 'Enter' && ev.key !== ' ') return;
+        if (ev.preventDefault) ev.preventDefault();
+      }
+      finishBossIntro();
+    }
+
+    function bindBossIntroSkip() {
+      if (bossIntroKeyBound) return;
+      bossIntroKeyBound = true;
+      document.addEventListener('keydown', onBossIntroSkip);
+      if (canvas) {
+        canvas.addEventListener('click', onBossIntroSkip);
+        canvas.addEventListener('pointerdown', onBossIntroSkip);
+      }
+    }
+
+    function unbindBossIntroSkip() {
+      if (!bossIntroKeyBound) return;
+      bossIntroKeyBound = false;
+      document.removeEventListener('keydown', onBossIntroSkip);
+      if (canvas) {
+        canvas.removeEventListener('click', onBossIntroSkip);
+        canvas.removeEventListener('pointerdown', onBossIntroSkip);
+      }
+    }
+
+    /** Boss 入場 1.5–2.5 秒；點擊／Esc 可 skip；完咗先 callback 開打 */
+    function playBossIntro(opts, onDone) {
+      opts = opts || {};
+      unbindBossIntroSkip();
+      const dur = Math.max(1500, Math.min(2500, opts.dur != null ? opts.dur : (1800 + Math.floor(Math.random() * 500))));
+      bossIntro = {
+        name: opts.name || 'Boss',
+        emoji: opts.emoji || '⚔️',
+        bossId: opts.id || opts.bossId || null,
+        t0: performance.now(),
+        dur: dur,
+        onDone: typeof onDone === 'function' ? onDone : null,
+        done: false
+      };
+      fx.push({
+        kind: 'text', text: '來了',
+        x: 430, y: 160, life: scaleDur(48), max: scaleDur(48),
+        color: C.cinnabarBright, strong: true
+      });
+      bindBossIntroSkip();
+      if (!running) startLoop();
+      return bossIntro;
+    }
+
+    function skipBossIntro() { finishBossIntro(); }
+    function isBossIntroPlaying() { return !!(bossIntro && !bossIntro.done); }
+
+    function drawBossIntro(now) {
+      if (!bossIntro || bossIntro.done) return;
+      const elapsed = now - bossIntro.t0;
+      const u = Math.min(1, elapsed / bossIntro.dur);
+      // 暗場
+      ctx.globalAlpha = 0.55 + (1 - u) * 0.2;
+      drawRect(ctx, 0, 0, W, H, C.night);
+      ctx.globalAlpha = 1;
+      // 剪影放大（用 Boss sheet 或色塊）
+      const scale = 0.75 + u * 0.55;
+      const cx = 480;
+      const cy = 250;
+      let drew = false;
+      const bid = bossIntro.bossId;
+      const img = bid && Assets.bosses ? Assets.bosses[bid] : null;
+      if (img) {
+        const native = img.height || 64;
+        const frames = Math.max(1, Math.round(img.width / native));
+        const fi = Math.min(frames - 1, 1); // windup 感
+        const dw = native * CHAR_SCALE_64 * scale;
+        const dh = native * CHAR_SCALE_64 * scale;
+        ctx.imageSmoothingEnabled = false;
+        ctx.globalAlpha = 0.85 + u * 0.15;
+        ctx.drawImage(img, fi * native, 0, native, native, cx - dw / 2, cy - dh / 2, dw, dh);
+        ctx.globalAlpha = 1;
+        drew = true;
+      }
+      if (!drew) {
+        const s = Math.round(48 * scale);
+        drawRect(ctx, cx - s / 2, cy - s / 2, s, s, C.ink);
+        drawRect(ctx, cx - s / 2 + 4, cy - s / 2 + 4, s - 8, s - 8, C.blood);
+      }
+      // 名稱牌
+      const label = (bossIntro.emoji ? bossIntro.emoji + ' ' : '') + bossIntro.name;
+      const lw = Math.min(360, 40 + label.length * 14);
+      drawRect(ctx, cx - lw / 2, 360, lw, 28, C.ink);
+      drawRect(ctx, cx - lw / 2 + 3, 363, lw - 6, 22, C.blood);
+      drawPixelText(ctx, label, cx - lw / 2 + 12, 368, C.cream);
+      drawPixelText(ctx, u < 0.85 ? '來了…（點擊／Esc 跳過）' : '接招！', cx - 90, 400, C.gold);
+      if (elapsed >= bossIntro.dur) finishBossIntro();
     }
 
     function resetIdle() {
@@ -2731,10 +3031,18 @@
       zoomPulse = 0;
       hitStop = 0;
       screenFlash = 0;
+      unbindBossIntroSkip();
+      bossIntro = null;
       if (wrapEl) wrapEl.style.transform = '';
     }
 
-    return { mount, destroy, isMounted, sync, playAction, resetIdle, setSpeedMul, getSpeedMul, setPaused, isPaused: function () { return pagePaused; }, W, H };
+    return {
+      mount, destroy, isMounted, sync, playAction, resetIdle,
+      setSpeedMul, getSpeedMul, setPaused,
+      isPaused: function () { return pagePaused; },
+      playBossIntro, skipBossIntro, isBossIntroPlaying,
+      W, H
+    };
   })();
 
   global.WuxiaStages = {

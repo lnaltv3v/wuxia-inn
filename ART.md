@@ -1,6 +1,8 @@
 # 俠客棧美術規範 — 墨點江湖（Ink-Pixel Inn）
 
-> **v1.9**：無新 sheet；UI 文案／footer 提示。本輪開發暫停。
+> **v2.0**：四俠精靈 **r3** 密度精修（衣褶／腰帶／靴底影；幀布局不變）已覆寫正式 `qingyi`／`tiezhang`／`langren`／`qinshi`；備份 `*_prev_r2.png`；草稿 `*_r3.png`；載入 `?v=r3`。閒暇可做 r3.1 劍穗／甲片。合擊／Boss 入場／坐客用既有 VFX／剪影，無新 sheet。
+
+> **v1.9**：無新 sheet；UI 文案／footer 提示。
 
 > **v1.8**：無新 sheet；文案／橫屏提示 UI 微調。音效仍暫緩。
 
@@ -93,7 +95,7 @@
 ## 精靈表幀語意（v0.9 · 接線自 v0.8.1）
 
 > **v0.9 精修交付**：`qingyi`／`langren` 已推倒重畫；**r2** 加大姿勢差／判定幀可讀（見 `assets/sprites/64/README.md`、`_gen_report_v09.txt`）。
-> **v1.2.0**：`tiezhang`／`qinshi` 正式精修覆寫（`gen_sprites_64_v11.py`、`_gen_report_v11`、compare 預覽）；**唔動** qingyi／langren。遊戲載入 `assets/sprites/64/?v=` + GAME.version。
+> **v1.2.0**：`tiezhang`／`qinshi` 正式精修覆寫（`gen_sprites_64_v11.py`、`_gen_report_v11`、compare 預覽）；**唔動** qingyi／langren。遊戲載入 `assets/sprites/64/?v=` + GAME.version；四俠另加 `r3` 戳（v2.0）。
 
 18 幀橫表（64×64／幀，1152×64）：
 

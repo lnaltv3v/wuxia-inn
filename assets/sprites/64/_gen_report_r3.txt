@@ -1,0 +1,126 @@
+# r3 hero density draft report
+
+## qingyi_r3
+path: /workspace/wuxia-inn/assets/sprites/64/qingyi_r3.png
+size: (1152, 64)
+oob: 0 idle0_visible 1543→1645 (Δ102)
+palette_used (18): #1A1510, #2A2218, #2A6A6A, #3D3226, #4A9A9A, #5A4A32, #5C4030, #8B2942, #8B6914, #B8860B, #C09070, #C42B2B, #C9A227, #D4BC8A, #E8C4A0, #E8D5A8, #F4E6C4, #FFF8EE
+  00 idle0: visible=1645
+  01 idle1: visible=1636
+  02 walk0: visible=1648
+  03 walk1: visible=1677
+  04 walk2: visible=1577
+  05 walk3: visible=1615
+  06 windup0: visible=1615
+  07 windup1: visible=1503
+  08 windup2: visible=1398
+  09 strike0: visible=1534
+  10 strike1: visible=1611
+  11 strike2: visible=1596
+  12 strike3: visible=1497
+  13 hurt0: visible=1620
+  14 hurt1: visible=1433
+  15 parry0: visible=1641
+  16 parry1: visible=1674
+  17 parry2: visible=1544
+
+## langren_r3
+path: /workspace/wuxia-inn/assets/sprites/64/langren_r3.png
+size: (1152, 64)
+oob: 0 idle0_visible 1702→1789 (Δ87)
+palette_used (13): #1A1510, #2A2218, #3D3226, #5A4A32, #5C4030, #8A7A60, #8B2942, #8B6914, #A61B1B, #C09070, #C42B2B, #C9A227, #FFF8EE
+  00 idle0: visible=1789
+  01 idle1: visible=1765
+  02 walk0: visible=1755
+  03 walk1: visible=1800
+  04 walk2: visible=1695
+  05 walk3: visible=1743
+  06 windup0: visible=1672
+  07 windup1: visible=1548
+  08 windup2: visible=1426
+  09 strike0: visible=1635
+  10 strike1: visible=1730
+  11 strike2: visible=1697
+  12 strike3: visible=1609
+  13 hurt0: visible=1700
+  14 hurt1: visible=1460
+  15 parry0: visible=1748
+  16 parry1: visible=1776
+  17 parry2: visible=1591
+
+## tiezhang_r3
+path: /workspace/wuxia-inn/assets/sprites/64/tiezhang_r3.png
+size: (1152, 64)
+oob: 0 idle0_visible 1593→1647 (Δ54)
+palette_used (19): #1A1510, #2A2218, #2F6B4F, #3D3226, #3D8F66, #5A4A32, #5C4030, #8B2942, #8B6914, #A04040, #A61B1B, #B8860B, #C09070, #C42B2B, #C9A227, #E8C4A0, #E8D5A8, #F4E6C4, #FFF8EE
+  00 idle0: visible=1647
+  01 idle1: visible=1645
+  02 walk0: visible=1672
+  03 walk1: visible=1701
+  04 walk2: visible=1570
+  05 walk3: visible=1626
+  06 windup0: visible=1773
+  07 windup1: visible=1676
+  08 windup2: visible=1560
+  09 strike0: visible=1699
+  10 strike1: visible=1776
+  11 strike2: visible=1723
+  12 strike3: visible=1586
+  13 hurt0: visible=1693
+  14 hurt1: visible=1521
+  15 parry0: visible=1769
+  16 parry1: visible=1785
+  17 parry2: visible=1589
+
+## qinshi_r3
+path: /workspace/wuxia-inn/assets/sprites/64/qinshi_r3.png
+size: (1152, 64)
+oob: 0 idle0_visible 1628→1683 (Δ55)
+palette_used (18): #1A1510, #2A2218, #3D3226, #5A4060, #5A4A32, #5C4030, #8B2942, #8B6914, #A61B1B, #B8860B, #C09070, #C42B2B, #C9A227, #D4BC8A, #E8C4A0, #E8D5A8, #F4E6C4, #FFF8EE
+  00 idle0: visible=1683
+  01 idle1: visible=1654
+  02 walk0: visible=1657
+  03 walk1: visible=1683
+  04 walk2: visible=1623
+  05 walk3: visible=1623
+  06 windup0: visible=1730
+  07 windup1: visible=1575
+  08 windup2: visible=1438
+  09 strike0: visible=1750
+  10 strike1: visible=1781
+  11 strike2: visible=1734
+  12 strike3: visible=1611
+  13 hurt0: visible=1499
+  14 hurt1: visible=1321
+  15 parry0: visible=1655
+  16 parry1: visible=1717
+  17 parry2: visible=1613
+
+untouched_ok: qingyi
+untouched_ok: langren
+untouched_ok: tiezhang
+untouched_ok: qinshi
+untouched_ok: xiaoer
+untouched_ok: guest_sit
+untouched_ok: guest_walk
+untouched_ok: boss_heifeng_combat
+untouched_ok: boss_xieyi_combat
+untouched_ok: boss_xueying_combat
+untouched_ok: enemy_charge
+untouched_ok: enemy_kite
+untouched_ok: enemy_melee
+TOTAL_OOB=0
+
+## density changes
+- robe_folds / sleeve_folds / hem: denser 1–2px hard lines
+- belt thicker + dual hang tags; shoe sole/heel; bracers on idle
+- qingyi/langren hip scabbard; tiezhang pouch clasp; qinshi whisk hair + beads
+- hard_shadow under feet (NIGHT/INK_SOFT blocks, no blur)
+
+## weaknesses
+- hip scabbard on idle/walk/hurt/parry can stack over sleeve pixels
+- bracer overlay on idle/windup/parry can sit atop drawn sleeves awkwardly
+- faces still minimal (ART.md: no nose/hair strands)
+- idle Δ visible +54..+102 vs r2/v1.1; combat frames denser via recolor folds more than new pixels
+- still short of full 《大俠立志傳》 prop clutter; next pass could add side-pouch straps / sword tassel / more armor plates
+

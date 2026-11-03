@@ -1,5 +1,7 @@
 # 精靈表 64×64（原生）— 墨點江湖
 
+
+> **r3 已整合（正式檔）**：`qingyi.png`／`tiezhang.png`／`langren.png`／`qinshi.png` 已由 `*_r3.png` 覆蓋；舊版備份 `*_prev_r2.png`。草稿 `*_r3.png` 仍保留對照。劍穗／甲片留 r3.1。
 > 原生像素 · 僅盤內色 · 透明底 · 硬邊無抗鋸齒  
 > **唔係** 32 版 nearest 放大。
 
@@ -7,10 +9,10 @@
 
 | 檔 | 尺寸 | 狀態 | 生成腳本 |
 |----|------|------|----------|
-| `qingyi.png` | **1152×64** | **v0.9 r2 精修**（姿勢差加大／判定幀；遊戲 `?v=0.9.1` cache bust） | `tools/gen_sprites_64_v09.py` |
-| `langren.png` | **1152×64** | **v0.9 r2 精修**（姿勢差加大／判定幀；遊戲 `?v=0.9.1` cache bust） | `tools/gen_sprites_64_v09.py` |
-| `tiezhang.png` | **1152×64** | **v1.1→v1.2 正式精修（震掌／藥囊）** | `tools/gen_sprites_64_v11.py` |
-| `qinshi.png` | **1152×64** | **v1.1→v1.2 正式精修（拂塵／梵紫）** | `tools/gen_sprites_64_v11.py` |
+| `qingyi.png` | **1152×64** | **v2.0 r3 正式**（密度：衣褶／腰帶／靴底影；`?v=r3`） | `tools/gen_sprites_64_r3.py` |
+| `langren.png` | **1152×64** | **v2.0 r3 正式**（密度：衣褶／腰帶／靴底影；`?v=r3`） | `tools/gen_sprites_64_r3.py` |
+| `tiezhang.png` | **1152×64** | **v2.0 r3 正式**（密度：藥囊扣／護腕／密褶；`?v=r3`） | `tools/gen_sprites_64_r3.py` |
+| `qinshi.png` | **1152×64** | **v2.0 r3 正式**（密度：拂塵毛束／念珠／密褶；`?v=r3`） | `tools/gen_sprites_64_r3.py` |
 | `xiaoer.png` | **1152×64** | **v1.3 精修（serve／wipe）** | `tools/gen_sprites_64_v13.py` |
 | `guest_sit.png` | **384×64** | **v1.3 精修（6 色坐姿）** | `tools/gen_sprites_64_v13.py` |
 | `guest_walk.png` | **3072×64** | **v1.3 新增（6×8 walk／入座）** | `tools/gen_sprites_64_v13.py` |
@@ -129,4 +131,19 @@ ctx.drawImage(sheet, sx, 0, FRAME, FRAME, dx, dy, FRAME, FRAME);
 ```
 
 生成：`tools/gen_sprites_64_v14.py` · 報告：`_gen_report_v14.txt`
+
+## r3 草稿對照（已覆寫正式檔；草稿保留）
+
+四俠提高像素密度草稿（對齊《大俠立志傳》資訊量級，**唔抄立繪**）。  
+**尚未覆寫** 正式 `qingyi.png`／`langren.png`／`tiezhang.png`／`qinshi.png`——等開發整合。
+
+| 草稿檔 | 尺寸 | 說明 |
+|--------|------|------|
+| `qingyi_r3.png` | 1152×64 | 青衫劍客＋鞘／護腕／密褶 |
+| `langren_r3.png` | 1152×64 | 浪人寬刀＋鞘／甲釘／密褶 |
+| `tiezhang_r3.png` | 1152×64 | 鐵掌藥囊扣／護腕／密褶 |
+| `qinshi_r3.png` | 1152×64 | 拂塵毛束加密＋念珠／密褶 |
+
+- 對幀不變；生成：`tools/gen_sprites_64_r3.py`
+- 報告：`_gen_report_r3.txt`；預覽：`assets/_preview/64_*_r3_compare.png`
 
