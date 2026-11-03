@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v1.5.0：成就領獎／結算卡／敵人剪影接入／guest_walk 64／養成泡泡／Hub v2.1／960×540）
+ * 俠客棧 — 墨點江湖舞台（v1.6.0：成就領獎／結算卡／敵人剪影接入／guest_walk 64／養成泡泡／Hub v2.1／960×540）
  * Hub 面板開仍呼吸；熱點墨框／硃標；戰鬥 shake 下調；招名飄字；戰場分層
  */
 (function (global) {
@@ -386,6 +386,8 @@
     let wrapEl = null;
     let raf = 0;
     let running = false;
+    let pagePaused = false;
+    let loopGen = 0;
     let phase = 'idle';
     let t0 = 0;
     let guestName = '過路客';
@@ -472,6 +474,7 @@
     function mount(host) {
       if (!host) return;
       if (canvas && canvas.isConnected && running && host.contains(canvas.closest('.stage-wrap') || canvas)) {
+        if (!pagePaused) startLoop();
         return;
       }
       host.innerHTML = '';
@@ -495,15 +498,38 @@
       canvas.addEventListener('pointerup', onPointerUp);
       canvas.addEventListener('pointercancel', onPointerCancel);
       canvas.addEventListener('touchstart', onTouch, { passive: false });
-      cancelAnimationFrame(raf);
       seedSeated();
-      loop(performance.now());
+      startLoop();
       if (phase === 'idle' && queue.length) startNext();
+    }
+
+    function setPaused(paused) {
+      pagePaused = !!paused;
+      if (!pagePaused && running) startLoop();
+    }
+
+    function startLoop() {
+      cancelAnimationFrame(raf);
+      raf = 0;
+      if (!running || pagePaused) return;
+      const gen = ++loopGen;
+      function frame(now) {
+        if (gen !== loopGen) return;
+        raf = 0;
+        if (!running || pagePaused || !ctx || !canvas || !canvas.isConnected) return;
+        loopBody(now);
+        if (running && !pagePaused && gen === loopGen) {
+          raf = requestAnimationFrame(frame);
+        }
+      }
+      raf = requestAnimationFrame(frame);
     }
 
     function destroy() {
       running = false;
+      loopGen += 1;
       cancelAnimationFrame(raf);
+      raf = 0;
       if (canvas) {
         canvas.removeEventListener('mousemove', onMove);
         canvas.removeEventListener('click', onClick);
@@ -1226,9 +1252,8 @@
       });
     }
 
-    function loop(now) {
+    function loopBody(now) {
       if (!running || !ctx || !canvas || !canvas.isConnected) return;
-      raf = requestAnimationFrame(loop);
       const elapsed = now - t0;
       idleBlink = (idleBlink + 1) % 90;
       walkerPhase = (walkerPhase + 1) % 240;
@@ -1476,6 +1501,7 @@
       mount, destroy, isMounted, playGuest, enqueueGuest,
       setHotspotHandler, setSelectedHotspot, setEmptyClickHandler, setTipHandler, setAmbientHeroes, setInnTitle,
       setAmbientChange, isNight, getTipMul, dayPhaseName, setRumor, greetXiaoer, showBubble, playSceneEvent, resolveSceneChoice, setHintHandler, setChoiceHandler,
+      setPaused, isPaused: function () { return pagePaused; },
       HOTSPOTS, getPhase: function () { return phase; },
       isScenePlaying: function () { return !!(sceneEvt && !sceneEvt.done); }
     };
@@ -1493,6 +1519,8 @@
     let wrapEl = null;
     let raf = 0;
     let running = false;
+    let pagePaused = false;
+    let loopGen = 0;
     let units = [];
     let fx = [];
     let shake = 0;
@@ -1574,6 +1602,7 @@
     function mount(host) {
       if (!host) return;
       if (canvas && canvas.isConnected && running && host.contains(canvas.closest('.stage-wrap') || canvas)) {
+        if (!pagePaused) startLoop();
         return;
       }
       const existing = host.querySelector('.combat-stage-wrap canvas.px-stage');
@@ -1583,14 +1612,13 @@
         ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = false;
         running = true;
-        cancelAnimationFrame(raf);
-        loop();
+        startLoop();
         return;
       }
       host.innerHTML = '';
       wrapEl = document.createElement('div');
       wrapEl.className = 'stage-wrap combat-stage-wrap';
-      wrapEl.innerHTML = '<canvas class="px-stage" width="960" height="540" aria-label="戰鬥舞台"></canvas>';
+      wrapEl.innerHTML = '<canvas class="px-stage" width="960" height="540" aria-label="戰鬥舞台" tabindex="0"></canvas>';
       host.appendChild(wrapEl);
       canvas = wrapEl.querySelector('canvas');
       ctx = canvas.getContext('2d');
@@ -1600,13 +1628,36 @@
       fx = [];
       shake = 0;
       anims = {};
+      startLoop();
+    }
+
+    function setPaused(paused) {
+      pagePaused = !!paused;
+      if (!pagePaused && running) startLoop();
+    }
+
+    function startLoop() {
       cancelAnimationFrame(raf);
-      loop();
+      raf = 0;
+      if (!running || pagePaused) return;
+      const gen = ++loopGen;
+      function frame() {
+        if (gen !== loopGen) return;
+        raf = 0;
+        if (!running || pagePaused || !ctx || !canvas || !canvas.isConnected) return;
+        loopBody();
+        if (running && !pagePaused && gen === loopGen) {
+          raf = requestAnimationFrame(frame);
+        }
+      }
+      raf = requestAnimationFrame(frame);
     }
 
     function destroy() {
       running = false;
+      loopGen += 1;
       cancelAnimationFrame(raf);
+      raf = 0;
       canvas = null;
       ctx = null;
       wrapEl = null;
@@ -2510,9 +2561,8 @@
       }
     }
 
-    function loop() {
+    function loopBody() {
       if (!running || !ctx || !canvas || !canvas.isConnected) return;
-      raf = requestAnimationFrame(loop);
       tick += 1;
 
       const frozen = hitStop > 0;
@@ -2678,7 +2728,7 @@
       if (wrapEl) wrapEl.style.transform = '';
     }
 
-    return { mount, destroy, isMounted, sync, playAction, resetIdle, setSpeedMul, getSpeedMul, W, H };
+    return { mount, destroy, isMounted, sync, playAction, resetIdle, setSpeedMul, getSpeedMul, setPaused, isPaused: function () { return pagePaused; }, W, H };
   })();
 
   global.WuxiaStages = {

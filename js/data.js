@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v1.5.0
+ * v1.6.0
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '1.5.0',
+    version: '1.6.0',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -130,7 +130,9 @@
     { id: 'meet_ledger', kind: 'meet', weight: 5, text: '行商盯著算盤：「這棧的帳，乾脆。」', heroHint: null },
     { id: 'tip_teahouse', kind: 'tip', weight: 12, text: '雅座茶香對味，客官多賞了幾兩。', tipMin: 2, tipMax: 7, preferBoost: true },
     { id: 'meet_teahouse', kind: 'meet', weight: 5, text: '茶寮客輕歎：「這茶寮一開，才像個江湖棧。」', heroHint: null },
-    { id: 'hard_phase', kind: 'difficult', weight: 7, text: '客官嫌時辰不對，語氣僵硬，少付了錢。', cutMin: 1, cutMax: 3 }
+    { id: 'hard_phase', kind: 'difficult', weight: 7, text: '客官嫌時辰不對，語氣僵硬，少付了錢。', cutMin: 1, cutMax: 3 },
+    { id: 'tip_odd_mask', kind: 'tip', weight: 4, text: '蒙面奇客留一錠碎銀作「茶錢」，不留名。', tipMin: 5, tipMax: 12 },
+    { id: 'meet_odd_story', kind: 'meet', weight: 4, text: '說書奇客拍扇：「今夜有本棧新段子！」', heroHint: null }
   ];
 
   /**
@@ -460,6 +462,78 @@
         { at: 0, caption: '邊關急腳報：怪風再起', line: '哨站要人！', walker: 1, life: 1.2 },
         { at: 900, line: '傷藥我備了半囊。', walker: 0, life: 1.15 },
         { at: 1800, line: '出巡勝仗，邊關另有犒賞。', walker: 1, life: 1.0, end: true }
+      ]
+    },
+    {
+      id: 'odd_mask_guest',
+      caption: '奇客：蒙面人落座…',
+      interactive: true,
+      weight: 26,
+      walkers: [
+        { id: 'xiaoer', x: 420, y: 330, tx: 300, ty: 340 },
+        { id: 'langren', x: 80, y: 350, tx: 200, ty: 348 }
+      ],
+      beats: [
+        { at: 0, caption: '斗笠遮臉，只有一雙銳眼', line: '掌櫃，一壺熱酒，不問名。', x: 240, y: 260, life: 1.3 },
+        { at: 1000, line: '這位客官……眼神不像善類。', walker: 0, life: 1.15 },
+        { at: 1900, line: '江湖人各有隱情。你怎麼處置？', walker: 1, life: 1.2 },
+        { at: 2700, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'serve_quiet',
+          label: '照常接待（＋少銀 · 望）',
+          effects: { silver: 12, reputation: 2 },
+          resultLine: '蒙面人飲盡一盞，留下碎銀與一句「有燈處便有路」，飄然離去。'
+        },
+        {
+          id: 'ask_gently',
+          label: '輕聲詢來意（好感浪人）',
+          effects: { silver: 6, reputation: 4, favorHero: 'langren', favor: 3 },
+          resultLine: '他略一頓：「黑風餘黨在查燈火。小心。」浪人握刀點頭。'
+        },
+        {
+          id: 'refuse_odd',
+          label: '婉拒留宿（穩）',
+          effects: { reputation: 1 },
+          resultLine: '蒙面人拱手：「無妨。」轉身沒入夜色，小二鬆了口氣。'
+        }
+      ]
+    },
+    {
+      id: 'odd_storyteller',
+      caption: '奇客：說書人開場…',
+      interactive: true,
+      weight: 24,
+      walkers: [
+        { id: 'qinshi', x: 520, y: 340, tx: 400, ty: 350 },
+        { id: 'xiaoer', x: 280, y: 360, tx: 340, ty: 352 }
+      ],
+      beats: [
+        { at: 0, caption: '折扇一響，滿座側耳', line: '今日不說帝王，說這盞俠客燈！', x: 420, y: 240, life: 1.35 },
+        { at: 1100, line: '……把本棧編進去了？', walker: 1, life: 1.15 },
+        { at: 2000, line: '梵音亦可助興。掌櫃可願加賞？', walker: 0, life: 1.2 },
+        { at: 2800, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'sponsor_tale',
+          label: '打賞開講（-15 兩 · ＋望）',
+          effects: { silver: -15, reputation: 8, favorHero: 'qinshi', favor: 2 },
+          resultLine: '說書人聲若洪鐘，過路客紛紛駐足。本棧聲名又遠了半分。'
+        },
+        {
+          id: 'free_seat',
+          label: '免茶錢請說（＋望少 · 好感）',
+          effects: { reputation: 4, favorHero: 'qinshi', favor: 3, silver: 4 },
+          resultLine: '師太拂塵微笑。說書人改口：「燈火長明——便是今日主角。」'
+        },
+        {
+          id: 'cut_short',
+          label: '請改日再來（平）',
+          effects: { silver: 2 },
+          resultLine: '說書人呵呵收扇：「江湖路長，改日見。」小二偷笑：改日見。'
+        }
       ]
     }
   ];

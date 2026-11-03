@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v1.5.0：雙人羈絆／招募抵達／圖鑑摘要）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v1.6.0：存檔匯出匯入／rAF 暫停／奇客／無障礙）
  */
 (function () {
   'use strict';
@@ -18,6 +18,7 @@
 
   let state = null;
   let tickTimer = null;
+  let tickPaused = false;
   let battle = null;
   let saveFlashUntil = 0;
   let activeTab = 'hub';
@@ -814,6 +815,63 @@
     renderAll();
   }
 
+  function exportSaveText() {
+    try {
+      save(true);
+      const payload = {
+        _meta: { app: 'wuxia-inn', exportedAt: new Date().toISOString(), version: GAME.version },
+        state: state
+      };
+      return JSON.stringify(payload, null, 2);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function importSaveText(raw) {
+    if (!raw || typeof raw !== 'string') return { ok: false, error: '空白內容' };
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch (e) {
+      return { ok: false, error: 'JSON 解析失敗' };
+    }
+    // 兼容：整包 {state} 或直接存檔物件
+    let src = data;
+    if (data && data.state && typeof data.state === 'object') src = data.state;
+    if (!src || typeof src !== 'object' || typeof src.silver !== 'number') {
+      return { ok: false, error: '唔似俠客棧存檔（缺 silver）' };
+    }
+    if (battle) {
+      try { battle.stop(); } catch (e) { /* ignore */ }
+      battle = null;
+    }
+    state = migrate(src);
+    ensureQuestBoard(false);
+    save(true);
+    pushLog('已匯入存檔（v' + (state.version || '?') + '）。', 'system');
+    showUiToast('💾 匯入', '存檔已套用', 'system');
+    renderAll();
+    return { ok: true };
+  }
+
+  function copyTextToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function () { return true; }).catch(function () { return false; });
+    }
+    return Promise.resolve(false);
+  }
+
+  function setWorldPaused(paused) {
+    const on = !!paused;
+    tickPaused = on;
+    if (globalThis.WuxiaStages) {
+      if (WuxiaStages.Inn && WuxiaStages.Inn.setPaused) WuxiaStages.Inn.setPaused(on);
+      if (WuxiaStages.Combat && WuxiaStages.Combat.setPaused) WuxiaStages.Combat.setPaused(on);
+    }
+    if (battle && typeof battle.setPaused === 'function') battle.setPaused(on);
+  }
+
   // ——— 據點被動收入 ———
   function processOutpostIncome() {
     let gained = 0;
@@ -1166,6 +1224,7 @@
   }
 
   function gameTick() {
+    if (tickPaused) return;
     if (battle) {
       settleQuests();
       syncDayPhaseChip();
@@ -3367,14 +3426,57 @@
       <div class="log-list">${state.log.map((e) =>
         `<div class="log-line ${e.kind}"><span class="t">${e.t}</span>${e.msg}</div>`
       ).join('') || '<p class="muted">尚無記錄</p>'}</div>
-      <div class="btn-row">
-        <button class="btn" id="btn-save">手動存檔</button>
-        <button class="btn danger" id="btn-reset">重置進度</button>
+      <div class="card panel-block save-io">
+        <header class="panel-sec">
+          <h3>💾 存檔匯出／匯入</h3>
+          <p class="muted panel-lead">JSON 文字可複製備份；匯入會覆蓋目前進度。</p>
+        </header>
+        <label class="sr-only" for="save-io-text">存檔 JSON</label>
+        <textarea id="save-io-text" class="save-io-text" rows="6" spellcheck="false" aria-label="存檔 JSON 文字"></textarea>
+        <div class="btn-row">
+          <button type="button" class="btn" id="btn-save">手動存檔</button>
+          <button type="button" class="btn primary" id="btn-export-save">匯出到框</button>
+          <button type="button" class="btn" id="btn-copy-save">複製</button>
+          <button type="button" class="btn" id="btn-import-save">由框匯入</button>
+          <button type="button" class="btn danger" id="btn-reset" aria-label="重置進度，需兩次確認">新遊戲／重置</button>
+        </div>
+        <p class="muted small" id="save-io-status" aria-live="polite"></p>
       </div>
     </div>`;
-    $('btn-save').onclick = () => { save(); pushLog('手動存檔完成。', 'system'); };
+    const statusEl = $('save-io-status');
+    const ioText = $('save-io-text');
+    function setIoStatus(msg) { if (statusEl) statusEl.textContent = msg || ''; }
+    $('btn-save').onclick = () => { save(); pushLog('手動存檔完成。', 'system'); setIoStatus('已手動存檔'); };
+    $('btn-export-save').onclick = () => {
+      const text = exportSaveText();
+      if (!text || !ioText) { setIoStatus('匯出失敗'); return; }
+      ioText.value = text;
+      setIoStatus('已匯出 JSON（' + text.length + ' 字）');
+      showUiToast('💾 匯出', '存檔已寫入文字框', 'system');
+    };
+    $('btn-copy-save').onclick = () => {
+      const text = (ioText && ioText.value) || exportSaveText();
+      if (!text) { setIoStatus('無可複製內容'); return; }
+      if (ioText && !ioText.value) ioText.value = text;
+      copyTextToClipboard(text).then(function (ok) {
+        if (ok) setIoStatus('已複製到剪貼簿');
+        else {
+          if (ioText) { ioText.focus(); ioText.select(); }
+          setIoStatus('請手動 Ctrl/⌘+C 複製');
+        }
+      });
+    };
+    $('btn-import-save').onclick = () => {
+      if (!ioText || !ioText.value.trim()) { setIoStatus('請先貼上 JSON'); return; }
+      if (!confirm('匯入會覆蓋目前進度，確定？')) return;
+      const res = importSaveText(ioText.value);
+      setIoStatus(res.ok ? '匯入成功' : ('匯入失敗：' + (res.error || '')));
+    };
     $('btn-reset').onclick = () => {
-      if (confirm('確定要重置所有進度？')) resetGame();
+      if (!confirm('開新遊戲會清空本地進度，確定？')) return;
+      if (!confirm('最後確認：此操作唔可復原。真係重置？')) return;
+      resetGame();
+      setIoStatus('已重置為新遊戲');
     };
   }
 
@@ -3513,8 +3615,11 @@
     setInterval(() => { updateTopbar(); save(true); refreshHubBgm(false); }, 15000);
 
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) save(true);
-      else {
+      if (document.hidden) {
+        setWorldPaused(true);
+        save(true);
+      } else {
+        setWorldPaused(false);
         applyOffline();
         renderAll();
         refreshHubBgm(false);

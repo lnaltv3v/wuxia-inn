@@ -299,15 +299,26 @@
     let finished = false;
     let result = null;
     let holdTicks = 0;
+    let paused = false;
 
     function effectiveTickMs() {
       return Math.max(120, Math.round(baseTickMs / speedMul));
     }
 
     function restartTimer() {
-      if (!timer) return;
-      clearInterval(timer);
+      if (timer) clearInterval(timer);
+      timer = null;
+      if (paused || finished) return;
       timer = setInterval(step, effectiveTickMs());
+    }
+
+    function setPaused(p) {
+      paused = !!p;
+      if (paused) {
+        if (timer) { clearInterval(timer); timer = null; }
+      } else if (!finished) {
+        restartTimer();
+      }
     }
 
     function log(msg, kind) {
@@ -1053,6 +1064,7 @@
 
     function start() {
       if (timer) return;
+      paused = false;
       finished = false;
       result = null;
       turn = 0;
@@ -1096,7 +1108,9 @@
       setSpeed: setSpeed,
       getSpeed: getSpeed,
       getUnits: function () { return units; },
-      isFinished: function () { return finished; }
+      isFinished: function () { return finished; },
+      setPaused: setPaused,
+      isPaused: function () { return paused; }
     };
   }
 

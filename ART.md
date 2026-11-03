@@ -1,5 +1,7 @@
 # 俠客棧美術規範 — 墨點江湖（Ink-Pixel Inn）
 
+> **v1.6**：無新角色 sheet；奇客事件沿用既有 walker／語音泡。音效仍暫緩。
+
 > **v1.5**：CombatStage 短表（敵人／Boss 256×64）跟 combatState 播幀 0 idle｜1 windup｜2 strike｜3 hurt（唔再永遠 sx=0）。
 
 > **v1.4**：`enemy_melee`／`enemy_kite`／`enemy_charge`（各 256×64＝4 幀 idle／windup／strike／hurt）；Boss `*_combat` 同規格精修。`guest_walk` 正式 **3072×64**（absIndex=guestIndex×8+local）。唔覆蓋四俠 sheet。
