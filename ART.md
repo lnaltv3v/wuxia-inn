@@ -1,6 +1,6 @@
 # 俠客棧美術規範 — 墨點江湖（Ink-Pixel Inn）
 
-> 版本：v0.7.0 · 獨有風格體系，**禁止**混用《大俠立志傳》高清像素立繪、照片級插畫、或不同解析度素材。
+> 版本：v0.7.1 · 獨有風格體系，**禁止**混用《大俠立志傳》高清像素立繪、照片級插畫、或不同解析度素材。
 
 ## 風格名
 **墨點江湖**（英文：**Ink-Pixel Inn**）
@@ -15,7 +15,7 @@
 | 頭像小／大 | 同上 | 40×40 / 72×72 | 僅整數倍顯示變體 |
 | 客棧 banner／場景 | **320×180** 邏輯格（舊） | 寬滿欄 | `shape-rendering: crispEdges` |
 | **客棧 Hub 主場景** | **960×540**（v2.0 起原生；舊 480×270×2） | 寬滿主欄、最大高度約 72vh | Canvas `image-rendering: pixelated`；場景熱點互動 |
-| **戰鬥舞台** | **400×180** 邏輯格 | overlay 內清晰放大（約 max 52vh） | Canvas pixelated；多幀攻受／招架／軌跡 |
+| **戰鬥舞台** | **960×540**（v0.7.1 起原生；對齊 Hub） | overlay 寬滿、最大高度約 72vh | Canvas `image-rendering: pixelated`；角色 64×2；多幀攻受／招架／軌跡 |
 | UI 圖示框 | 概念 16×16 | ~1.45em 方框 | 直角邊框，無圓角 |
 
 - 全站 `image-rendering: pixelated`（含 `-moz-crisp-edges`／`crisp-edges` 後備）。

@@ -161,7 +161,7 @@
     const base = defaultState();
     const s = Object.assign({}, base, raw);
     s.version = GAME.version;
-    // v0.6.2+ 戰鬥速度存檔（0.5–2，每 0.5）；meleeRange=24 為常數唔入存檔
+    // v0.6.2+ 戰鬥速度存檔（0.5–2，每 0.5）；meleeRange 為常數唔入存檔（v0.7.1 起 960 場≈58）
     {
       const speeds = (GAME.combatSpeeds || [0.5, 1, 1.5, 2]);
       let sp = Number(s.combatSpeed);
@@ -2513,7 +2513,7 @@
     el.innerHTML = `
       <div class="card battle-card stage-first">
         <h3>${pxIcon('🗡️')} 戰場舞台</h3>
-        <p class="muted tiny-tip">400×180 像素舞台：貼身交鋒、撞刃 clash、擊退彈回。上方可調 0.5×–2× 戰鬥速度（記住偏好）。</p>
+        <p class="muted tiny-tip">960×540 像素舞台：貼身交鋒、撞刃 clash、擊退彈回。上方可調 0.5×–2× 戰鬥速度（記住偏好）。</p>
         <div id="combat-stage-host" class="stage-host combat-stage-host" aria-label="戰鬥舞台"></div>
         <div id="battle-field" class="battle-field battle-field-compact">${battle ? prevField : '<p class="muted">尚未交鋒——選敵開打後舞台會動起來</p>'}</div>
         <div id="combat-log" class="combat-log combat-log-compact">${prevLog}</div>

@@ -1,4 +1,4 @@
-/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.7.0（Hub 960×540／橫屏優先） */
+/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.7.1（Hub／戰鬥 960×540／橫屏優先） */
 :root {
   /* 嚴格色盤 — 禁止盤外色 */
   --ink: #1A1510;
@@ -879,7 +879,7 @@ body.hub-mode .app { max-width: 1100px; }
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 480 / 216;
+  aspect-ratio: 960 / 540;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
@@ -889,7 +889,7 @@ body.hub-mode .app { max-width: 1100px; }
   aspect-ratio: 960 / 540;
 }
 .combat-stage-wrap .px-stage {
-  aspect-ratio: 480 / 216;
+  aspect-ratio: 960 / 540;
 }
 .stage-caption {
   line-height: 1.4;
@@ -1063,8 +1063,9 @@ body.hub-mode .app { max-width: 1100px; }
   margin: 0 auto;
 }
 .combat-overlay .combat-stage-host .px-stage {
-  max-height: min(58vh, 560px);
+  max-height: min(72vh, 960px);
   width: 100%;
+  aspect-ratio: 960 / 540;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
@@ -1280,6 +1281,9 @@ body.hub-mode .app { max-width: 1100px; }
   .hub-stage-wrap .px-stage,
   .hub-stage-wrap .hub-canvas {
     max-height: min(86vh, 980px);
+  }
+  .combat-overlay .combat-stage-host .px-stage {
+    max-height: min(78vh, 980px);
   }
   .hub-shell {
     max-width: min(1200px, 96vw);

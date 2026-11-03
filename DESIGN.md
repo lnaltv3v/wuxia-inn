@@ -59,7 +59,7 @@
 | 俠客 | 青衣劍客、鐵掌醫女、浪人刀客、琴心師太 |
 | 羈絆 | 疏遠／相識／知己／生死之交；事件對話；同隊攻擊加成 |
 | 武學 | 7 本秘籍；主動傷害／治療／削弱；被動內力／減傷／護盾／觸發率 |
-| 戰鬥 | 即時走位近戰（meleeRange=24）；速度 0.5–2× 存檔；技能／遠程可遠放；VFX／clash |
+| 戰鬥 | 即時走位近戰（meleeRange≈58／960場）；速度 0.5–2× 存檔；技能／遠程可遠放；VFX／clash |
 | 劇情 | 3 章對話；條件解鎖；閱覽發獎；關聯 Boss |
 | Boss | 黑風寨主、邪醫·腐骨；技能／護盾；首次獨特獎勵 |
 | 成就 | 12 項；toast＋江湖分頁／日誌統計 |
@@ -137,7 +137,7 @@
 | 舞台 | 實作 | 表現 |
 |------|------|------|
 | **客棧 Hub** | `js/stages.js` → `WuxiaStages.Inn` Canvas **960×540** | **分層場景 Hub v1.3**；**sprites v1.2**；進場 **walk→guest_sit 入座**；**小二** 走廊／枱間 wipe／serve；熱點半透明提示；接客小事件；傳聞／小二對白池 |
-| 戰鬥對峙 | `WuxiaStages.Combat` Canvas **480×216** | 俠客 **v1.2.1** attack／hurt；**刀光弧／火花**；hit-stop／閃白；單人逐步；招架對撞 |
+| 戰鬥對峙 | `WuxiaStages.Combat` Canvas **960×540** | 俠客 **v1.2.1** attack／hurt；**刀光弧／火花**；hit-stop／閃白；單人逐步；招架對撞 |
 
 - 戰鬥數值由 `combat.js` 驅動；`onAction` 含 `hit`／`skill`／`miss`／`parry`／`heal`／`shield`／`ko`  
 - Hub 常駐 `#hub-stage-host`；`renderCombat` **保留**舞台 DOM，避免重繪斷動畫  
@@ -225,6 +225,7 @@
 - [x] 雅座熱點：催單加速接客／小費演出（銀兩入帳）  
 - [x] 大門開合與進出更明顯；日夜／燈火色溫緩變  
 - [x] 戰鬥舞台升至 **480×216**；攻擊／受擊多幀；招架姿態；技能軌跡；震屏擊退調校  
+- [x] **v0.7.1** 戰鬥舞台升至 **960×540**（原生）；行路 maxSpeed／accel 加快；距離參數按場重調
 - [x] `renderCombat` 保留 Canvas；Hub／Combat mount 防重複拆建；狀態機註明  
 - [x] DESIGN／footer／`GAME.version` → 0.5.1  
 

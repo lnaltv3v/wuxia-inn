@@ -1,6 +1,6 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.7.0：Hub 960×540／橫屏優先／32×2 橋接）
- * Hub 960×540：場景 v2.0；優先 assets/sprites/64/（1152×64）；戰鬥 480×216
+ * 俠客棧 — 墨點江湖舞台（v0.7.1：Hub／戰鬥 960×540／橫屏優先／64 整數倍）
+ * Hub 960×540：場景 v2.0；優先 assets/sprites/64/；戰鬥原生 960×540（角色 ×2）
  */
 (function (global) {
   'use strict';
@@ -1295,10 +1295,13 @@
     };
   })();
 
-  // ——— 戰鬥舞台 480×216（略放大，橫屏更易睇） ———
+  // ——— 戰鬥舞台 960×540（原生對齊 Hub；角色 64×2） ———
   const CombatStage = (function () {
-    const W = 480;
-    const H = 216;
+    const W = 960;
+    const H = 540;
+    /** 戰鬥角色顯示：64→×2（128）；32 橋接→×4；禁止非整數倍 */
+    const CHAR_SCALE_64 = 2;
+    const CHAR_SCALE_32 = 4;
     let canvas = null;
     let ctx = null;
     let wrapEl = null;
@@ -1345,12 +1348,12 @@
 
     function layoutSlots(list, side) {
       const n = list.length;
-      const baseX = side === 'ally' ? 48 : 300;
-      const gap = n <= 1 ? 0 : (n === 2 ? 42 : 36);
+      const baseX = side === 'ally' ? 96 : 600;
+      const gap = n <= 1 ? 0 : (n === 2 ? 84 : 72);
       const start = baseX - ((n - 1) * gap) / 2;
       return list.map((u, i) => {
         const x = start + i * gap;
-        const y = 108 + (i % 2) * 8;
+        const y = 270 + (i % 2) * 20;
         return { x, y };
       });
     }
@@ -1374,7 +1377,7 @@
       host.innerHTML = '';
       wrapEl = document.createElement('div');
       wrapEl.className = 'stage-wrap combat-stage-wrap';
-      wrapEl.innerHTML = '<canvas class="px-stage" width="480" height="216" aria-label="戰鬥舞台"></canvas>';
+      wrapEl.innerHTML = '<canvas class="px-stage" width="960" height="540" aria-label="戰鬥舞台"></canvas>';
       host.appendChild(wrapEl);
       canvas = wrapEl.querySelector('canvas');
       ctx = canvas.getContext('2d');
@@ -1416,8 +1419,8 @@
         if (prev && !anims[u.id]) {
           x = prev.x + (tx - prev.x) * 0.45;
           y = prev.y + (ty - prev.y) * 0.45;
-          if (Math.abs(tx - x) < 0.8) x = tx;
-          if (Math.abs(ty - y) < 0.8) y = ty;
+          if (Math.abs(tx - x) < 1.6) x = tx;
+          if (Math.abs(ty - y) < 1.6) y = ty;
         } else if (prev && anims[u.id]) {
           x = prev.x;
           y = prev.y;
@@ -1459,8 +1462,8 @@
         if (prev && !anims[u.id]) {
           x = prev.x + (tx - prev.x) * 0.45;
           y = prev.y + (ty - prev.y) * 0.45;
-          if (Math.abs(tx - x) < 0.8) x = tx;
-          if (Math.abs(ty - y) < 0.8) y = ty;
+          if (Math.abs(tx - x) < 1.6) x = tx;
+          if (Math.abs(ty - y) < 1.6) y = ty;
         } else if (prev && anims[u.id]) {
           x = prev.x;
           y = prev.y;
@@ -1495,14 +1498,14 @@
 
       if (evt.kind === 'heal' || evt.kind === 'shield') {
         if (atk) {
-          fx.push({ kind: 'text', text: evt.kind === 'heal' ? ('+' + (evt.heal || 0)) : '盾', x: atk.x + 4, y: atk.y - 8, life: 36, max: 36, color: C.jadeBright });
+          fx.push({ kind: 'text', text: evt.kind === 'heal' ? ('+' + (evt.heal || 0)) : '盾', x: atk.x + 8, y: atk.y - 16, life: 36, max: 36, color: C.jadeBright });
           atk.flash = 14;
         }
         if (evt.skillName) {
-          fx.push({ kind: 'burst', x: (atk ? atk.x : 40) + 6, y: (atk ? atk.y : 80) + 4, life: 22, max: 22, color: C.jade });
+          fx.push({ kind: 'burst', x: (atk ? atk.x : 80) + 12, y: (atk ? atk.y : 200) + 8, life: 22, max: 22, color: C.jade });
           if (atk) {
             fx.push({
-              kind: 'trail', x0: atk.x + 6, y0: atk.y + 6, x1: atk.x + 6, y1: atk.y - 10,
+              kind: 'trail', x0: atk.x + 12, y0: atk.y + 12, x1: atk.x + 12, y1: atk.y - 20,
               life: 22, max: 22, color: C.jadeBright
             });
           }
@@ -1513,26 +1516,25 @@
       if (atk && (evt.kind === 'hit' || evt.kind === 'skill' || evt.kind === 'miss' || evt.kind === 'parry')) {
         const dir = atk.side === 'ally' ? 1 : -1;
         // 對齊實際距離：遠程／技能少衝刺，近戰撲到貼身重疊
-        const dx = tgt ? Math.abs((tgt.x) - (atk.x)) : 40;
-        const lungeDur = scaleDur(evt.ranged ? 48 : (dx > 40 ? 56 : 48));
-        // 近戰 reach：盡量蓋到目標中心，造成身體重疊瞬間
+        const dx = tgt ? Math.abs((tgt.x) - (atk.x)) : 80;
+        const lungeDur = scaleDur(evt.ranged ? 48 : (dx > 80 ? 56 : 48));
         const reach = evt.ranged
-          ? Math.min(12, Math.max(4, dx * 0.15))
-          : Math.min(34, Math.max(14, dx * 0.72 + 6));
+          ? Math.min(24, Math.max(8, dx * 0.15))
+          : Math.min(68, Math.max(28, dx * 0.72 + 12));
         anims[atk.id] = { kind: 'lunge', t: 0, dur: lungeDur, dir: dir, ranged: !!evt.ranged, reach: reach };
         if (evt.skillName) {
-          fx.push({ kind: 'burst', x: atk.x + 6, y: atk.y + 4, life: 24, max: 24, color: evt.kind === 'skill' ? C.cinnabarBright : C.gold });
-          fx.push({ kind: 'text', text: '「' + evt.skillName + '」', x: atk.x - 12, y: atk.y - 20, life: 58, max: 58, color: C.gold });
+          fx.push({ kind: 'burst', x: atk.x + 12, y: atk.y + 8, life: 24, max: 24, color: evt.kind === 'skill' ? C.cinnabarBright : C.gold });
+          fx.push({ kind: 'text', text: '「' + evt.skillName + '」', x: atk.x - 24, y: atk.y - 40, life: 58, max: 58, color: C.gold });
         }
         const bossBoost = (atk.heroId && String(atk.heroId).indexOf('boss') >= 0)
           || (tgt && tgt.heroId && String(tgt.heroId).indexOf('boss') >= 0);
         if (tgt && (evt.kind === 'hit' || evt.kind === 'skill')) {
           fx.push({
             kind: 'trail',
-            x0: atk.x + (dir > 0 ? 14 : -2),
-            y0: atk.y + 6,
-            x1: tgt.x + 6,
-            y1: tgt.y + 6,
+            x0: atk.x + (dir > 0 ? 28 : -4),
+            y0: atk.y + 12,
+            x1: tgt.x + 12,
+            y1: tgt.y + 12,
             life: 28, max: 28,
             color: evt.kind === 'skill' ? C.cinnabarBright : C.cream
           });
@@ -1544,7 +1546,7 @@
 
       if (evt.kind === 'miss' && tgt) {
         anims[tgt.id] = { kind: 'dodge', t: 0, dur: scaleDur(52), dir: tgt.side === 'ally' ? -1 : 1 };
-        fx.push({ kind: 'text', text: '閃', x: tgt.x + 2, y: tgt.y - 6, life: scaleDur(30), max: scaleDur(30), color: C.sky });
+        fx.push({ kind: 'text', text: '閃', x: tgt.x + 4, y: tgt.y - 12, life: scaleDur(30), max: scaleDur(30), color: C.sky });
         hitStop = Math.max(hitStop, scaleStop(5));
         return;
       }
@@ -1554,8 +1556,8 @@
         if (atk) anims[atk.id] = { kind: 'parry', t: 0, dur: scaleDur(40), dir: atk.side === 'ally' ? 1 : -1 };
         tgt.flash = 16;
         if (atk) atk.flash = Math.max(atk.flash || 0, 10);
-        fx.push({ kind: 'text', text: '架', x: tgt.x + 2, y: tgt.y - 6, life: scaleDur(34), max: scaleDur(34), color: C.gold });
-        fx.push({ kind: 'slash', x: tgt.x, y: tgt.y + 2, life: scaleDur(20), max: scaleDur(20), color: C.gold });
+        fx.push({ kind: 'text', text: '架', x: tgt.x + 4, y: tgt.y - 12, life: scaleDur(34), max: scaleDur(34), color: C.gold });
+        fx.push({ kind: 'slash', x: tgt.x, y: tgt.y + 4, life: scaleDur(20), max: scaleDur(20), color: C.gold });
         // 招架對撞：clash 接觸點＋parry_flash（可錯 0–1 tick）
         if (atk) {
           const mx = (atk.x + tgt.x) / 2 + 4;
@@ -1602,12 +1604,12 @@
         anims[tgt.id] = {
           kind: 'hit', t: 0, dur: scaleDur(heavy ? 64 : 56),
           dir: tgt.side === 'ally' ? -1 : 1, heavy: heavy,
-          knock: meleeContact ? (heavy ? 14 : 10) : (heavy ? 8 : 5)
+          knock: meleeContact ? (heavy ? 28 : 20) : (heavy ? 16 : 10)
         };
         tgt.flash = heavy ? 26 : 20;
-        fx.push({ kind: 'text', text: '-' + dmg, x: tgt.x + 2, y: tgt.y - 4, life: scaleDur(52), max: scaleDur(52), color: C.cinnabarBright });
-        fx.push({ kind: 'slash', x: tgt.x + 4, y: tgt.y + 4, life: scaleDur(18), max: scaleDur(18), color: C.cream });
-        fx.push({ kind: 'burst', x: tgt.x + 6, y: tgt.y + 8, life: scaleDur(12), max: scaleDur(12), color: C.cream });
+        fx.push({ kind: 'text', text: '-' + dmg, x: tgt.x + 4, y: tgt.y - 8, life: scaleDur(52), max: scaleDur(52), color: C.cinnabarBright });
+        fx.push({ kind: 'slash', x: tgt.x + 8, y: tgt.y + 8, life: scaleDur(18), max: scaleDur(18), color: C.cream });
+        fx.push({ kind: 'burst', x: tgt.x + 12, y: tgt.y + 16, life: scaleDur(12), max: scaleDur(12), color: C.cream });
         // 近身接觸點：clash one-shot（可同 spark 錯 1 tick）
         if (meleeContact && atk) {
           const mx = (atk.x + tgt.x) / 2 - 8;
@@ -1629,54 +1631,53 @@
         shake = Math.max(shake, 7);
         screenFlash = Math.max(screenFlash, 10);
         hitStop = Math.max(hitStop, scaleStop(18));
-        anims[tgt.id] = { kind: 'hit', t: 0, dur: scaleDur(48), dir: tgt.side === 'ally' ? -1 : 1, heavy: true, knock: 16 };
+        anims[tgt.id] = { kind: 'hit', t: 0, dur: scaleDur(48), dir: tgt.side === 'ally' ? -1 : 1, heavy: true, knock: 32 };
         tgt.flash = 28;
       }
     }
 
     function drawBg() {
-      drawRect(ctx, 0, 0, W, 102, C.sky);
-      drawRect(ctx, 0, 66, 84, 48, C.mtn);
-      drawRect(ctx, 60, 58, 96, 55, C.jade);
-      drawRect(ctx, 300, 62, 108, 50, C.mtn);
-      drawRect(ctx, 372, 50, 84, 62, C.jade);
-      drawRect(ctx, 0, 102, W, 26, C.loess);
-      drawRect(ctx, 0, 128, W, 88, C.wood);
+      drawRect(ctx, 0, 0, W, 255, C.sky);
+      drawRect(ctx, 0, 165, 168, 120, C.mtn);
+      drawRect(ctx, 120, 145, 192, 138, C.jade);
+      drawRect(ctx, 600, 155, 216, 125, C.mtn);
+      drawRect(ctx, 744, 125, 168, 155, C.jade);
+      drawRect(ctx, 0, 255, W, 65, C.loess);
+      drawRect(ctx, 0, 320, W, 220, C.wood);
       for (let i = 0; i < 12; i++) {
-        drawRect(ctx, 14 + i * 40, 137, 22, 4, C.woodLight);
+        drawRect(ctx, 28 + i * 80, 342, 44, 8, C.woodLight);
       }
-      drawRect(ctx, 235, 110, 7, 7, C.cinnabar);
-      drawRect(ctx, 233, 120, 12, 2, C.ink);
+      drawRect(ctx, 470, 275, 14, 14, C.cinnabar);
+      drawRect(ctx, 466, 300, 24, 4, C.ink);
     }
 
     function drawMeleeRing(u) {
       if (!u || u.dead || u.ranged) return;
-      const FIELD = (global.WuxiaCombat && global.WuxiaCombat.FIELD) || { meleeRange: 24, contactRange: 16 };
-      const r = (FIELD.meleeRange || 24) * 0.5;
-      const cx = u.x + 8;
-      const cy = u.y + 26;
+      const FIELD = (global.WuxiaCombat && global.WuxiaCombat.FIELD) || { meleeRange: 58, contactRange: 38 };
+      const r = (FIELD.meleeRange || 58) * 0.5;
+      const cx = u.x + 16;
+      const cy = u.y + 52;
       const active = u.engage || u.contact || u.intent === 'approach' || u.intent === 'hold';
       if (!active && !(u.invuln > 0)) return;
       const a = (u.contact || u.engage) ? 0.55 : (u.invuln > 0 ? 0.5 : 0.22);
       ctx.globalAlpha = a;
       const col = u.invuln > 0 ? C.sky : (u.side === 'ally' ? C.jadeBright : C.cinnabarBright);
-      for (let i = 0; i < 12; i++) {
-        const ang = (i / 12) * Math.PI * 2;
+      for (let i = 0; i < 16; i++) {
+        const ang = (i / 16) * Math.PI * 2;
         const x = cx + Math.cos(ang) * r;
         const y = cy + Math.sin(ang) * r * 0.38;
-        drawRect(ctx, x, y, 2, 2, col);
+        drawRect(ctx, x, y, 3, 3, col);
       }
-      // 身體接觸框（貼身時更明顯）
       if (u.contact || u.engage) {
         ctx.globalAlpha = Math.min(0.85, a + 0.25);
-        const bw = u.contact ? 14 : 12;
-        const bh = u.contact ? 20 : 16;
-        drawRect(ctx, u.x + 8 - bw / 2, u.y + 6, bw, 2, C.cream);
-        drawRect(ctx, u.x + 8 - bw / 2, u.y + 6 + bh, bw, 2, C.cream);
-        drawRect(ctx, u.x + 8 - bw / 2, u.y + 6, 2, bh, col);
-        drawRect(ctx, u.x + 8 + bw / 2 - 2, u.y + 6, 2, bh, col);
+        const bw = u.contact ? 28 : 24;
+        const bh = u.contact ? 40 : 32;
+        drawRect(ctx, u.x + 16 - bw / 2, u.y + 12, bw, 3, C.cream);
+        drawRect(ctx, u.x + 16 - bw / 2, u.y + 12 + bh, bw, 3, C.cream);
+        drawRect(ctx, u.x + 16 - bw / 2, u.y + 12, 3, bh, col);
+        drawRect(ctx, u.x + 16 + bw / 2 - 3, u.y + 12, 3, bh, col);
         if (u.contact) {
-          drawRect(ctx, u.x + 5, u.y + 14, 6, 4, C.gold);
+          drawRect(ctx, u.x + 10, u.y + 28, 12, 8, C.gold);
         }
       }
       ctx.globalAlpha = 1;
@@ -1702,8 +1703,8 @@
       if (an) {
         const p = an.t / an.dur;
         if (an.kind === 'lunge') {
-          const reach = an.reach != null ? an.reach : 28;
-          const back = an.ranged ? 4 : 8;
+          const reach = an.reach != null ? an.reach : 56;
+          const back = an.ranged ? 8 : 16;
           if (p < 0.25) {
             const w = p / 0.25;
             dx = u.ox - an.dir * back * w;
@@ -1725,7 +1726,7 @@
           }
           animName = poseToAnim(pose);
         } else if (an.kind === 'hit') {
-          const knock = an.knock != null ? an.knock : (an.heavy ? 14 : 10);
+          const knock = an.knock != null ? an.knock : (an.heavy ? 28 : 20);
           if (p < 0.18) {
             // 撞開：短推
             dx = u.ox + an.dir * knock * 0.35 * (p / 0.18);
@@ -1734,7 +1735,7 @@
           } else if (p < 0.5) {
             const mid = (p - 0.18) / 0.32;
             dx = u.ox + an.dir * knock * (0.35 + 0.65 * mid);
-            dy = u.oy - 4 * Math.sin(mid * Math.PI);
+            dy = u.oy - 10 * Math.sin(mid * Math.PI);
             pose = 'hurt';
             flash = true;
           } else {
@@ -1748,14 +1749,14 @@
           frameOverride = ANIM.hurt[p < 0.5 ? 0 : 1];
         } else if (an.kind === 'dodge') {
           const amp = Math.sin(p * Math.PI);
-          dx = u.ox + an.dir * 26 * amp;
-          dy = u.oy - 10 * amp;
+          dx = u.ox + an.dir * 52 * amp;
+          dy = u.oy - 20 * amp;
           flash = p > 0.15 && p < 0.7;
           animName = 'walk';
         } else if (an.kind === 'parry') {
           const amp = Math.sin(p * Math.PI);
-          dx = u.ox + an.dir * 10 * amp;
-          dy = u.oy - 3 * amp;
+          dx = u.ox + an.dir * 20 * amp;
+          dy = u.oy - 6 * amp;
           pose = 'parry';
           flash = p > 0.15 && p < 0.65;
           animName = 'parry';
@@ -1778,29 +1779,35 @@
       let drew = false;
       if (sheet) {
         const fi = frameOverride != null ? frameOverride : animFrame(animName, tick, 8);
-        const sc = (sheet.height === 64) ? 1 : ((sheet.height === 32) ? 2 : 1);
-        drew = drawSheetFrame(ctx, sheet, fi, dx - 8, dy - 8, {
+        const sc = (sheet.height === 64) ? CHAR_SCALE_64 : ((sheet.height === 32) ? CHAR_SCALE_32 : CHAR_SCALE_64);
+        const out = (sheet.height === 64 ? 64 : 32) * sc;
+        const ox = dx - Math.round(out * 0.12);
+        const oy = dy - Math.round(out * 0.12);
+        drew = drawSheetFrame(ctx, sheet, fi, ox, oy, {
           scale: sc,
           flip: flip,
           alpha: flash ? 0.95 : (u.dead ? 0.35 : 1)
         });
         if (drew && flash) {
           ctx.globalAlpha = 0.55;
-          drawRect(ctx, dx - 4, dy - 4, 40, 44, C.cream);
+          drawRect(ctx, ox + 8, oy + 8, out - 16, out - 12, C.cream);
           ctx.globalAlpha = 1;
         }
       } else if (bossImg) {
         const bs = bossImg.height || 64;
-        const dw = bs; // native 64 → 64；舊 32 → 仍用整數倍顯示
-        const out = (bs === 32) ? 64 : bs;
+        const sc = (bs === 64) ? CHAR_SCALE_64 : ((bs === 32) ? CHAR_SCALE_32 : CHAR_SCALE_64);
+        const out = bs * sc;
+        const ox = dx - Math.round(out * 0.12);
+        const oy = dy - Math.round(out * 0.06);
         ctx.save();
+        ctx.imageSmoothingEnabled = false;
         if (flash) ctx.globalAlpha = 0.95;
         if (flip) {
-          ctx.translate(dx + out - 8, dy - 4);
+          ctx.translate(ox + out, oy);
           ctx.scale(-1, 1);
           ctx.drawImage(bossImg, 0, 0, bs, bs, 0, 0, out, out);
         } else {
-          ctx.drawImage(bossImg, 0, 0, bs, bs, dx - 8, dy - 4, out, out);
+          ctx.drawImage(bossImg, 0, 0, bs, bs, ox, oy, out, out);
         }
         ctx.restore();
         drew = true;
@@ -1811,20 +1818,20 @@
           arm: arm,
           flash: flash,
           pose: pose,
-          scale: 2
+          scale: 4
         });
       }
       ctx.globalAlpha = 1;
 
-      const bw = 40;
+      const bw = 72;
       const pct = u.maxHp > 0 ? clamp(u.hp / u.maxHp, 0, 1) : 0;
-      drawRect(ctx, dx - 8, dy - 12, bw, 5, C.night);
-      drawRect(ctx, dx - 8, dy - 12, Math.round(bw * pct), 5, u.side === 'ally' ? C.jadeBright : C.cinnabarBright);
-      drawRect(ctx, dx - 8, dy - 12, bw, 1, C.ink);
+      drawRect(ctx, dx - 8, dy - 20, bw, 8, C.night);
+      drawRect(ctx, dx - 8, dy - 20, Math.round(bw * pct), 8, u.side === 'ally' ? C.jadeBright : C.cinnabarBright);
+      drawRect(ctx, dx - 8, dy - 20, bw, 2, C.ink);
       if (u.shield > 0) {
-        drawRect(ctx, dx - 8, dy - 15, Math.min(bw, 4 + Math.round(u.shield / u.maxHp * bw)), 2, C.sky);
+        drawRect(ctx, dx - 8, dy - 26, Math.min(bw, 8 + Math.round(u.shield / u.maxHp * bw)), 3, C.sky);
       }
-      drawPixelText(ctx, u.name.slice(0, 4), dx - 6, dy + 52, C.cream);
+      drawPixelText(ctx, u.name.slice(0, 4), dx - 4, dy + 112, C.cream);
     }
 
     function drawTrail(f) {
@@ -1909,7 +1916,7 @@
       const dir = atk.side === 'ally' ? 1 : -1;
       const boss = !!bossBoost || (atk.heroId && String(atk.heroId).indexOf('boss') >= 0)
         || (tgt && tgt.heroId && String(tgt.heroId).indexOf('boss') >= 0);
-      const ax = atk.x + (dir > 0 ? 8 : -4);
+      const ax = atk.x + (dir > 0 ? 16 : -8);
       const ay = atk.y;
       const sMul = boss ? 1.35 : 1;
       // 多段刀光：起手 → 中弧 →（重擊／Boss）刃尖
@@ -1924,14 +1931,14 @@
         scale: (heavy ? 1.45 : 1.22) * sMul
       });
       if (heavy || boss) {
-        pushFxSheet('slash', ax + dir * 18, ay + 2, {
+        pushFxSheet('slash', ax + dir * 36, ay + 4, {
           flip: dir < 0,
           dur: 16,
           scale: (boss ? 1.55 : 1.18) * sMul
         });
       }
       if (boss) {
-        pushFxSheet('slash', ax + dir * 6, ay - 10, {
+        pushFxSheet('slash', ax + dir * 12, ay - 20, {
           flip: dir < 0,
           dur: 20,
           scale: 1.6
@@ -2035,7 +2042,7 @@
       });
       if (shake > 0) shake = Math.max(0, shake - (frozen ? 0.04 : 0.16));
       if (wrapEl) {
-        const amp = Math.min(8, shake * 1.4);
+        const amp = Math.min(14, shake * 1.6);
         const sx = shake > 0 ? (Math.round(shake * 2) % 2 === 0 ? amp : -amp) : 0;
         const sy = shake > 0 ? (Math.round(shake * 3) % 2 === 0 ? amp * 0.5 : -amp * 0.5) : 0;
         wrapEl.style.transform = 'translate(' + Math.round(sx) + 'px,' + Math.round(sy) + 'px)';
@@ -2056,7 +2063,7 @@
           const fi = Math.min(frames - 1, Math.floor((f.t || 0) / Math.max(1, f.dur / frames)));
           const dx = f.x;
           const dy = f.y;
-          const sc = f.scale || 1;
+          const sc = (f.scale || 1) * 2; // 960 場：VFX 整數倍放大
           const dw = 32 * sc;
           const dh = 32 * sc;
           ctx.save();

@@ -1,33 +1,33 @@
 /**
- * 俠客棧 — 自動即時走位戰鬥（v0.7.0）
- * 戰場對齊 CombatStage 480×216；meleeRange≈29；速度 0.5–2×
+ * 俠客棧 — 自動即時走位戰鬥（v0.7.1）
+ * 戰場對齊 CombatStage 960×540；meleeRange≈58；速度 0.5–2×；行路加快
  */
 (function (global) {
   'use strict';
 
   const { randInt, getMartial } = global.WuxiaData;
 
-  /** 戰場座標（對齊 CombatStage 480×216） */
+  /** 戰場座標（對齊 CombatStage 960×540；X×2／Y×2.5；速度高於等比例） */
   const FIELD = {
-    W: 480,
-    allyMinX: 34,
-    allyMaxX: 252,
-    enemyMinX: 228,
-    enemyMaxX: 446,
-    meleeRange: 29,
-    contactRange: 19,
-    skillRange: 142,
-    rangedRange: 202,
-    maxSpeed: 13,
-    accel: 3.8,
+    W: 960,
+    allyMinX: 68,
+    allyMaxX: 504,
+    enemyMinX: 456,
+    enemyMaxX: 892,
+    meleeRange: 58,
+    contactRange: 38,
+    skillRange: 284,
+    rangedRange: 404,
+    maxSpeed: 40,
+    accel: 12,
     friction: 0.78,
-    sepDist: 31,
-    sepForce: 5.0,
-    foeSepDist: 13,
-    strafeY: 12,
-    yMin: 115,
-    yMax: 168,
-    yBase: 130,
+    sepDist: 62,
+    sepForce: 5.5,
+    foeSepDist: 26,
+    strafeY: 30,
+    yMin: 288,
+    yMax: 420,
+    yBase: 325,
     iFrameDodge: 3,
     iFrameParry: 2
   };
@@ -46,18 +46,18 @@
   function laneY(side, slotIndex, slotCount) {
     const n = Math.max(1, slotCount || 1);
     const i = slotIndex || 0;
-    if (n === 1) return FIELD.yBase + (side === 'enemy' ? 2 : 0);
-    if (n === 2) return FIELD.yBase + (i === 0 ? -17 : 17);
+    if (n === 1) return FIELD.yBase + (side === 'enemy' ? 5 : 0);
+    if (n === 2) return FIELD.yBase + (i === 0 ? -42 : 42);
     // 3+：上中下錯開，避免全擠同一點
-    const spread = [-22, 0, 22, -11, 11];
-    return FIELD.yBase + (spread[i % spread.length] || ((i % 2) * 12 - 6));
+    const spread = [-55, 0, 55, -28, 28];
+    return FIELD.yBase + (spread[i % spread.length] || ((i % 2) * 30 - 15));
   }
 
   function cloneUnit(src, side, slotIndex, slotCount) {
     const n = Math.max(1, slotCount || 1);
     const i = slotIndex || 0;
-    const gap = n <= 1 ? 0 : (n === 2 ? 58 : 48);
-    const baseX = side === 'ally' ? 67 : 384;
+    const gap = n <= 1 ? 0 : (n === 2 ? 116 : 96);
+    const baseX = side === 'ally' ? 134 : 768;
     const start = baseX - ((n - 1) * gap) / 2;
     const y = laneY(side, i, n);
     const u = {
@@ -286,9 +286,9 @@
           b.vx += nx * push;
           b.vy += ny * push * 0.85;
           // 同隊再強制錯開 lane
-          if (same && Math.abs(a.homeY - b.homeY) < 4) {
-            a.vy -= 1.2;
-            b.vy += 1.2;
+          if (same && Math.abs(a.homeY - b.homeY) < 10) {
+            a.vy -= 2.4;
+            b.vy += 2.4;
           }
         }
       }
@@ -298,9 +298,9 @@
       if (target.invuln > 0) {
         // 無敵窗內強制當閃過
         const back = target.side === 'ally' ? -1 : 1;
-        target.x = clampX(target, target.x + back * 8);
+        target.x = clampX(target, target.x + back * 16);
         target.y = clampY(target.homeY + (Math.random() < 0.5 ? -FIELD.strafeY : FIELD.strafeY));
-        target.vx += back * 6;
+        target.vx += back * 12;
         target.intent = 'dodge';
         log(target.emoji + target.name + ' 仍在身法之中，卸開 ' + attacker.name + '！', 'info');
         emitAction({
@@ -327,9 +327,9 @@
       const doParry = Math.random() < (low ? 0.35 : 0.5);
       const back = target.side === 'ally' ? -1 : 1;
       if (doParry) {
-        target.vx += back * 7;
-        target.vy += (Math.random() < 0.5 ? -1 : 1) * 5;
-        target.x = clampX(target, target.x + back * 12);
+        target.vx += back * 14;
+        target.vy += (Math.random() < 0.5 ? -1 : 1) * 10;
+        target.x = clampX(target, target.x + back * 24);
         target.y = clampY(target.homeY + (Math.random() < 0.5 ? -FIELD.strafeY : FIELD.strafeY));
         target.intent = 'parry';
         target.invuln = Math.max(target.invuln, FIELD.iFrameParry);
@@ -347,9 +347,9 @@
           ty: target.y
         });
       } else {
-        target.vx += back * 11;
-        target.vy += (Math.random() < 0.5 ? -1 : 1) * 7;
-        target.x = clampX(target, target.x + back * (16 + Math.random() * 10));
+        target.vx += back * 22;
+        target.vy += (Math.random() < 0.5 ? -1 : 1) * 14;
+        target.x = clampX(target, target.x + back * (32 + Math.random() * 20));
         target.y = clampY(target.homeY + (Math.random() < 0.5 ? -FIELD.strafeY * 1.6 : FIELD.strafeY * 1.6));
         target.intent = 'dodge';
         target.invuln = Math.max(target.invuln, FIELD.iFrameDodge);
@@ -383,7 +383,7 @@
         log(attacker.emoji + attacker.name + ' 攻向 ' + target.name + '，傷害 ' + dmg, attacker.side);
       }
       const contactDist = dist(attacker, target);
-      const wasContact = !attacker._lastRanged && contactDist <= FIELD.contactRange + 4;
+      const wasContact = !attacker._lastRanged && contactDist <= FIELD.contactRange + 8;
       emitAction({
         kind: usedSkill && skillMul > 1 ? 'skill' : 'hit',
         attackerId: attacker.id,
@@ -401,14 +401,14 @@
       // 近身：雙方短推開再彈回／摩擦（接觸感）
       const knock = attacker.side === 'ally' ? -1 : 1;
       if (!attacker._lastRanged) {
-        const pushAtk = wasContact ? 7 : 5;
-        const pushTgt = wasContact ? 14 : 10;
+        const pushAtk = wasContact ? 14 : 10;
+        const pushTgt = wasContact ? 28 : 20;
         attacker.vx += knock * pushAtk;
         target.vx -= knock * pushTgt;
-        attacker.vy += (Math.random() < 0.5 ? -1 : 1) * (wasContact ? 2.2 : 1.2);
-        target.vy += (Math.random() < 0.5 ? -1 : 1) * (wasContact ? 3.2 : 1.8);
-        attacker.x = clampX(attacker, attacker.x + knock * (wasContact ? 6 : 4));
-        target.x = clampX(target, target.x - knock * (wasContact ? 12 : 9));
+        attacker.vy += (Math.random() < 0.5 ? -1 : 1) * (wasContact ? 4.4 : 2.4);
+        target.vy += (Math.random() < 0.5 ? -1 : 1) * (wasContact ? 6.4 : 3.6);
+        attacker.x = clampX(attacker, attacker.x + knock * (wasContact ? 12 : 8));
+        target.x = clampX(target, target.x - knock * (wasContact ? 24 : 18));
         attacker.intent = 'hold';
         target.intent = 'hold';
       }
@@ -450,13 +450,13 @@
       u.engage = !ranged && d <= FIELD.meleeRange;
       u.contact = !ranged && d <= FIELD.contactRange + 1;
 
-      if (hpRatio < 0.28 && d < FIELD.meleeRange + 20 && Math.random() < 0.7) {
+      if (hpRatio < 0.28 && d < FIELD.meleeRange + 40 && Math.random() < 0.7) {
         u.intent = 'retreat';
-      } else if (ranged && d < FIELD.meleeRange + 8 && Math.random() < 0.55) {
+      } else if (ranged && d < FIELD.meleeRange + 16 && Math.random() < 0.55) {
         u.intent = 'retreat';
       } else if (d > (ranged ? FIELD.rangedRange * 0.9 : FIELD.meleeRange)) {
         u.intent = 'approach';
-      } else if (d < preferRange - 8 && !ranged && Math.random() < 0.28) {
+      } else if (d < preferRange - 16 && !ranged && Math.random() < 0.28) {
         u.intent = 'strafe';
       } else {
         u.intent = 'hold';
@@ -473,12 +473,12 @@
       const speedScale = 0.85 + Math.random() * 0.3;
 
       if (u.intent === 'approach') {
-        ax = toward * FIELD.accel * speedScale;
-        // 對齊自家 lane，同時略向目標 Y
-        ay += ((u.homeY) - u.y) * 0.22;
-        ay += ((target.y || target.homeY) - u.y) * 0.06;
+        // 貼身接近額外提速（高於等比例場放大）
+        ax = toward * FIELD.accel * 1.25 * speedScale;
+        ay += ((u.homeY) - u.y) * 0.28;
+        ay += ((target.y || target.homeY) - u.y) * 0.1;
       } else if (u.intent === 'retreat') {
-        ax = -toward * FIELD.accel * 1.05 * speedScale;
+        ax = -toward * FIELD.accel * 1.1 * speedScale;
         ay += (u.homeY - u.y) * 0.3;
       } else if (u.intent === 'strafe') {
         ax = toward * FIELD.accel * 0.18;
@@ -487,9 +487,8 @@
       } else {
         ax *= 0.2;
         ay += (u.homeY - u.y) * 0.35;
-        // 近戰圈內微幅對峙，唔原地黏死
         if (u.engage && Math.random() < 0.35) {
-          ay += (Math.random() < 0.5 ? -1 : 1) * 1.2;
+          ay += (Math.random() < 0.5 ? -1 : 1) * 2.4;
         }
       }
 
@@ -610,17 +609,16 @@
           const toward = target.x >= attacker.x ? 1 : -1;
           let dNow = dist(attacker, target);
           if (dNow > FIELD.contactRange) {
-            const close = Math.min(dNow - FIELD.contactRange + 1, 14);
-            attacker.vx += toward * 6;
+            const close = Math.min(dNow - FIELD.contactRange + 2, 36);
+            attacker.vx += toward * 14;
             attacker.x = clampX(attacker, attacker.x + toward * close);
-            // 微對齊 Y，兩人碰撞框重疊
-            attacker.y = clampY(attacker.y + ((target.y || target.homeY) - attacker.y) * 0.45);
+            attacker.y = clampY(attacker.y + ((target.y || target.homeY) - attacker.y) * 0.5);
             dNow = dist(attacker, target);
           }
           // 仍唔貼身就唔斬（比 meleeRange 更緊，避免隔空揮）
-          if (dNow > FIELD.contactRange + 4) {
+          if (dNow > FIELD.contactRange + 8) {
             attacker.intent = 'approach';
-            attacker.vx += toward * 3;
+            attacker.vx += toward * 8;
             return false;
           }
         }
