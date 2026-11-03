@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v2.0.0：合擊／坐客點菜／Boss 入場）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v2.1.0：新合擊／第六章加厚／廂房）
  */
 (function () {
   'use strict';
@@ -159,6 +159,8 @@
       marketTips: 0,
       boardLetterDone: false,
       duoBondDone: [],
+      chapterPlayables: [],
+      roomRestAt: 0,
       metScenes: [],
       combatBuffs: [],
       hubTourDone: false
@@ -266,6 +268,8 @@
     if (typeof s.boardLetterDone !== 'boolean') s.boardLetterDone = false;
     // v1.5 雙人羈絆／圖鑑／短暫戰意
     if (!Array.isArray(s.duoBondDone)) s.duoBondDone = [];
+    if (!Array.isArray(s.chapterPlayables)) s.chapterPlayables = [];
+    if (typeof s.roomRestAt !== 'number') s.roomRestAt = 0;
     if (!Array.isArray(s.metScenes)) s.metScenes = [];
     if (!Array.isArray(s.combatBuffs)) s.combatBuffs = [];
     s.combatBuffs = s.combatBuffs.filter(function (b) {
@@ -1064,29 +1068,47 @@
 
   let lastSceneAt = 0;
 
+  function sceneEventEligible(e) {
+    if (!e) return false;
+    if (e.needChapter && !isStoryRead(e.needChapter)) return false;
+    if (e.once && (state.metScenes || []).indexOf(e.id) >= 0) return false;
+    if (e.outpost && !opUnlocked(state, e.outpost)) return false;
+    return true;
+  }
+
   function pickSceneEvent() {
     const list = (typeof SCENE_EVENTS !== 'undefined' && SCENE_EVENTS && SCENE_EVENTS.length)
       ? SCENE_EVENTS
       : (WuxiaData && WuxiaData.SCENE_EVENTS) || [];
     if (!list.length) return null;
-    // 據點已解鎖：抽對應「分舵線」場景（青石夜市／邊關警報）
-    const outpostScenes = list.filter(function (e) {
+    const eligible = list.filter(sceneEventEligible);
+    if (!eligible.length) return null;
+    // 第六章餘燼線：已解鎖時加權優先
+    const ember = eligible.filter(function (e) {
+      return e.needChapter === 'ch6_ember_road' && e.interactive;
+    });
+    if (ember.length && Math.random() < 0.28) {
+      return ember[Math.floor(Math.random() * ember.length)];
+    }
+    // 據點已解鎖：抽對應「分舵線」場景
+    const outpostScenes = eligible.filter(function (e) {
       return e.outpost && opUnlocked(state, e.outpost);
     });
     if (outpostScenes.length && Math.random() < 0.22) {
       return outpostScenes[Math.floor(Math.random() * outpostScenes.length)];
     }
     // 約 42% 優先互動；告示密信支線加權
-    const interactive = list.filter(function (e) { return e.interactive && e.choices; });
+    const interactive = eligible.filter(function (e) { return e.interactive && e.choices; });
     if (interactive.length && Math.random() < 0.42) {
       const weighted = [];
       interactive.forEach(function (e) {
-        const w = e.id === 'board_secret_letter' ? 3 : 1;
+        let w = e.id === 'board_secret_letter' ? 3 : 1;
+        if (e.needChapter === 'ch6_ember_road') w += 2;
         for (let i = 0; i < w; i++) weighted.push(e);
       });
       return weighted[Math.floor(Math.random() * weighted.length)];
     }
-    return list[Math.floor(Math.random() * list.length)];
+    return eligible[Math.floor(Math.random() * eligible.length)];
   }
 
   function hideHubChoices() {
@@ -1164,6 +1186,9 @@
           const sid = sceneId || picked.sceneId || null;
           if (sid === 'board_secret_letter') {
             state.boardLetterDone = true;
+          }
+          if (sid && (sid.indexOf('ember_') === 0 || sid.indexOf('ch6_') === 0)) {
+            markMetScene(sid);
           }
           if (sid && String(sid).indexOf('duo_') === 0) {
             if (!Array.isArray(state.duoBondDone)) state.duoBondDone = [];
@@ -1567,7 +1592,11 @@
   }
 
   function rollQuestBoard() {
-    const pool = QUEST_TEMPLATES.filter((q) => state.innLevel >= q.minInn);
+    const pool = QUEST_TEMPLATES.filter((q) => {
+      if (state.innLevel < q.minInn) return false;
+      if (q.needChapter && !isStoryRead(q.needChapter)) return false;
+      return true;
+    });
     const board = [];
     const used = {};
     let guard = 0;
@@ -1832,37 +1861,53 @@
       }
     }
     if (!el) return;
+    const settle = document.getElementById('battle-settlement');
+    const settling = !!(settle && !settle.classList.contains('hidden') && !settle.hasAttribute('hidden'));
     const combo = resolveActiveCombo();
-    if (!battle) {
+    if (!battle || settling) {
+      if (settling) {
+        el.hidden = true;
+        el.textContent = '';
+        el.className = 'combat-combo-hud';
+        return;
+      }
       if (combo) {
         el.hidden = false;
         el.className = 'combat-combo-hud ready';
-        el.innerHTML = '<b>合擊</b> 「' + combo.name + '」· 出戰可放';
+        el.innerHTML = '<b>合擊</b> 「' + (combo.name || '') + '」· 出戰可放';
       } else {
         el.hidden = true;
         el.textContent = '';
+        el.className = 'combat-combo-hud';
       }
       return;
     }
-    const st = battle.getComboState ? battle.getComboState() : null;
-    if (!st || !st.available) {
+    let st = null;
+    try {
+      st = battle.getComboState ? battle.getComboState() : null;
+    } catch (e) {
+      st = null;
+    }
+    if (!st || !st.available || !st.name) {
       el.hidden = true;
       el.textContent = '';
+      el.className = 'combat-combo-hud';
       return;
     }
     el.hidden = false;
+    const nm = st.name || '合擊';
     if (st.used) {
       el.className = 'combat-combo-hud used';
-      el.innerHTML = '<b>合擊</b> 「' + (st.name || '') + '」· 本場已用';
+      el.innerHTML = '<b>合擊</b> 「' + nm + '」· 本場已用';
     } else if (st.armed) {
       el.className = 'combat-combo-hud armed';
-      el.innerHTML = '<b>合擊</b> 「' + (st.name || '') + '」· 施放中';
+      el.innerHTML = '<b>合擊</b> 「' + nm + '」· 施放中';
     } else if (st.ready) {
       el.className = 'combat-combo-hud ready';
-      el.innerHTML = '<b>合擊</b> 「' + (st.name || '') + '」· 可用';
+      el.innerHTML = '<b>合擊</b> 「' + nm + '」· 可用';
     } else {
       el.className = 'combat-combo-hud';
-      el.innerHTML = '<b>合擊</b> 「' + (st.name || '') + '」· 等條件';
+      el.innerHTML = '<b>合擊</b> 「' + nm + '」· 等條件';
     }
   }
 
@@ -1907,9 +1952,12 @@
 
   function showBattleSettlement(payload) {
     const card = document.getElementById('battle-settlement');
+    // 結算起即清 battle，避免合擊 HUD 卡住「施放中／本場已用」
+    if (battle) {
+      try { if (battle.stop) battle.stop(); } catch (e) { /* ignore */ }
+    }
+    battle = null;
     if (!card) {
-      // 無結算卡時直接收尾
-      battle = null;
       save();
       renderAll();
       lastHubBgm = null;
@@ -2313,6 +2361,7 @@
     outposts: 'map',
     story: 'board',
     library: 'books',
+    rooms: 'rooms',
     log: null
   };
 
@@ -2352,6 +2401,7 @@
   }
 
   function closeSheet() {
+    closeRoomFloat();
     const sheet = $('sheet');
     const bd = $('sheet-backdrop');
     if (sheet) sheet.classList.add('hidden');
@@ -2879,6 +2929,10 @@
           }
         }
         if (openId === 'table') return;
+        if (openId === 'rooms') {
+          openRoomFloat();
+          return;
+        }
         if (openId === 'library') {
           openSheet('inn');
           syncHubSelectedHotspot('library');
@@ -3569,6 +3623,173 @@
   }
 
 
+  // ——— v2.1 廂房宣紙浮層 ———
+  const ROOM_REST_CD_MS = 8 * 60 * 1000;
+  const ROOM_FLAVOR = [
+    '廂房木樑上掛著舊刀穗，灰塵裡仍有江湖味。',
+    '後樓梯吱呀一聲——小二說是風，你姑且信了。',
+    '枕下壓著半張地圖抄本，灰路東岔畫了個圈。',
+    '藥櫃底層多了一瓶未開封的金創藥，鐵掌留的。'
+  ];
+
+  function closeRoomFloat() {
+    const el = document.getElementById('room-float');
+    const bd = document.getElementById('room-float-backdrop');
+    if (el) {
+      el.classList.add('hidden');
+      el.setAttribute('hidden', '');
+    }
+    if (bd) {
+      bd.classList.add('hidden');
+      bd.setAttribute('hidden', '');
+    }
+    document.body.classList.remove('room-float-open');
+    if (!document.body.classList.contains('sheet-open') && activeTab === 'hub') {
+      syncHubSelectedHotspot(null);
+    }
+  }
+
+  function openRoomFloat() {
+    closeSheet();
+    if (!battle) closeCombatOverlay(false);
+    hideHubChoices();
+    const el = document.getElementById('room-float');
+    const bd = document.getElementById('room-float-backdrop');
+    const body = document.getElementById('room-float-body');
+    if (!el || !body) {
+      pushLog('廂房門在……但浮層未掛上。請硬重新整理。', 'warn');
+      return;
+    }
+    const now = Date.now();
+    const cdLeft = Math.max(0, (state.roomRestAt || 0) + ROOM_REST_CD_MS - now);
+    const cdMin = Math.ceil(cdLeft / 60000);
+    const canRest = cdLeft <= 0;
+    const flavor = ROOM_FLAVOR[Math.floor(Math.random() * ROOM_FLAVOR.length)];
+    body.innerHTML = [
+      '<p class="room-lead">廂房／後樓梯——歇息回氣、翻翻置物。</p>',
+      '<p class="muted room-flavor">' + flavor + '</p>',
+      '<div class="btn-row room-actions">',
+      canRest
+        ? '<button type="button" class="btn primary" id="btn-room-rest">歇息回氣（全隊小療）</button>'
+        : '<button type="button" class="btn" disabled>歇息冷卻中（約 ' + cdMin + ' 分）</button>',
+      '<button type="button" class="btn" id="btn-room-peek">翻置物（小事件）</button>',
+      '<button type="button" class="btn tiny" id="btn-room-close2">關閉</button>',
+      '</div>'
+    ].join('');
+    el.classList.remove('hidden');
+    el.removeAttribute('hidden');
+    if (bd) {
+      bd.classList.remove('hidden');
+      bd.removeAttribute('hidden');
+    }
+    document.body.classList.add('room-float-open');
+    syncHubSelectedHotspot('rooms');
+    const restBtn = document.getElementById('btn-room-rest');
+    if (restBtn) restBtn.onclick = function () { doRoomRest(); };
+    const peekBtn = document.getElementById('btn-room-peek');
+    if (peekBtn) peekBtn.onclick = function () { doRoomPeek(); };
+    const c2 = document.getElementById('btn-room-close2');
+    if (c2) c2.onclick = closeRoomFloat;
+  }
+
+  function doRoomRest() {
+    const now = Date.now();
+    if ((state.roomRestAt || 0) + ROOM_REST_CD_MS > now) {
+      pushLog('剛歇過，再等等才有精神。', 'warn');
+      openRoomFloat();
+      return;
+    }
+    let healed = 0;
+    Object.keys(state.heroes || {}).forEach(function (hid) {
+      const h = state.heroes[hid];
+      if (!h || !h.recruited) return;
+      const rt = heroRuntime(hid);
+      if (!rt) return;
+      const before = h.hp || 0;
+      const gain = Math.max(4, Math.round((rt.maxHp || 40) * 0.18));
+      h.hp = Math.min(rt.maxHp, before + gain);
+      if (h.hp > before) healed += 1;
+    });
+    state.roomRestAt = now;
+    pushLog('廂房歇息：' + (healed ? ('有 ' + healed + ' 人回了些氣血。') : '眾人氣血已足。'), 'system');
+    showUiToast('🛏 歇息', healed ? ('回氣 ×' + healed) : '氣血已足', 'system');
+    save(true);
+    updateTopbar();
+    openRoomFloat();
+  }
+
+  function doRoomPeek() {
+    const roll = Math.random();
+    if (roll < 0.34) {
+      const gain = 8 + Math.floor(Math.random() * 12);
+      state.silver += gain;
+      state.totalEarned += gain;
+      pushLog('廂房置物：找到散銀 +' + gain + ' 兩。', 'earn');
+      showUiToast('🪙 置物', '+' + gain + ' 兩', 'earn');
+    } else if (roll < 0.62) {
+      state.reputation += 1;
+      pushLog('廂房舊信一角：江湖人曾在此避雨——聲望 +1。', 'system');
+      showUiToast('📜 舊信', '望 +1', 'system');
+    } else if (roll < 0.82) {
+      const ids = Object.keys(state.heroes).filter(function (id) {
+        return state.heroes[id] && state.heroes[id].recruited;
+      });
+      if (ids.length) {
+        const hid = ids[Math.floor(Math.random() * ids.length)];
+        state.heroes[hid].favor = Math.min(100, (state.heroes[hid].favor || 0) + 2);
+        const nm = (heroRuntime(hid) || {}).name || hid;
+        pushLog('廂房小物令' + nm + '想起舊事，好感 +2。', 'bond');
+        showUiToast('💞 小物', nm + ' +2', 'bond');
+      } else {
+        pushLog('廂房空空，只有木屑氣味。', 'system');
+      }
+    } else {
+      pushLog('翻到半張灰路草圖——與第六章餘燼之路隱隱相合。', 'story');
+      showUiToast('🌫️ 灰圖', '餘燼線索', 'story');
+    }
+    save(true);
+    updateTopbar();
+    openRoomFloat();
+  }
+
+  function isChapterPlayableDone(pid) {
+    return (state.chapterPlayables || []).indexOf(pid) >= 0;
+  }
+
+  function runChapterPlayable(chapterId, playableId) {
+    const ch = getStoryChapter(chapterId);
+    if (!ch || !ch.playables) return;
+    const pl = ch.playables.find(function (p) { return p.id === playableId; });
+    if (!pl) return;
+    if (!isStoryRead(chapterId)) {
+      pushLog('請先閱覽本章。', 'warn');
+      return;
+    }
+    if (isChapterPlayableDone(playableId)) {
+      pushLog('「' + pl.title + '」已做過。', 'system');
+      return;
+    }
+    showHubChoices(pl.choices, { id: playableId });
+    // 包一層：完成時記入 chapterPlayables
+    const bar = document.getElementById('hub-choice-bar');
+    if (!bar) return;
+    bar.querySelectorAll('[data-choice]').forEach(function (btn) {
+      const prev = btn.onclick;
+      btn.addEventListener('click', function onceMark() {
+        if (!Array.isArray(state.chapterPlayables)) state.chapterPlayables = [];
+        if (state.chapterPlayables.indexOf(playableId) < 0) {
+          state.chapterPlayables.push(playableId);
+          markMetScene(playableId);
+          save(true);
+        }
+        if (activeTab === 'story') renderStory();
+      }, { once: true });
+    });
+    closeSheet();
+    const hint = document.getElementById('hub-hint');
+    if (hint) hint.textContent = pl.title + '：' + (pl.blurb || '掌櫃定夺');
+  }
+
   function renderStory() {
     checkStoryUnlocks();
     const el = $('panel-story');
@@ -3600,7 +3821,14 @@
           ${unlocked
             ? `<button class="btn tiny primary" data-read-story="${ch.id}">${read ? '重溫對話' : '閱覽章節'}</button>`
             : `<button class="btn tiny" disabled>未達條件</button>`}
+          ${read && ch.playables ? ch.playables.map(function (pl) {
+            const done = isChapterPlayableDone(pl.id);
+            return done
+              ? '<button class="btn tiny" disabled>' + pl.title + '（已完成）</button>'
+              : '<button class="btn tiny cinnabar" data-ch-play="' + ch.id + '::' + pl.id + '">' + pl.title + '</button>';
+          }).join('') : ''}
         </div>
+        ${read && ch.playables ? '<p class="muted story-play-hint">可玩段落：短對話＋選擇，做完記入本章。</p>' : ''}
       </div>`;
     }).join('');
 
@@ -3644,6 +3872,13 @@
     `;
     el.querySelectorAll('[data-read-story]').forEach((b) => {
       b.onclick = () => readStoryChapter(b.dataset.readStory);
+    });
+    el.querySelectorAll('[data-ch-play]').forEach((b) => {
+      b.onclick = function () {
+        const raw = b.getAttribute('data-ch-play') || '';
+        const parts = raw.split('::');
+        if (parts.length === 2) runChapterPlayable(parts[0], parts[1]);
+      };
     });
     el.querySelectorAll('[data-claim-ach]').forEach((b) => {
       b.onclick = () => claimAchievement(b.dataset.claimAch);
@@ -3858,12 +4093,21 @@
     if (btnClose) btnClose.addEventListener('click', () => setTab('hub'));
     const bd = $('sheet-backdrop');
     if (bd) bd.addEventListener('click', () => setTab('hub'));
+    const roomBd = document.getElementById('room-float-backdrop');
+    if (roomBd) roomBd.addEventListener('click', closeRoomFloat);
+    const roomClose = document.getElementById('btn-room-float-close');
+    if (roomClose) roomClose.addEventListener('click', closeRoomFloat);
 
     // Esc／點場景空白：關浮層（戰鬥中 Esc 唔強退）
     document.addEventListener('keydown', (ev) => {
       if (ev.key !== 'Escape') return;
       if (hubTourActive()) {
         finishHubTour(true);
+        ev.preventDefault();
+        return;
+      }
+      if (document.body.classList.contains('room-float-open')) {
+        closeRoomFloat();
         ev.preventDefault();
         return;
       }

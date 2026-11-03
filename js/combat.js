@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 自動即時走位戰鬥（v2.0.0：雙人合擊）
+ * 俠客棧 — 自動即時走位戰鬥（v2.1.0：雙人合擊）
  * 戰場 960×540；狀態機：idle→approach→windup→strike→recover（hurt／parry／dodge）
  * 幀語意 v0.9；舞台鏡頭／VFX 加厚見 stages；僅 strike 判定幀傷害；近戰須接觸；速度 0.5–2×
  * v2.0：已解鎖雙人羈絆同隊時可一場一次合擊（額外傷害＋短暫破防）
@@ -1021,8 +1021,9 @@
 
 
     function getComboState() {
-      const avail = !!comboDef;
-      const partnersOk = avail && comboDef.heroes.every(function (hid) {
+      const heroes = (comboDef && Array.isArray(comboDef.heroes)) ? comboDef.heroes : [];
+      const avail = !!(comboDef && heroes.length >= 2);
+      const partnersOk = avail && heroes.every(function (hid) {
         const u = findById(hid);
         return u && u.hp > 0;
       });
@@ -1031,13 +1032,14 @@
         ready: avail && !comboUsed && partnersOk,
         used: comboUsed,
         armed: comboArmed,
-        name: comboDef ? comboDef.name : null,
-        heroes: comboDef ? comboDef.heroes.slice() : []
+        name: comboDef ? (comboDef.name || null) : null,
+        heroes: heroes.slice()
       };
     }
 
     function tryTriggerCombo() {
       if (!comboDef || comboUsed || comboArmed) return false;
+      if (!comboDef.heroes || comboDef.heroes.length < 2) return false;
       if (turn < 4) return false;
       const a = findById(comboDef.heroes[0]);
       const b = findById(comboDef.heroes[1]);

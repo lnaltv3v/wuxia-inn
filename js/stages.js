@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v2.0.0：坐客點菜／Boss 入場／合擊 VFX）
+ * 俠客棧 — 墨點江湖舞台（v2.1.0：廂房熱點／坐客點菜打磨）
  * Hub 面板開仍呼吸；熱點墨框／硃標；戰鬥 shake 下調；招名飄字；戰場分層
  */
 (function (global) {
@@ -458,13 +458,14 @@
       { x: 496, y: 428, key: 'd' }, { x: 636, y: 400, key: 'e' }, { x: 756, y: 416, key: 'f' }
     ];
 
-    // Hub v2.0 熱點（960×540＝舊錨點 ×2；場景 PNG 暫 nearest 橋接）
+    // Hub v2.1 熱點（960×540；廂房唔同 board／books／counter 重疊）
     const HOTSPOTS = [
       { id: 'door',     label: '大門·出巡',   x: 12,  y: 164, w: 96,  h: 136, open: 'combat' },
       { id: 'board',    label: '告示·江湖',   x: 216, y: 176, w: 88,  h: 44,  open: 'story' },
       { id: 'books',    label: '書架·藏書',   x: 216, y: 228, w: 80,  h: 96,  open: 'library' },
       { id: 'counter',  label: '櫃檯·經營',   x: 306, y: 326, w: 368, h: 114, open: 'inn' },
       { id: 'map',      label: '地圖·據點',   x: 724, y: 182, w: 92,  h: 106, open: 'outposts' },
+      { id: 'rooms',    label: '廂房·歇息',   x: 848, y: 268, w: 96,  h: 100, open: 'rooms' },
       { id: 'heroes',   label: '俠客席·養成', x: 676, y: 356, w: 144, h: 68,  open: 'heroes' },
       { id: 'tableA',   label: '雅座·小費',   x: 96,  y: 396, w: 172, h: 92,  open: 'table' },
       { id: 'tableB',   label: '雅座·加急',   x: 400, y: 416, w: 172, h: 92,  open: 'table' },
@@ -1031,7 +1032,8 @@
       const cy = h ? h.y + 8 : g.y - 10;
       const wasImp = g.order === 'impatient';
       const wasOrder = g.order === 'order' || g.order === 'wait';
-      if (!wasImp && !wasOrder && g.order !== 'happy') return false;
+      // happy／未知狀態唔重複結算，避免小費／HUD 卡住感
+      if (g.order === 'happy' || (!wasImp && !wasOrder)) return false;
       const mul = getTipMul();
       let tip;
       let kind;
@@ -1053,7 +1055,9 @@
       tipBurst = { x: cx, y: cy, life: 28, max: 28, amt: tip };
       floatLabel = { text: '+' + tip + '賞', x: cx - 8, y: cy - 12, life: 1 };
       pushBubble(g.lastLine, g.x + 16, g.y - 36, 1.1);
-      if (tipHandler) tipHandler(tip, kind, { order: g.order, happy: !wasImp });
+      if (tipHandler && typeof tipHandler === 'function' && tip != null) {
+        try { tipHandler(tip, kind, { order: g.order, happy: !wasImp }); } catch (e) { /* ignore tip UI */ }
+      }
       playHubSfx('serve');
       return true;
     }

@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v2.0.0
+ * v2.1.0
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '2.0.0',
+    version: '2.1.0',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -535,6 +535,86 @@
           resultLine: '說書人呵呵收扇：「江湖路長，改日見。」小二偷笑：改日見。'
         }
       ]
+    },
+    {
+      id: 'ember_ash_scout',
+      caption: '餘燼探路：灰路風起…',
+      interactive: true,
+      needChapter: 'ch6_ember_road',
+      once: true,
+      weight: 55,
+      walkers: [
+        { id: 'qingyi', x: 200, y: 330, tx: 300, ty: 340 },
+        { id: 'xiaoer', x: 500, y: 320, tx: 420, ty: 330 }
+      ],
+      beats: [
+        { at: 0, caption: '告示角又翹起一角灰紙', line: '掌櫃！灰路上有人求援……又像試探。', walker: 1, life: 1.2 },
+        { at: 950, line: '我可先走一遭，不必全隊。', walker: 0, life: 1.2 },
+        { at: 1900, caption: '探路三選', line: '如何定夺？', walker: 0, life: 1.15 },
+        { at: 2600, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'ember_go',
+          label: '允青衣輕裝探路（-25 兩 · +望）',
+          effects: { silver: -25, reputation: 10, favorHero: 'qingyi', favor: 5 },
+          resultLine: '青衣去又回：舊營火確認，東岔可通。聲望遠播。'
+        },
+        {
+          id: 'ember_herb',
+          label: '先備傷藥再探（-18 兩 · 鐵掌好感）',
+          effects: { silver: -18, reputation: 6, favorHero: 'tiezhang', favor: 4, favorHero2: 'qingyi', favor2: 2 },
+          resultLine: '鐵掌塞滿半囊傷藥。探路雖慢，卻更穩。'
+        },
+        {
+          id: 'ember_wait',
+          label: '再觀望一夜',
+          effects: { silver: 10, reputation: -1, favorHero: 'qinshi', favor: 2 },
+          resultLine: '師太低聲誦了一段。櫃上多得一筆匿名茶錢。'
+        }
+      ]
+    },
+    {
+      id: 'ember_wind_whisper',
+      caption: '餘燼：風裡有人笑…',
+      interactive: true,
+      needChapter: 'ch6_ember_road',
+      once: true,
+      weight: 40,
+      walkers: [
+        { id: 'qinshi', x: 320, y: 330, tx: 400, ty: 340 },
+        { id: 'langren', x: 560, y: 340, tx: 470, ty: 342 }
+      ],
+      beats: [
+        { at: 0, caption: '夜風穿堂，梵音微顫', line: '風聲裡有笑。不是善類。', walker: 0, life: 1.25 },
+        { at: 1000, line: '那就削了它。', walker: 1, life: 1.1 },
+        { at: 1850, caption: '掌櫃定夺', line: '守棧，還是迎上去？', walker: 0, life: 1.2 },
+        { at: 2550, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'ember_guard_inn',
+          label: '守棧添燈（+望／小好感）',
+          effects: { reputation: 5, favorHero: 'qinshi', favor: 4, favorHero2: 'qingyi', favor2: 2 },
+          resultLine: '燈火更亮。笑意遠了些——暫時。'
+        },
+        {
+          id: 'ember_strike_out',
+          label: '浪人迎風一探（-14 兩 · 戰意）',
+          effects: {
+            silver: -14, reputation: 4,
+            favorHero: 'langren', favor: 5,
+            combatBuff: { id: 'buff_ember_wind', label: '迎風', forceMul: 1.08, battles: 2, heroes: ['langren'] }
+          },
+          resultLine: '浪人帶回半截黑布。戰意未散。'
+        },
+        {
+          id: 'ember_ignore_wind',
+          label: '當風聲罷了',
+          effects: { reputation: -2 },
+          resultLine: '眾人無言。風，卻好像又近了寸許。'
+        }
+      ]
     }
   ];
 
@@ -723,6 +803,21 @@
       manualChance: 0.12,
       weight: 18,
       minInn: 2
+    },
+    {
+      id: 'ember_ash_road',
+      name: '餘燼探路委託',
+      emoji: '🌫️',
+      kind: '探路',
+      desc: '閱第六章後可接：沿灰路探探舊營火，回報掌櫃。',
+      durationSec: 60,
+      heroesNeed: 1,
+      rewardSilver: [55, 90],
+      rewardRep: [8, 14],
+      manualChance: 0.12,
+      weight: 16,
+      minInn: 3,
+      needChapter: 'ch6_ember_road'
     }
   ];
 
@@ -817,7 +912,7 @@
     {
       id: 'ch6_ember_road',
       title: '第六章 · 餘燼之路（開頭）',
-      subtitle: '結局預告',
+      subtitle: '結局預告 · 可玩探路',
       emoji: '🌫️',
       unlock: { innLevel: 3, reputation: 170, battlesWon: 14, chapterRead: 'ch5_lantern_long' },
       bossId: null,
@@ -826,9 +921,72 @@
         { speaker: '旁白', text: '邊關密信的蠟印裂開時，裡面只有半句：「燈熄之處，影自為王。」' },
         { speaker: '青衣劍客', text: '黑風、邪醫、血影……像被人一串串牽著，朝同一處餘燼走。' },
         { speaker: '浪人刀客', text: '那地方有名嗎？還是只剩地名燒剩的灰？' },
-        { speaker: '琴心師太', text: '梵音聽得見風聲裡有人笑。不是善類。' },
-        { speaker: '掌櫃', text: '本棧燈還亮。結局未至——但路，已經從今夜開頭。' },
-        { speaker: '旁白', text: '—— 第六章開頭。更大的影尚在霧中；守住燈火，下回再拆結局。' }
+        { speaker: '鐵掌醫女', text: '灰裡若有傷者，藥要早備。掌櫃，廂房裡的行囊也該清一清。' },
+        { speaker: '琴心師太', text: '梵音聽得見風聲裡有人笑。不是善類——可先派人探路，不必全軍齊出。' },
+        { speaker: '掌櫃', text: '本棧燈還亮。結局未至——今夜先定兩樁：探路、立誓。' },
+        { speaker: '旁白', text: '—— 第六章開頭加厚。閱後可於本章「餘燼探路／灰上立誓」動手；Hub 亦會偶遇餘燼短景。' }
+      ],
+      playables: [
+        {
+          id: 'ch6_scout',
+          title: '餘燼探路',
+          blurb: '派一人沿灰路探探風向（短對話＋小回報）',
+          choices: [
+            {
+              id: 'qingyi_scout',
+              label: '青衣夜探（-20 兩 · +望）',
+              effects: { silver: -20, reputation: 8, favorHero: 'qingyi', favor: 4 },
+              resultLine: '青衣帶回半截路標：灰路東岔有舊營火。聲望微升。'
+            },
+            {
+              id: 'langren_scout',
+              label: '浪人摸營（-12 兩 · 刀客好感）',
+              effects: { silver: -12, reputation: 4, favorHero: 'langren', favor: 5 },
+              resultLine: '浪人笑說：「只有空帳篷同冷灰。」刀柄多了道新劃痕。'
+            },
+            {
+              id: 'delay_scout',
+              label: '暫緩探路（穩）',
+              effects: { reputation: 1, favorHero: 'qinshi', favor: 2 },
+              resultLine: '師太合十：「忍亦是鋒。燈先守好。」'
+            }
+          ]
+        },
+        {
+          id: 'ch6_ash_vow',
+          title: '灰上立誓',
+          blurb: '眾俠於燈下立一誓，換短暫戰意',
+          choices: [
+            {
+              id: 'vow_guard',
+              label: '誓守燈火（雙方好感／戰意）',
+              effects: {
+                favorHero: 'qingyi', favor: 3,
+                favorHero2: 'qinshi', favor2: 3,
+                reputation: 3,
+                combatBuff: { id: 'buff_ember_guard', label: '燈下誓', forceMul: 1.07, battles: 2, heroes: ['qingyi', 'qinshi', 'tiezhang', 'langren'] }
+              },
+              resultLine: '盞碰盞。眾人齊聲：「燈不滅，影難近。」短暫戰意高昂。'
+            },
+            {
+              id: 'vow_hunt',
+              label: '誓追餘燼（-15 兩 · 戰意）',
+              effects: {
+                silver: -15, reputation: 5,
+                favorHero: 'langren', favor: 3,
+                favorHero2: 'tiezhang', favor2: 3,
+                combatBuff: { id: 'buff_ember_hunt', label: '追燼', forceMul: 1.1, battles: 2, heroes: ['langren', 'tiezhang'] }
+              },
+              resultLine: '浪人與鐵掌對視一眼。灰路的風，似乎近了些。'
+            },
+            {
+              id: 'vow_quiet',
+              label: '只默默添油（小好感）',
+              effects: { favorHero: 'tiezhang', favor: 2, favorHero2: 'qinshi', favor2: 2 },
+              resultLine: '你添滿燈油。無人多言，卻都明白路已開。'
+            }
+          ]
+        }
       ]
     }
   ];
@@ -1262,6 +1420,102 @@
           resultLine: '青衣收劍：「掌櫃說得是。」浪人嘟囔著去討酒，卻沒有真惱。'
         }
       ]
+    },
+    {
+      id: 'duo_herb_fan',
+      title: '藥梵同心',
+      heroes: ['tiezhang', 'qinshi'],
+      favorNeed: { tiezhang: 40, qinshi: 40 },
+      caption: '藥香與梵音在廂房外廊下交疊…',
+      interactive: true,
+      weight: 46,
+      walkers: [
+        { id: 'tiezhang', x: 300, y: 340, tx: 360, ty: 348 },
+        { id: 'qinshi', x: 540, y: 336, tx: 450, ty: 340 }
+      ],
+      beats: [
+        { at: 0, caption: '鐵掌搭脈，師太輕撥念珠', line: '這脈象……要靜。', walker: 0, life: 1.2 },
+        { at: 900, line: '梵音可安神。你掌力穩，正好護他心脈。', walker: 1, life: 1.25 },
+        { at: 1900, caption: '二人望向掌櫃', line: '掌櫃可願聽我們同心一計？', walker: 1, life: 1.2 },
+        { at: 2700, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'hear_herb_fan',
+          label: '靜聽藥梵（雙方好感＋）',
+          effects: {
+            favorHero: 'tiezhang', favor: 5,
+            favorHero2: 'qinshi', favor2: 5,
+            combatBuff: { id: 'buff_herb_fan', label: '藥梵', forceMul: 1.08, battles: 2, heroes: ['tiezhang', 'qinshi'] }
+          },
+          resultLine: '藥香繞梵。來日出巡，掌力與琴音似更合拍——合擊「藥梵同心」可解鎖。'
+        },
+        {
+          id: 'toast_herb_fan',
+          label: '備茶相敬（-20 兩 · 戰意）',
+          effects: {
+            silver: -20, reputation: 2,
+            favorHero: 'tiezhang', favor: 4,
+            favorHero2: 'qinshi', favor2: 4,
+            combatBuff: { id: 'buff_herb_fan_tea', label: '廊下茶', forceMul: 1.11, battles: 3, heroes: ['tiezhang', 'qinshi'] }
+          },
+          resultLine: '清茶入喉。鐵掌與師太同時點頭——短暫戰意高昂。'
+        },
+        {
+          id: 'step_herb_fan',
+          label: '不便打擾（小好感）',
+          effects: { favorHero: 'tiezhang', favor: 1, favorHero2: 'qinshi', favor2: 1 },
+          resultLine: '你輕步走開。廊下梵音仍緩，藥香未散。'
+        }
+      ]
+    },
+    {
+      id: 'duo_blade_herb',
+      title: '刀藥破障',
+      heroes: ['langren', 'tiezhang'],
+      favorNeed: { langren: 42, tiezhang: 38 },
+      caption: '後院石階，浪人擦刀，鐵掌調膏…',
+      interactive: true,
+      weight: 44,
+      walkers: [
+        { id: 'langren', x: 280, y: 330, tx: 350, ty: 340 },
+        { id: 'tiezhang', x: 560, y: 345, tx: 460, ty: 348 }
+      ],
+      beats: [
+        { at: 0, caption: '刀光一閃，藥香跟上', line: '再砍深一寸，你那傷藥跟不跟得上？', walker: 0, life: 1.15 },
+        { at: 900, line: '跟得上。你別亂逞能便是。', walker: 1, life: 1.2 },
+        { at: 1850, caption: '二人收勢', line: '掌櫃——刀與藥，可否破障同行？', walker: 0, life: 1.2 },
+        { at: 2650, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'witness_blade_herb',
+          label: '願作見證（雙方好感＋）',
+          effects: {
+            favorHero: 'langren', favor: 5,
+            favorHero2: 'tiezhang', favor2: 5,
+            combatBuff: { id: 'buff_blade_herb', label: '刀藥', forceMul: 1.09, battles: 2, heroes: ['langren', 'tiezhang'] }
+          },
+          resultLine: '浪人收刀大笑，鐵掌翻個白眼卻沒反對。合擊「刀藥破障」可解鎖。'
+        },
+        {
+          id: 'wager_blade_herb',
+          label: '加注傷藥彩頭（-16 兩）',
+          effects: {
+            silver: -16, reputation: 3,
+            favorHero: 'langren', favor: 4,
+            favorHero2: 'tiezhang', favor2: 5,
+            combatBuff: { id: 'buff_blade_herb_wager', label: '彩頭膏', forceMul: 1.12, battles: 3, heroes: ['langren', 'tiezhang'] }
+          },
+          resultLine: '彩頭入櫃。刀鋒與藥力較勁三招——戰意未散。'
+        },
+        {
+          id: 'call_blade_herb',
+          label: '勸二人歇手（穩）',
+          effects: { favorHero: 'langren', favor: 2, favorHero2: 'tiezhang', favor2: 2, reputation: 1 },
+          resultLine: '鐵掌收膏：「聽掌櫃的。」浪人嘟囔，刀卻入了鞘。'
+        }
+      ]
     }
   ];
 
@@ -1290,6 +1544,26 @@
       breakMit: 0.18,
       telegraph: '刀光劍影錯落',
       resultLine: '浪人橫刀，青衣順勢——合擊破敵！'
+    },
+    {
+      id: 'combo_herb_fan',
+      duoId: 'duo_herb_fan',
+      name: '藥梵同心',
+      heroes: ['tiezhang', 'qinshi'],
+      damageMul: 1.85,
+      breakMit: 0.22,
+      telegraph: '藥勁挾梵音',
+      resultLine: '鐵掌震脈，師太梵音跟上——破防！'
+    },
+    {
+      id: 'combo_blade_herb',
+      duoId: 'duo_blade_herb',
+      name: '刀藥破障',
+      heroes: ['langren', 'tiezhang'],
+      damageMul: 1.95,
+      breakMit: 0.19,
+      telegraph: '刀風捲藥霧',
+      resultLine: '浪人劈障，鐵掌跟掌——合擊破敵！'
     }
   ];
 

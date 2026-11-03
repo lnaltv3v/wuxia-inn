@@ -1,5 +1,7 @@
 # 俠客棧美術規範 — 墨點江湖（Ink-Pixel Inn）
 
+> **v2.1**：無新 sheet；廂房為 Hub 熱點＋HTML 宣紙浮層。合擊沿用既有 VFX。
+
 > **v2.0**：四俠精靈 **r3** 密度精修（衣褶／腰帶／靴底影；幀布局不變）已覆寫正式 `qingyi`／`tiezhang`／`langren`／`qinshi`；備份 `*_prev_r2.png`；草稿 `*_r3.png`；載入 `?v=r3`。閒暇可做 r3.1 劍穗／甲片。合擊／Boss 入場／坐客用既有 VFX／剪影，無新 sheet。
 
 > **v1.9**：無新 sheet；UI 文案／footer 提示。

@@ -2207,3 +2207,55 @@ body.hub-tour-active .hub-stage-wrap .px-stage {
 .combat-combo-hud.armed { border-color: #c45c3e; color: #f0e6d0; }
 .combat-combo-hud.used { opacity: 0.72; border-color: #5a4a3a; }
 .combat-combo-line { margin: 0.25rem 0 0.4rem; }
+
+
+/* —— v2.1 廂房宣紙浮層 —— */
+.room-float-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: rgba(28, 22, 14, 0.35);
+}
+.room-float {
+  position: fixed;
+  z-index: 56;
+  right: max(12px, 4vw);
+  top: 12vh;
+  width: min(380px, 92vw);
+  max-height: 70vh;
+  overflow: auto;
+  padding: 12px 14px 16px;
+  background: linear-gradient(165deg, rgba(245, 235, 214, 0.94), rgba(232, 218, 190, 0.92));
+  border: 2px solid #3a2e22;
+  box-shadow: 4px 6px 0 rgba(30, 22, 12, 0.35);
+  color: #2a2118;
+}
+.room-float.hidden,
+.room-float-backdrop.hidden { display: none !important; }
+.room-float-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(58, 46, 34, 0.25);
+  padding-bottom: 6px;
+}
+.room-float-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+}
+.room-float-body .room-lead { margin: 0 0 6px; font-weight: 600; }
+.room-float-body .room-flavor { margin: 0 0 12px; font-size: 0.92rem; }
+.room-actions { flex-wrap: wrap; gap: 8px; }
+body.room-float-open .hub-shell { filter: brightness(0.92); }
+@media (max-width: 720px) {
+  .room-float {
+    right: 4vw;
+    left: 4vw;
+    top: auto;
+    bottom: 10vh;
+    width: auto;
+  }
+}
