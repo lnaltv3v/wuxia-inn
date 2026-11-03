@@ -530,6 +530,8 @@
         return (state.unlockedManuals || []).length >= 4;
       case 'quest_5':
         return state.questsDone >= 5;
+      case 'story_ch5':
+        return isStoryRead('ch5_lantern_long');
       case 'story_all':
         return STORY_CHAPTERS.every((c) => isStoryRead(c.id));
       default:
@@ -656,6 +658,7 @@
   function processOutpostIncome() {
     let gained = 0;
     let repGain = 0;
+    const notes = [];
     OUTPOSTS.forEach((op) => {
       const st = state.outposts[op.id];
       if (!st || !st.unlocked) return;
@@ -666,6 +669,12 @@
           // 等級略增駐守收益
           income += (op.garrisonIncome || 0) * (1 + (rt.level - 1) * 0.05);
           if (Math.random() < (op.garrisonRepChance || 0)) repGain += 1;
+          // 青石：夜市抽成（獨特）
+          if (op.marketTipChance && Math.random() < op.marketTipChance) {
+            const tip = randInt(op.marketTipSilver[0], op.marketTipSilver[1]);
+            income += tip;
+            if (Math.random() < 0.35) notes.push('青石夜市抽成 +' + tip + ' 兩');
+          }
         }
       }
       if (income > 0) {
@@ -678,7 +687,7 @@
       state.totalEarned += gained;
     }
     if (repGain > 0) state.reputation += repGain;
-    return { gained, repGain };
+    return { gained, repGain, notes };
   }
 
   // ——— 放置收入 ———
@@ -719,6 +728,9 @@
       }
       const op = processOutpostIncome();
       outpostTotal += op.gained;
+      if (op.notes && op.notes.length && count <= 3) {
+        op.notes.forEach(function (n) { pushLog(n, 'earn'); });
+      }
     }
     if (count > 3 && gained > 0) {
       pushLog(`掛機片刻，接待多位客人，共得 ${gained} 兩。`, 'earn');
@@ -823,10 +835,22 @@
       ? SCENE_EVENTS
       : (WuxiaData && WuxiaData.SCENE_EVENTS) || [];
     if (!list.length) return null;
-    // 約 40% 優先抽互動事件（有選擇影響銀兩／聲望／羈絆）
+    // 據點已解鎖：抽對應「分舵線」場景（青石夜市／邊關警報）
+    const outpostScenes = list.filter(function (e) {
+      return e.outpost && opUnlocked(state, e.outpost);
+    });
+    if (outpostScenes.length && Math.random() < 0.22) {
+      return outpostScenes[Math.floor(Math.random() * outpostScenes.length)];
+    }
+    // 約 42% 優先互動；告示密信支線加權
     const interactive = list.filter(function (e) { return e.interactive && e.choices; });
-    if (interactive.length && Math.random() < 0.4) {
-      return interactive[Math.floor(Math.random() * interactive.length)];
+    if (interactive.length && Math.random() < 0.42) {
+      const weighted = [];
+      interactive.forEach(function (e) {
+        const w = e.id === 'board_secret_letter' ? 3 : 1;
+        for (let i = 0; i < w; i++) weighted.push(e);
+      });
+      return weighted[Math.floor(Math.random() * weighted.length)];
     }
     return list[Math.floor(Math.random() * list.length)];
   }
@@ -1040,6 +1064,26 @@
     renderAll();
   }
 
+  function trainPreview(id, kind) {
+    const conf = TRAIN[kind];
+    const rt = heroRuntime(id);
+    if (!conf || !rt || !rt.recruited) return null;
+    const mods = trainingMods();
+    const cost = Math.max(1, Math.round(conf.cost * mods.costMul));
+    if (kind === 'favor') {
+      const nextFavor = Math.min(100, (state.heroes[id].favor || 0) + conf.gain);
+      const tier = getBondTier(nextFavor).name;
+      return { cost, line: '好感 +' + conf.gain + ' → ' + tier, toast: '談心' };
+    }
+    const gain = conf.gain + mods.gainBonus;
+    const exp = (state.heroes[id].exp || 0) + gain;
+    const levels = Math.floor(exp / 10);
+    const rem = exp % 10;
+    let line = '修為 +' + gain + '（' + rem + '/10）';
+    if (levels > 0) line += ' · 將升 Lv.' + (rt.level + levels);
+    return { cost, line, toast: kind === 'force' ? '練武' : '調息', gain, levels };
+  }
+
   function trainHero(id, kind) {
     const conf = TRAIN[kind];
     const rt = heroRuntime(id);
@@ -1054,12 +1098,15 @@
       pushLog(`銀兩不足（需 ${cost}）。`, 'warn');
       return;
     }
+    const preview = trainPreview(id, kind);
     state.silver -= cost;
     const h = state.heroes[id];
+    let leveled = false;
     if (kind === 'favor') {
       const prev = h.favor;
       h.favor = Math.min(100, h.favor + conf.gain);
       pushLog(`與 ${rt.name} 談心論交，好感 +${conf.gain}（${getBondTier(h.favor).name}）。`, 'favor');
+      showUiToast('💬 談心', rt.name + ' 好感 +' + conf.gain + ' · ' + getBondTier(h.favor).name, 'favor');
       const evs = checkBondEvents(id, prev, h.favor);
       evs.forEach((ev) => {
         pushLog(`【羈絆·${ev.title}】${ev.text}`, 'bond');
@@ -1067,10 +1114,12 @@
       });
     } else {
       const gain = conf.gain + mods.gainBonus;
+      const beforeLv = h.level;
       h.exp = (h.exp || 0) + gain;
       while (h.exp >= 10) {
         h.exp -= 10;
         h.level += 1;
+        leveled = true;
         const ns = heroStatsAtLevel(HERO_TEMPLATES.find((x) => x.id === id), h.level);
         h.hp = ns.maxHp;
         pushLog(`${rt.name} 修為精進，升至 Lv.${h.level}！`, 'level');
@@ -1078,9 +1127,18 @@
       const prev = h.favor;
       h.favor = Math.min(100, h.favor + conf.favor);
       if (kind === 'force') {
-        pushLog(`${rt.name} 苦練刀劍，消耗 ${cost} 兩${mods.gainBonus ? `（練武場 +${mods.gainBonus} 修為）` : ''}。`, 'train');
+        pushLog(`${rt.name} 苦練刀劍，消耗 ${cost} 兩 · 修為 +${gain}${mods.gainBonus ? `（練武場 +${mods.gainBonus}）` : ''}。`, 'train');
       } else {
-        pushLog(`${rt.name} 調息吐納，消耗 ${cost} 兩${mods.gainBonus ? `（練武場 +${mods.gainBonus} 修為）` : ''}。`, 'train');
+        pushLog(`${rt.name} 調息吐納，消耗 ${cost} 兩 · 修為 +${gain}${mods.gainBonus ? `（練武場 +${mods.gainBonus}）` : ''}。`, 'train');
+      }
+      const toastBody = leveled
+        ? (rt.name + ' 升至 Lv.' + h.level + '！修為 +' + gain)
+        : (rt.name + ' 修為 +' + gain + '（' + (h.exp || 0) + '/10）');
+      showUiToast(leveled ? '⬆️ 升級' : (kind === 'force' ? '⚔️ 練武' : '🧘 調息'), toastBody, leveled ? 'level' : 'train');
+      if (globalThis.WuxiaStages && WuxiaStages.Inn && WuxiaStages.Inn.showBubble) {
+        try {
+          WuxiaStages.Inn.showBubble((leveled ? '升級！' : '+修為'), 480, 200, 0.85);
+        } catch (e) { /* ignore */ }
       }
       const evs = checkBondEvents(id, prev, h.favor);
       evs.forEach((ev) => {
@@ -1354,6 +1412,7 @@
       const silver = randInt(q.rewardSilver[0], q.rewardSilver[1]);
       const rep = randInt(q.rewardRep[0], q.rewardRep[1]);
       state.silver += silver;
+      state.totalEarned += silver;
       state.reputation += rep;
       state.questsDone += 1;
       let dropMsg = '';
@@ -1429,9 +1488,11 @@
     if (m.type === 'active') {
       h.activeSkill = m.id;
       pushLog(`${t.name} ${isNew ? '研習' : '改習'}主動武學「${m.name}」（${price} 兩）。`, 'skill');
+      showUiToast('📜 武學', t.name + ' ' + (isNew ? '研習' : '改習') + '「' + m.name + '」', 'skill');
     } else {
       h.passiveSkill = m.id;
       pushLog(`${t.name} ${isNew ? '研習' : '改習'}被動武學「${m.name}」（${price} 兩）。`, 'skill');
+      showUiToast('📜 武學', t.name + ' ' + (isNew ? '研習' : '改習') + '「' + m.name + '」', 'skill');
     }
     if (isNew) checkAchievements();
     save();
@@ -1513,9 +1574,20 @@
       }
     });
     if (result === 'win') {
-      const silver = randInt(rewardOpts.rewardSilver[0], rewardOpts.rewardSilver[1]);
+      let silver = randInt(rewardOpts.rewardSilver[0], rewardOpts.rewardSilver[1]);
       const rep = randInt(rewardOpts.rewardRep[0], rewardOpts.rewardRep[1]);
+      let borderNote = '';
+      if (opUnlocked(state, 'bianguan')) {
+        const bg = getOutpost('bianguan');
+        const mul = (bg && bg.patrolBonusMul) || 0;
+        if (mul > 0) {
+          const bonus = Math.max(1, Math.round(silver * mul));
+          silver += bonus;
+          borderNote = '（邊關犒賞 +' + bonus + '）';
+        }
+      }
       state.silver += silver;
+      state.totalEarned += silver;
       state.reputation += rep;
       state.battlesWon += 1;
       const favorGain = rewardOpts.isBoss ? 4 : 2;
@@ -1546,6 +1618,7 @@
         } else {
           const pity = Math.round((rewardOpts.boss.bonusSilver || 50) * 0.35);
           state.silver += pity;
+          state.totalEarned += pity;
           uniqueMsg = `再戰犒賞 +${pity} 兩`;
           appendCombatLog(uniqueMsg, 'skill');
         }
@@ -1563,8 +1636,8 @@
         }
       }
       const label = rewardOpts.isBoss ? `Boss「${rewardOpts.boss.name}」討伐成功` : '剿匪勝利';
-      pushLog(`${label}！獲銀兩 ${silver}、聲望 ${rep}。${dropMsg}`, 'win');
-      appendCombatLog(`戰利品：銀兩 +${silver}，聲望 +${rep}`, 'win');
+      pushLog(`${label}！獲銀兩 ${silver}${borderNote}、聲望 ${rep}。${dropMsg}`, 'win');
+      appendCombatLog(`戰利品：銀兩 +${silver}${borderNote}，聲望 +${rep}`, 'win');
       if (bondInfo.mul > 1) {
         appendCombatLog(`羈絆「${bondInfo.tier.name}」加成生效（×${bondInfo.mul.toFixed(2)}）`, 'skill');
       }
@@ -2445,6 +2518,7 @@
         <h3>${pxIcon(op.emoji)} ${op.name}</h3>
         <p class="lore">${op.desc}</p>
         <p class="muted">${incomeHint} · 駐守聲望機率 ${(op.garrisonRepChance * 100).toFixed(0)}%</p>
+        ${op.traitLabel ? `<p class="muted outpost-trait"><b>${op.traitLabel}</b> — ${op.traitDesc || ''}</p>` : ''}
         <div class="garrison-row">
           <label>派駐俠客
             <select id="garrison-select">${opts}</select>
@@ -2617,6 +2691,12 @@
       const forceCost = Math.max(1, Math.round(TRAIN.force.cost * mods.costMul));
       const neiCost = Math.max(1, Math.round(TRAIN.nei.cost * mods.costMul));
       const favorCost = Math.max(1, Math.round(TRAIN.favor.cost * mods.costMul));
+      const forcePrev = trainPreview(t.id, 'force');
+      const neiPrev = trainPreview(t.id, 'nei');
+      const favorPrev = trainPreview(t.id, 'favor');
+      const forceLabel = '練武 ' + forceCost + '兩' + (forcePrev ? ' · ' + forcePrev.line : '');
+      const neiLabel = '調息 ' + neiCost + '兩' + (neiPrev ? ' · ' + neiPrev.line : '');
+      const favorLabel = '談心 ' + favorCost + '兩' + (favorPrev ? ' · ' + favorPrev.line : '');
       let status = '';
       if (rt.station) {
         const op = getOutpost(rt.station);
@@ -2648,9 +2728,9 @@
         </div>
         <div class="event-row muted">情誼：${evStatus || '—'}</div>
         <div class="btn-row">
-          <button class="btn tiny" data-train="${t.id}" data-kind="force" ${rt.busy ? 'disabled' : ''}>練武 ${forceCost}兩</button>
-          <button class="btn tiny" data-train="${t.id}" data-kind="nei" ${rt.busy ? 'disabled' : ''}>調息 ${neiCost}兩</button>
-          <button class="btn tiny primary" data-train="${t.id}" data-kind="favor" ${rt.busy ? 'disabled' : ''}>談心 ${favorCost}兩</button>
+          <button class="btn tiny" data-train="${t.id}" data-kind="force" title="${forcePrev ? forcePrev.line : ''}" ${rt.busy ? 'disabled' : ''}>${forceLabel}</button>
+          <button class="btn tiny" data-train="${t.id}" data-kind="nei" title="${neiPrev ? neiPrev.line : ''}" ${rt.busy ? 'disabled' : ''}>${neiLabel}</button>
+          <button class="btn tiny primary" data-train="${t.id}" data-kind="favor" title="${favorPrev ? favorPrev.line : ''}" ${rt.busy ? 'disabled' : ''}>${favorLabel}</button>
           <button class="btn tiny ${inParty ? 'danger' : 'primary'}" data-party="${t.id}" ${rt.busy && !inParty ? 'disabled' : ''}>${inParty ? '撤下' : '出戰'}</button>
         </div>
       </div>`;

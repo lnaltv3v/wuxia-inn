@@ -11,8 +11,9 @@
 | `langren.png` | **1152×64** | **v0.9 r2 精修**（姿勢差加大／判定幀；遊戲 `?v=0.9.1` cache bust） | `tools/gen_sprites_64_v09.py` |
 | `tiezhang.png` | **1152×64** | **v1.1→v1.2 正式精修（震掌／藥囊）** | `tools/gen_sprites_64_v11.py` |
 | `qinshi.png` | **1152×64** | **v1.1→v1.2 正式精修（拂塵／梵紫）** | `tools/gen_sprites_64_v11.py` |
-| `xiaoer.png` | 1152×64 | 待 v0.9（暫留舊版） | `tools/gen_sprites_64.py` |
-| `guest_sit.png` | 384×64 | 可選／舊版 | `tools/gen_sprites_64.py` |
+| `xiaoer.png` | **1152×64** | **v1.3 精修（serve／wipe）** | `tools/gen_sprites_64_v13.py` |
+| `guest_sit.png` | **384×64** | **v1.3 精修（6 色坐姿）** | `tools/gen_sprites_64_v13.py` |
+| `guest_walk.png` | **3072×64** | **v1.3 新增（6×8 walk／入座）** | `tools/gen_sprites_64_v13.py` |
 | `boss_*_combat.png` | 64×64 | 可選／舊版 | `tools/gen_sprites_64.py` |
 
 每角：每幀 **64×64**，橫向 **18** 幀 → `18×64 = 1152`。面向右。戰鬥顯示 ×2 上 960 場。
@@ -43,6 +44,7 @@ ctx.drawImage(sheet, sx, 0, FRAME, FRAME, dx, dy, FRAME, FRAME);
 | langren | `#3D3226` 墨褐 | `#C42B2B` 硃紅亮（刀血／巾） |
 | tiezhang | `#A04040` robe-red | `#3D8F66` jade-bright（藥囊／震掌） |
 | qinshi | `#5A4060` violet | `#F4E6C4` paper-light（素袍／拂塵） |
+| xiaoer | `#5C4030` wood | 宣紙圍裙＋硃紅腰帶（茶盤／抹布） |
 
 ## 重跑 v0.9（只覆寫 qingyi／langren）
 
@@ -70,3 +72,32 @@ python3 /workspace/wuxia-inn/tools/gen_sprites_64_v11.py
 ## v1.2.0 正式交付
 
 墨點美術正式交 `tiezhang`／`qinshi` 精修（覆寫 PNG），連同 `tools/gen_sprites_64_v11.py`、`_gen_report_v11.txt`、compare／preview 一併入庫。**唔覆寫** `qingyi`／`langren`。
+
+## v1.3 客棧生活（xiaoer／guest）
+
+### xiaoer 專用對幀（唔跟俠客 windup／strike）
+
+| 幀 | 動作 |
+|----|------|
+| 0–1 | idle |
+| 2–5 | walk |
+| 6–8 | **serve 斟茶**（起盤→端穩→倒茶；茶盤／壺／杯分離） |
+| 9–12 | **wipe 抹枱** |
+| 13–14 | hurt |
+| 15–17 | parry（托盤擋） |
+
+### guest_walk 64
+
+- 佈局：6 客人 × 8 幀 = 48 幀 → **3072×64**
+- `absIndex = guestIndex * 8 + localFrame`；`FRAME = 64`
+- localFrame：0–3 walk｜4–5 approach｜6–7 sit_down（幀7坐定無杯 → 切 `guest_sit` 同色加杯）
+- 主色／帽對齊 `guest_sit` 0–5
+
+```js
+const FRAME = 64;
+const sx = (guestIndex * 8 + local) * FRAME;
+ctx.drawImage(guestWalk, sx, 0, FRAME, FRAME, dx, dy, FRAME, FRAME);
+```
+
+生成：`tools/gen_sprites_64_v13.py` · 報告：`_gen_report_v13.txt`
+

@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v1.2.0
+ * v1.3.0
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '1.2.0',
+    version: '1.3.0',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -399,6 +399,68 @@
           resultLine: '浪人撇嘴。外頭有人笑本棧怯陣……'
         }
       ]
+    },
+    {
+      id: 'board_secret_letter',
+      caption: '告示欄多了一封燈火密信…',
+      interactive: true,
+      weight: 22,
+      walkers: [
+        { id: 'xiaoer', x: 240, y: 300, tx: 260, ty: 280 },
+        { id: 'qingyi', x: 80, y: 340, tx: 220, ty: 320 }
+      ],
+      beats: [
+        { at: 0, caption: '告示欄前，油布信角微翹', line: '掌櫃！有人夤夜貼信！', walker: 0, life: 1.2 },
+        { at: 900, line: '邊關筆跡……求援。', walker: 1, life: 1.15, move: { i: 0, tx: 280, ty: 290 } },
+        { at: 1800, caption: '密信展開——三條路', line: '如何回覆，由掌櫃定夺。', walker: 1, life: 1.25 },
+        { at: 2600, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'aid_border',
+          label: '派援邊關（-40 兩 · +望）',
+          effects: { silver: -40, reputation: 12, favorHero: 'qingyi', favor: 4, favorHero2: 'tiezhang', favor2: 2 },
+          resultLine: '青衣領命夜馳。邊關回信：哨站穩住，聲望遠播。'
+        },
+        {
+          id: 'qingshi_net',
+          label: '托青石線眼查探（-18 兩）',
+          effects: { silver: -18, reputation: 6, favorHero: 'langren', favor: 3 },
+          resultLine: '分舵線眼帶回夜市傳聞：黑風餘黨混商隊——青石銀路更清。'
+        },
+        {
+          id: 'watch_wait',
+          label: '按兵觀望（+少銀）',
+          effects: { silver: 15, reputation: -1, favorHero: 'qinshi', favor: 1 },
+          resultLine: '師太點頭：「忍亦是鋒。」櫃上多得一筆匿名茶錢。'
+        }
+      ]
+    },
+    {
+      id: 'qingshi_night_market',
+      caption: '青石鎮線：夜市抽成…',
+      outpost: 'qingshi',
+      walkers: [
+        { id: 'langren', x: 400, y: 330, tx: 460, ty: 340 }
+      ],
+      beats: [
+        { at: 0, caption: '青石來信：夜市熱鬧', line: '分舵抽成到了。', walker: 0, life: 1.2 },
+        { at: 1000, line: '商旅說本棧公道。', x: 480, y: 220, life: 1.1, end: true }
+      ]
+    },
+    {
+      id: 'bianguan_alarm',
+      caption: '邊關線：哨崗警報…',
+      outpost: 'bianguan',
+      walkers: [
+        { id: 'tiezhang', x: 520, y: 360, tx: 440, ty: 350 },
+        { id: 'qingyi', x: 60, y: 340, tx: 200, ty: 330 }
+      ],
+      beats: [
+        { at: 0, caption: '邊關急腳報：怪風再起', line: '哨站要人！', walker: 1, life: 1.2 },
+        { at: 900, line: '傷藥我備了半囊。', walker: 0, life: 1.15 },
+        { at: 1800, line: '出巡勝仗，邊關另有犒賞。', walker: 1, life: 1.0, end: true }
+      ]
     }
   ];
 
@@ -417,27 +479,36 @@
       unlock: null,
       baseIncome: 0,
       garrisonIncome: 1.2,
-      garrisonRepChance: 0.04
+      garrisonRepChance: 0.04,
+      traitLabel: '本棧樞紐',
+      traitDesc: '設施加成皆歸於此。'
     },
     {
       id: 'qingshi',
       name: '青石鎮分舵',
       emoji: '🏘️',
-      desc: '商旅雲集的小鎮分舵，適合派駐俠客招徠聲望與銀兩。',
+      desc: '商旅雲集：駐守偏聲望與夜市抽成；偶發「青石夜市」場景。',
       unlock: { innLevel: 2, reputation: 30, silver: 180 },
       baseIncome: 0.6,
       garrisonIncome: 2.5,
-      garrisonRepChance: 0.08
+      garrisonRepChance: 0.11,
+      marketTipChance: 0.18,
+      marketTipSilver: [3, 9],
+      traitLabel: '夜市抽成',
+      traitDesc: '駐守時偶得夜市抽成；聲望機率較高。'
     },
     {
       id: 'bianguan',
       name: '邊關哨站',
       emoji: '🏰',
-      desc: '邊陲要衝，駐守可獲較高銀兩，偶得聲望。',
+      desc: '邊陲要衝：駐守銀兩高；出巡勝仗邊關犒賞；偶發「哨崗警報」。',
       unlock: { innLevel: 3, reputation: 100, silver: 420 },
       baseIncome: 1.0,
       garrisonIncome: 4.0,
-      garrisonRepChance: 0.12
+      garrisonRepChance: 0.10,
+      patrolBonusMul: 0.12,
+      traitLabel: '邊關犒賞',
+      traitDesc: '出巡勝仗銀兩 +12%；駐守進帳偏高。'
     }
   ];
 
@@ -649,6 +720,24 @@
         { speaker: '掌櫃', text: '客棧不交人。備傷藥、亮燈——去血影樓問個明白。' },
         { speaker: '旁白', text: '—— 第四章骨架完。Boss「血影樓主」已可挑戰（路線預告・可再戰）。' }
       ]
+    },
+    {
+      id: 'ch5_lantern_long',
+      title: '第五章 · 燈火長明',
+      subtitle: '邊關密信',
+      emoji: '🕯️',
+      unlock: { innLevel: 3, reputation: 140, battlesWon: 12, chapterRead: 'ch4_xueying' },
+      bossId: null,
+      reward: { silver: 150, reputation: 22 },
+      lines: [
+        { speaker: '旁白', text: '血影樓的紅帖餘燼未冷，邊關又送來一封油布密信。' },
+        { speaker: '青衣劍客', text: '信上說哨站外怪風再起——像黑風餘黨，又不像。' },
+        { speaker: '鐵掌醫女', text: '傷藥要備足。邊關苦寒，刀口見風即裂。' },
+        { speaker: '浪人刀客', text: '樓裡的影、寨裡的風，連在一塊可就熱鬧了。' },
+        { speaker: '琴心師太', text: '燈火若長明，邪影難近門。掌櫃，告示欄那邊……還有人求援。' },
+        { speaker: '掌櫃', text: '本棧燈不滅。密信收下——江湖支線，告示欄上見。' },
+        { speaker: '旁白', text: '—— 第五章完。邊關與青石分舵獨特加成更清晰；告示欄可觸「燈火密信」支線。' }
+      ]
     }
   ];
 
@@ -761,6 +850,7 @@
     { id: 'boss_xueying', name: '血影盡散', desc: '擊敗 Boss「血影樓主」', emoji: '🩸' },
     { id: 'manuals_4', name: '武學初成', desc: '藏書閣收藏至少 4 本秘籍', emoji: '📚' },
     { id: 'quest_5', name: '俠義奔走', desc: '完成至少 5 件聲望委託', emoji: '📋' },
+    { id: 'story_ch5', name: '燈火長明', desc: '閱覽第五章「燈火長明」', emoji: '🕯️' },
     { id: 'story_all', name: '燈火篇章', desc: '閱覽全部劇情章節', emoji: '📜' }
   ];
 

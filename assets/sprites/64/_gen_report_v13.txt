@@ -1,0 +1,69 @@
+# v1.3 sprite gen report (xiaoer + guest_sit + guest_walk)
+
+## xiaoer
+path: /workspace/wuxia-inn/assets/sprites/64/xiaoer.png
+size: (1152, 64)
+oob: 0
+palette_used (18): #1A1510, #2A2218, #3D3226, #5A4A32, #5C4030, #8A7A60, #8B2942, #8B6914, #A61B1B, #B8860B, #C09070, #C42B2B, #C9A227, #D4BC8A, #E8C4A0, #E8D5A8, #F4E6C4, #FFF8EE
+  00 idle0: visible=1484
+  01 idle1: visible=1481
+  02 walk0: visible=1503
+  03 walk1: visible=1513
+  04 walk2: visible=1480
+  05 walk3: visible=1498
+  06 serve0: visible=1779
+  07 serve1: visible=1930
+  08 serve2: visible=2016
+  09 wipe0: visible=1600
+  10 wipe1: visible=1672
+  11 wipe2: visible=1787
+  12 wipe3: visible=1604
+  13 hurt0: visible=1487
+  14 hurt1: visible=1352
+  15 parry0: visible=1621
+  16 parry1: visible=1670
+  17 parry2: visible=1413
+
+## guest_sit
+path: /workspace/wuxia-inn/assets/sprites/64/guest_sit.png
+size: (384, 64)
+oob: 0
+  0: visible=1352 hat=topknot
+  1: visible=1426 hat=bun
+  2: visible=1351 hat=fringe
+  3: visible=1373 hat=bald
+  4: visible=1362 hat=topknot
+  5: visible=1476 hat=hat
+
+## guest_walk
+path: /workspace/wuxia-inn/assets/sprites/64/guest_walk.png
+size: (3072, 64)
+oob: 0
+formula: absIndex = guestIndex * 8 + localFrame; FRAME=64
+  guest0 (topknot): walk0=1245 sit7=1269
+  guest1 (bun): walk0=1309 sit7=1333
+  guest2 (fringe): walk0=1244 sit7=1268
+  guest3 (bald): walk0=1266 sit7=1290
+  guest4 (topknot): walk0=1245 sit7=1269
+  guest5 (hat): walk0=1369 sit7=1393
+
+untouched_ok: qingyi md5=977296aec036a4ab018495d9ea97d5d7
+untouched_ok: langren md5=3d03e01ea2db13abd2e966dca1ec7512
+untouched_ok: tiezhang md5=7e8732f22f90b2156d56a33f9d908998
+untouched_ok: qinshi md5=9e047e20d4f721cd2236edf1e8161435
+TOTAL_OOB=0
+
+## design
+- xiaoer: wide wood hat; wood tunic + paper apron + cinnabar belt; apron pocket; serve=tray/pot/cups separate; wipe=cloth arc + table edge; parry=tray shield
+- guest_sit 0–5: teal topknot+cup | robe-red bun+bowl | ink-soft fringe+band+cup | violet bald_cap+cup | jade topknot+bowl | wood-hat+cup; stool visible
+- guest_walk: absIndex=gi*8+local; 0–3 walk 4–5 approach 6 bend+stool 7 sit no-cup
+
+## pose diffs (xiaoer idle vs)
+- serve8=1838 wipe11=1805 parry15=1530
+
+## weaknesses
+- guest hats at 64 still blocky; topknot vs bun readable but fringe band thin
+- jade sit bowl uses CINN_B fill — reads red-ish vs cream cups (intentional contrast, not jade-green bowl)
+- walk approach (4–5) subtle vs walk 0–3; sit_down bend could lean further
+- xiaoer pour arc is few LOESS pixels — readable at x3, soft at native 64
+- stool legs short under apron hem sometimes
