@@ -83,12 +83,12 @@
     clash: { frames: 6 }
   };
 
-  /** 資產快取戳：GAME.version；四俠 sheet 另加 r31 戳，換檔後硬刷 */
+  /** 資產快取戳：GAME.version；四俠 sheet 另加 r31b 戳，換檔後硬刷 */
   const ASSET_VER = (typeof global !== 'undefined' && global.WuxiaData && global.WuxiaData.GAME && global.WuxiaData.GAME.version)
     ? global.WuxiaData.GAME.version
-    : '2.0.0';
+    : '2.3.1';
   const HERO_SHEET_R3 = { qingyi: 1, tiezhang: 1, langren: 1, qinshi: 1 };
-  const HERO_SHEET_VER = 'r31';
+  const HERO_SHEET_VER = 'r31b';
 
   function loadImg(src) {
     return new Promise(function (resolve) {
@@ -97,7 +97,7 @@
       img.onload = function () { resolve(img); };
       img.onerror = function () { resolve(null); };
       let ver = ASSET_VER;
-      // 四俠正式 64 sheet：?v=r31（兼帶 GAME.version）
+      // 四俠正式 64 sheet：?v=r31b（兼帶 GAME.version）
       const m = /assets\/sprites\/64\/(qingyi|tiezhang|langren|qinshi)\.png/.exec(src);
       if (m && HERO_SHEET_R3[m[1]]) ver = HERO_SHEET_VER + '-' + ASSET_VER;
       const sep = src.indexOf('?') >= 0 ? '&' : '?';

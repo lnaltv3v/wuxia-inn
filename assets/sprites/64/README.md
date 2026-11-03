@@ -1,7 +1,8 @@
 # 精靈表 64×64（原生）— 墨點江湖
 
 
-> **r3 已整合（正式檔）**：`qingyi.png`／`tiezhang.png`／`langren.png`／`qinshi.png` 已由 `*_r3.png` 覆蓋；舊版備份 `*_prev_r2.png`。草稿 `*_r3.png` 仍保留對照。劍穗／甲片留 r3.1。
+> **r3.1 二修已整合（正式檔）**：`qingyi.png`／`tiezhang.png`／`langren.png`／`qinshi.png` 已由最新 `*_r31.png` 覆蓋；備份 `*_prev_r31_v220.png`（v2.2 上線版）。草稿 `*_r31.png` 仍保留。載入 `?v=r31b-2.3.1`。
+> **r3 已整合（歷史）**：曾由 `*_r3.png` 覆蓋；備份 `*_prev_r2.png`。
 > 原生像素 · 僅盤內色 · 透明底 · 硬邊無抗鋸齒  
 > **唔係** 32 版 nearest 放大。
 
@@ -9,10 +10,10 @@
 
 | 檔 | 尺寸 | 狀態 | 生成腳本 |
 |----|------|------|----------|
-| `qingyi.png` | **1152×64** | **v2.0 r3 正式**（密度：衣褶／腰帶／靴底影；`?v=r3`） | `tools/gen_sprites_64_r3.py` |
-| `langren.png` | **1152×64** | **v2.0 r3 正式**（密度：衣褶／腰帶／靴底影；`?v=r3`） | `tools/gen_sprites_64_r3.py` |
-| `tiezhang.png` | **1152×64** | **v2.0 r3 正式**（密度：藥囊扣／護腕／密褶；`?v=r3`） | `tools/gen_sprites_64_r3.py` |
-| `qinshi.png` | **1152×64** | **v2.0 r3 正式**（密度：拂塵毛束／念珠／密褶；`?v=r3`） | `tools/gen_sprites_64_r3.py` |
+| `qingyi.png` | **1152×64** | **v2.3.1 r3.1 二修正式**（劍穗；`?v=r31b`） | `tools/gen_sprites_64_r31.py` |
+| `langren.png` | **1152×64** | **v2.3.1 r3.1 二修正式**（刀穗＋甲片／護腕；`?v=r31b`） | `tools/gen_sprites_64_r31.py` |
+| `tiezhang.png` | **1152×64** | **v2.3.1 r3.1 二修正式**（肩片／護腕；`?v=r31b`） | `tools/gen_sprites_64_r31.py` |
+| `qinshi.png` | **1152×64** | **v2.3.1 r3.1 二修正式**（拂塵尾加長；`?v=r31b`） | `tools/gen_sprites_64_r31.py` |
 | `xiaoer.png` | **1152×64** | **v1.3 精修（serve／wipe）** | `tools/gen_sprites_64_v13.py` |
 | `guest_sit.png` | **384×64** | **v1.3 精修（6 色坐姿）** | `tools/gen_sprites_64_v13.py` |
 | `guest_walk.png` | **3072×64** | **v1.3 新增（6×8 walk／入座）** | `tools/gen_sprites_64_v13.py` |
@@ -160,4 +161,5 @@ ctx.drawImage(sheet, sx, 0, FRAME, FRAME, dx, dy, FRAME, FRAME);
 
 - 生成：`tools/gen_sprites_64_r31.py`（讀正式 sheet 再疊）
 - 報告：`_gen_report_r31.txt`；預覽：`assets/_preview/64_*_r31_compare.png`
+- **v2.3.1**：最新草稿已覆蓋正式檔；備份 `*_prev_r31_v220.png`
 
