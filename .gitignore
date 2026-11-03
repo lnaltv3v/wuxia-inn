@@ -1,0 +1,9 @@
+# work / backups (do not ship)
+assets/audio/_work/
+assets/scenes/_prev_*/
+tools/__pycache__/
+tools/*.bak*
+**/__pycache__/
+*.pyc
+*.bak
+*.bak_*

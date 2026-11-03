@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.5.7：場景江湖事件／命中停頓／藏書熱點／坐客去重）
+ * 俠客棧 — 墨點江湖舞台（v0.5.8：Hub v1.4／guest_walk 六色／多段刀光打擊感）
  * Hub 480×270：場景分層、小二／俠客 spritesheet；戰鬥 400×180：attack／hurt／parry 幀
  */
 (function (global) {
@@ -76,7 +76,7 @@
   /** 資產快取戳：跟 GAME.version 對齊，確保 v1.2.1 精靈表換檔後瀏覽器重拉 */
   const ASSET_VER = (typeof global !== 'undefined' && global.WuxiaData && global.WuxiaData.GAME && global.WuxiaData.GAME.version)
     ? global.WuxiaData.GAME.version
-    : '0.5.7';
+    : '0.5.8';
 
   function loadImg(src) {
     return new Promise(function (resolve) {
@@ -282,7 +282,7 @@
     ctx.globalAlpha = 1;
   }
 
-  // ——— 客棧 Hub 舞台（v0.5.7 · Hub v1.3 · 480×270） ———
+  // ——— 客棧 Hub 舞台（v0.5.8 · Hub v1.4 · 480×270） ———
   const InnStage = (function () {
     const W = 480;
     const H = 270;
@@ -326,7 +326,7 @@
     let sceneEvt = null; // { beats, i, t0, walkers }
     let xiaoer = { x: 220, y: 175, tx: 220, ty: 175, mode: 'idle', tick: 0, flip: false, actionTicks: 0, destAct: 'idle' };
     let guestFrame = 0;       // guest_sit 幀 0–5（入座後）
-    let guestIndex = 0;       // guest_walk 0–3（對齊 sit 0–3）
+    let guestIndex = 0;       // guest_walk 0–5（對齊 sit 0–5：含 jade／wood-hat）
     let guestLocal = 0;       // guest_walk local 0–7
     let guestFlip = false;
     let guestSeated = false;
@@ -338,7 +338,7 @@
       { x: 248, y: 214, key: 'd' }, { x: 318, y: 200, key: 'e' }, { x: 378, y: 208, key: 'f' }
     ];
 
-    // Hub v1.3 熱點對齊 assets/scenes/README.md（480×270）
+    // Hub v1.4 熱點對齊 assets/scenes/README.md（錨點同 v1.3 · 480×270）
     const HOTSPOTS = [
       { id: 'door',     label: '大門·出巡',   x: 6,   y: 82,  w: 48,  h: 68, open: 'combat' },
       { id: 'board',    label: '告示·江湖',   x: 108, y: 92,  w: 44,  h: 28, open: 'story' },
@@ -353,14 +353,15 @@
 
     // 走廊 195–275,160–250 ＋ 枱間抹枱點
     const XIAOER_WAYPOINTS = [
-      { x: 210, y: 168, act: 'idle' },   // 走廊上
-      { x: 240, y: 200, act: 'wipe' },   // 中枱
-      { x: 255, y: 220, act: 'wipe' },   // 走廊下
-      { x: 200, y: 155, act: 'serve' },  // 櫃前
-      { x: 90,  y: 200, act: 'wipe' },   // 左枱
-      { x: 340, y: 198, act: 'wipe' },   // 右枱近俠客席
-      { x: 280, y: 175, act: 'serve' },  // 走廊中
-      { x: 190, y: 148, act: 'idle' }    // 櫃後
+      { x: 220, y: 170, act: 'idle' },   // 走廊上（195–275 暢通帶）
+      { x: 236, y: 202, act: 'wipe' },   // 中枱
+      { x: 250, y: 228, act: 'wipe' },   // 走廊下
+      { x: 205, y: 158, act: 'serve' },  // 櫃前
+      { x: 86,  y: 202, act: 'wipe' },   // 左枱
+      { x: 332, y: 196, act: 'wipe' },   // 右枱近俠客席
+      { x: 268, y: 178, act: 'serve' },  // 走廊中
+      { x: 188, y: 150, act: 'idle' },   // 櫃後
+      { x: 235, y: 188, act: 'wipe' }    // 走廊中段抹
     ];
 
     function mount(host) {
@@ -641,8 +642,8 @@
       guestName = job.guest.name || '過路客';
       guestKind = job.guest.kind || 'meal';
       payAmt = job.pay || 0;
-      // guest_walk：guestIndex 0–3＝teal／robe-red／ink-soft／violet（對齊 guest_sit 0–3）
-      guestIndex = Math.floor(Math.random() * 4);
+      // guest_walk：guestIndex 0–5＝teal／robe-red／ink-soft／violet／jade／wood-hat（對齊 guest_sit）
+      guestIndex = Math.floor(Math.random() * 6);
       guestFrame = guestIndex; // 入座後切同色 sit（有杯）
       guestLocal = 0;
       // 揀空位，避免同常駐坐客重疊
@@ -681,8 +682,9 @@
       // 只放 2–3 位常駐坐客，留空位畀進場動畫，避免重疊
       seatedGuests = [
         { x: 54, y: 198, robe: C.teal, frame: 0, key: 'a' },
+        { x: 108, y: 206, robe: C.jadeBright, frame: 4, key: 'b' },
         { x: 248, y: 214, robe: C.violet, frame: 3, key: 'd' },
-        { x: 378, y: 208, robe: C.mist, frame: 5, key: 'f' }
+        { x: 378, y: 208, robe: C.wood, frame: 5, key: 'f' }
       ];
       seatOccupiedKey = null;
     }
@@ -906,9 +908,24 @@
         const dur = PHASE_MS.enter;
         doorOpen = clamp(1 - Math.abs(elapsed - dur * 0.35) / (dur * 0.55), 0.15, 1);
         const u = Math.min(1, elapsed / dur);
-        // 門→走廊→座位；guest_walk local：0–3 walk｜4–5 approach｜6 彎腰｜7 坐定
-        guestX = 28 + u * (seatTarget.x - 28);
-        guestY = 168 + u * (seatTarget.y - 168);
+        // 門→走廊中段→座位（避開 v1.4 密家具）；guest_walk local：0–3 walk｜4–5 approach｜6 彎腰｜7 坐定
+        const midX = 235, midY = 182;
+        let pathX, pathY;
+        if (seatTarget.x <= 140) {
+          // 左座：直入
+          pathX = 28 + u * (seatTarget.x - 28);
+          pathY = 168 + u * (seatTarget.y - 168);
+        } else if (u < 0.42) {
+          const u1 = u / 0.42;
+          pathX = 28 + u1 * (midX - 28);
+          pathY = 168 + u1 * (midY - 168);
+        } else {
+          const u2 = (u - 0.42) / 0.58;
+          pathX = midX + u2 * (seatTarget.x - midX);
+          pathY = midY + u2 * (seatTarget.y - midY);
+        }
+        guestX = pathX;
+        guestY = pathY;
         guestFlip = false;
         guestSeated = false;
         if (u < 0.62) guestLocal = Math.floor((elapsed / 160) % 4);           // walk 0–3
@@ -1304,7 +1321,7 @@
       if (evt.kind === 'miss' && tgt) {
         anims[tgt.id] = { kind: 'dodge', t: 0, dur: 40, dir: tgt.side === 'ally' ? -1 : 1 };
         fx.push({ kind: 'text', text: '閃', x: tgt.x + 2, y: tgt.y - 6, life: 30, max: 30, color: C.sky });
-        hitStop = Math.max(hitStop, 4);
+        hitStop = Math.max(hitStop, 5);
         return;
       }
 
@@ -1341,8 +1358,8 @@
           }
         }
         screenFlash = Math.max(screenFlash, 5);
-        hitStop = Math.max(hitStop, 10);
-        shake = Math.max(shake, 2.2);
+        hitStop = Math.max(hitStop, 12);
+        shake = Math.max(shake, 2.8);
         return;
       }
 
@@ -1359,15 +1376,15 @@
           fx.push({ kind: 'sparks', x: tgt.x + 8, y: tgt.y + 10, n: heavy ? 8 : 5, life: heavy ? 18 : 12, max: heavy ? 18 : 12, color: C.cinnabarBright });
         }
         screenFlash = Math.max(screenFlash, heavy ? 9 : 6);
-        hitStop = Math.max(hitStop, heavy ? 12 : 8);
-        shake = Math.max(shake, heavy ? 6.2 : 3.8);
+        hitStop = Math.max(hitStop, heavy ? 15 : 10);
+        shake = Math.max(shake, heavy ? 7.0 : 4.4);
       }
 
       if (evt.kind === 'ko' && tgt) {
         fx.push({ kind: 'text', text: '倒', x: tgt.x + 2, y: tgt.y - 8, life: 44, max: 44, color: C.blood });
         shake = Math.max(shake, 7);
         screenFlash = Math.max(screenFlash, 10);
-        hitStop = Math.max(hitStop, 14);
+        hitStop = Math.max(hitStop, 16);
         anims[tgt.id] = { kind: 'hit', t: 0, dur: 48, dir: tgt.side === 'ally' ? -1 : 1, heavy: true };
         tgt.flash = 28;
       }
@@ -1597,43 +1614,72 @@
     function spawnBladeFx(atk, tgt, heavy) {
       if (!atk) return;
       const dir = atk.side === 'ally' ? 1 : -1;
-      const ax = atk.x + (dir > 0 ? 10 : -2);
-      const ay = atk.y + 2;
-      // 優先用 slash.png 精靈；冇檔先 canvas 弧
+      const ax = atk.x + (dir > 0 ? 8 : -4);
+      const ay = atk.y;
+      // 多段刀光：起手 → 中弧 →（重擊）刃尖；敵我都有（flip）
       const usedSlash = pushFxSheet('slash', ax, ay, {
         flip: dir < 0,
-        dur: heavy ? 22 : 16,
-        scale: heavy ? 1.15 : 1
+        dur: heavy ? 18 : 12,
+        scale: heavy ? 1.2 : 1.05
       });
+      pushFxSheet('slash', ax + dir * 10, ay - 4, {
+        flip: dir < 0,
+        dur: heavy ? 24 : 18,
+        scale: heavy ? 1.45 : 1.22
+      });
+      if (heavy) {
+        pushFxSheet('slash', ax + dir * 18, ay + 2, {
+          flip: dir < 0,
+          dur: 16,
+          scale: 1.18
+        });
+      }
       if (!usedSlash) {
         fx.push({
           kind: 'arc',
           x: atk.x + (dir > 0 ? 12 : 0), y: atk.y + 8,
           dir: dir,
-          r: heavy ? 28 : 22,
-          start: -1.05 * dir,
-          end: 0.7 * dir,
+          r: heavy ? 30 : 24,
+          start: -1.1 * dir,
+          end: 0.75 * dir,
           life: heavy ? 26 : 18,
           max: heavy ? 26 : 18,
           color: heavy ? C.cinnabarBright : C.cinnabar,
           tipColor: C.cream
         });
+        fx.push({
+          kind: 'arc',
+          x: atk.x + (dir > 0 ? 16 : -2), y: atk.y + 4,
+          dir: dir,
+          r: heavy ? 22 : 16,
+          start: -0.6 * dir,
+          end: 0.9 * dir,
+          life: heavy ? 20 : 14,
+          max: heavy ? 20 : 14,
+          color: C.cream,
+          tipColor: C.gold
+        });
       }
       if (tgt) {
-        const hx = tgt.x + 4;
-        const hy = tgt.y + 4;
-        const usedSpark = pushFxSheet('spark', hx, hy, { dur: heavy ? 16 : 12 });
-        if (!usedSpark) {
-          fx.push({
-            kind: 'sparks',
-            x: tgt.x + 8, y: tgt.y + 10,
-            n: heavy ? 8 : 5,
-            life: heavy ? 18 : 12,
-            max: heavy ? 18 : 12,
-            color: C.cinnabarBright
-          });
-        }
-        pushFxSheet('hit_ring', hx - 2, hy - 2, { dur: 12 });
+        const hx = tgt.x + 2;
+        const hy = tgt.y + 2;
+        // 受擊火花：sheet 雙層＋ canvas 粒子（敵方受擊同樣）
+        pushFxSheet('spark', hx, hy, { dur: heavy ? 18 : 14, scale: heavy ? 1.4 : 1.18 });
+        pushFxSheet('spark', hx - dir * 5, hy - 5, { dur: heavy ? 14 : 10, scale: 1.0 });
+        pushFxSheet('hit_ring', hx - 4, hy - 4, { dur: heavy ? 16 : 12, scale: heavy ? 1.35 : 1.12 });
+        fx.push({
+          kind: 'sparks',
+          x: tgt.x + 8, y: tgt.y + 10,
+          n: heavy ? 12 : 7,
+          life: heavy ? 22 : 14,
+          max: heavy ? 22 : 14,
+          color: C.cinnabarBright
+        });
+        // 碰撞中點再噴一層
+        const mx = (atk.x + tgt.x) / 2 + 2;
+        const my = (atk.y + tgt.y) / 2 + 4;
+        pushFxSheet('spark', mx - 8, my - 8, { dur: 12, scale: 1.12 });
+        fx.push({ kind: 'burst', x: mx, y: my, life: heavy ? 14 : 10, max: heavy ? 14 : 10, color: C.cream });
       }
     }
 
@@ -1658,10 +1704,13 @@
         }
       });
       fx = fx.filter((f) => {
-        if (!frozen) {
+        // 定格單位，但刀光／火花／軌跡繼續播，先睇到碰撞
+        const keepFx = f.kind === 'fxsheet' || f.kind === 'sparks' || f.kind === 'slash'
+          || f.kind === 'arc' || f.kind === 'burst' || f.kind === 'trail';
+        if (!frozen || keepFx) {
           f.life -= 1;
           if (f.kind === 'fxsheet') f.t = (f.t || 0) + 1;
-          if (f.kind === 'text') f.y -= 0.32;
+          if (f.kind === 'text') f.y -= frozen ? 0.1 : 0.32;
         }
         return f.life > 0;
       });
@@ -1723,11 +1772,12 @@
           drawRect(ctx, f.x - 5, f.y - 5, 12, 12, f.color || C.gold);
           drawRect(ctx, f.x - 2, f.y - 2, 6, 6, C.cream);
         } else if (f.kind === 'slash') {
-          // 十字刃光＋斜切（墨點硬邊）
-          drawRect(ctx, f.x - 2, f.y + 4, 18, 2, f.color || C.cream);
-          drawRect(ctx, f.x + 6, f.y - 4, 2, 16, f.color || C.cinnabarBright);
-          drawRect(ctx, f.x, f.y, 12, 2, C.cinnabarBright);
-          drawRect(ctx, f.x + 2, f.y + 6, 10, 2, C.cream);
+          // 十字刃光＋斜切（墨點硬邊，加厚一輪）
+          drawRect(ctx, f.x - 4, f.y + 3, 22, 3, f.color || C.cream);
+          drawRect(ctx, f.x + 5, f.y - 6, 3, 20, f.color || C.cinnabarBright);
+          drawRect(ctx, f.x - 1, f.y, 16, 2, C.cinnabarBright);
+          drawRect(ctx, f.x + 1, f.y + 7, 14, 2, C.cream);
+          drawRect(ctx, f.x + 10, f.y - 2, 8, 2, C.gold);
         }
         ctx.globalAlpha = 1;
       });

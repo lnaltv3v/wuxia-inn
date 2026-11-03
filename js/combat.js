@@ -156,8 +156,8 @@
       if (!evt) return;
       // 命中／招架／擊倒：戰鬥邏輯短停，等刀光同閃白睇得清
       if (evt.kind === 'hit') holdTicks = Math.max(holdTicks, 1);
-      else if (evt.kind === 'skill' || evt.kind === 'parry') holdTicks = Math.max(holdTicks, 1);
-      else if (evt.kind === 'ko') holdTicks = Math.max(holdTicks, 2);
+      else if (evt.kind === 'skill' || evt.kind === 'parry') holdTicks = Math.max(holdTicks, 2);
+      else if (evt.kind === 'ko') holdTicks = Math.max(holdTicks, 3);
     }
 
     function act(attacker) {

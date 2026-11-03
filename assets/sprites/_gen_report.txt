@@ -8,6 +8,6 @@ SPRITE xiaoer: size=(576, 32) opaque=6414 oob=0 empty_frames=[] oob_cols={}
 BOSS heifeng: size=(32, 32) opaque=585 oob=0 oob_cols={}
 BOSS xieyi: size=(32, 32) opaque=459 oob=0 oob_cols={}
 GUEST sit: size=(192, 32) opaque=2608 oob=0 oob_cols={}
-GUEST walk: size=(1024, 32) opaque=11765 oob=0 empty_frames=[] oob_cols={}
+GUEST walk (6×8): size=(1536, 32) regenerated jade+wood-hat
 SCENES: skipped (owned by 墨點場景; use --scenes-only)
 PREVIEWS: sprite previews refreshed under assets/_preview/

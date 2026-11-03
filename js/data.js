@@ -1,17 +1,17 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v0.5.7
+ * v0.5.8
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '0.5.7',
+    version: '0.5.8',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
-    combatTickMs: 1250,
+    combatTickMs: 1400,
     dropManualChance: 0.32,
     maxParty: 3,
     questRefreshCost: 25,       // 手動刷新任務板銀兩

@@ -3,7 +3,7 @@
 > 原生像素 · Pillow 生成 · 僅盤內色 · 透明底 · 硬邊無抗鋸齒  
 > 生成腳本：`/workspace/wuxia-inn/tools/gen_ink_pixel_assets.py`（**sprites-only**；Hub 場景改由「墨點場景」負責，唔覆寫 `assets/scenes/`）  
 > **v1.2**：同解析度加資訊量——頭／帽／髮型／肩飾剪影差更大；袍領口／袖口／下擺褶 1–2px；腰帶扣／藥囊／劍鞘；walk 抬腳約 **8px**＋衣擺跟動；serve 茶盤／壺／杯分離＋倒茶弧；attack／hurt／parry 姿勢一眼可讀；Boss 威脅剪影加厚；`guest_sit` 扩至 **6** 幀（杯／碗）。  
-> **+guest_walk**：4 主色客人 × 8 幀 walk／approach／sit_down（**1024×32**），坐定幀對齊 `guest_sit` 0–3 以便切換。  
+> **+guest_walk**：6 主色客人 × 8 幀 walk／approach／sit_down（**1536×32**），坐定幀對齊 `guest_sit` 0–5 以便切換。  
 > **v1.2.1**：四俠客 **attack（9–12）／hurt（13–14）** 再加清楚——起手收勢差更大（後引 → 大弧 → 擊中刃尖／掌風 1px 盤內亮色 → 收回）、身體前傾／後坐一眼可辨；hurt 兩幀姿勢差大（高甩臂 vs 下甩＋更深後仰）、血點 `#C42B2B`／`#8B2942`。對幀不變。`xiaoer`／`guest_*`／boss 行為維持。
 
 ## 檔名與尺寸
@@ -16,7 +16,7 @@
 | `qinshi.png` | **576×32** | 琴心師太 |
 | `xiaoer.png` | **576×32** | 客棧小二（斟茶＋抹枱） |
 | `guest_sit.png` | **192×32** | 客人坐姿 ×**6**（衣色／帽型／杯或碗） |
-| `guest_walk.png` | **1024×32** | 客人 walk／入座 ×**4 色 × 8 幀**（對齊 sit 0–3 主色） |
+| `guest_walk.png` | **1536×32** | 客人 walk／入座 ×**6 色 × 8 幀**（對齊 sit 0–5 主色） |
 | `boss_heifeng_combat.png` | **32×32** | 黑風寨主戰鬥站姿剪影 |
 | `boss_xieyi_combat.png` | **32×32** | 邪醫戰鬥站姿剪影 |
 
@@ -72,8 +72,8 @@ ctx.drawImage(guestSit, guestIndex * 32, 0, 32, 32, dx, dy, 32, 32);
 
 ## guest_walk 對幀（寫死 · 單一 sheet）
 
-**佈局**：橫向 **32** 幀 · 每幀 **32×32** · 總 **1024×32** · 面向右 · 透明底  
-**公式**：`absIndex = guestIndex * 8 + localFrame`（`guestIndex` 0–3）
+**佈局**：橫向 **48** 幀 · 每幀 **32×32** · 總 **1536×32** · 面向右 · 透明底  
+**公式**：`absIndex = guestIndex * 8 + localFrame`（`guestIndex` 0–5）
 
 | guestIndex | 主色 | 帽／髮 | 對齊 `guest_sit` |
 |------------|------|--------|------------------|
@@ -81,6 +81,8 @@ ctx.drawImage(guestSit, guestIndex * 32, 0, 32, 32, dx, dy, 32, 32);
 | 1 | robe-red `#A04040` | double bun | sit 幀 1 |
 | 2 | ink-soft `#3D3226` | fringe＋額帶 | sit 幀 2 |
 | 3 | violet `#5A4060` | bald_cap | sit 幀 3 |
+| 4 | jade `#2F6B4F`／`#3D8F66` | tall topknot | sit 幀 4 |
+| 5 | wood-hat 木褐 `#5C4030` | 寬木帽 `hat_wood` | sit 幀 5 |
 
 | localFrame | 動作 | 說明 |
 |------------|------|------|
@@ -95,14 +97,12 @@ ctx.drawImage(guestSit, guestIndex * 32, 0, 32, 32, dx, dy, 32, 32);
 
 ```js
 const FRAME = 32;
-const guestIndex = 0; // 0..3
+const guestIndex = 0; // 0..5  teal/robe-red/ink-soft/violet/jade/wood-hat
 const local = 0;      // 0..7
 const sx = (guestIndex * 8 + local) * FRAME;
 ctx.drawImage(guestWalk, sx, 0, FRAME, FRAME, dx, dy, FRAME, FRAME);
 // 入座完成後：切 guest_sit 同色幀（guestIndex）顯示杯／碗
 ```
-
-jade／wood-hat 客人暫只在 `guest_sit` 幀 4–5；walk 後加。
 
 ## Boss 頭像重用
 
@@ -115,7 +115,7 @@ jade／wood-hat 客人暫只在 `guest_sit` 幀 4–5；walk 後加。
 
 ## 稽核（生成時）
 
-所有俠客／小二 `size==(576,32)`、`guest_sit==(192,32)`、`guest_walk==(1024,32)`、Boss `32×32`、oob=0、每 32px 欄有可見像素。詳見 `_gen_report.txt`。
+所有俠客／小二 `size==(576,32)`、`guest_sit==(192,32)`、`guest_walk==(1536,32)`、Boss `32×32`、oob=0、每 32px 欄有可見像素。詳見 `_gen_report.txt`。
 
 重生（只精靈）：`python3 tools/gen_ink_pixel_assets.py`
 
