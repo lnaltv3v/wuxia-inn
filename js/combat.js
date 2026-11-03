@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 自動即時戰鬥（v0.4：Boss 技能／護盾、主動／被動武學、護盾、削弱、羈絆倍率）
+ * 俠客棧 — 自動即時戰鬥（v0.4.2：onAction 舞台事件、閃避、Boss／武學／羈絆）
  */
 (function (global) {
   'use strict';
@@ -149,6 +149,10 @@
       if (hooks && hooks.onEnd) hooks.onEnd(result, units);
     }
 
+    function emitAction(evt) {
+      if (hooks && hooks.onAction) hooks.onAction(evt);
+    }
+
     function act(attacker) {
       if (attacker.hp <= 0) return;
 
@@ -165,21 +169,31 @@
       let skillMul = 1;
       let skillName = null;
       let didHealOnly = false;
+      let usedSkill = false;
 
       if (attacker.skill && attacker.cd <= 0 && Math.random() < (attacker.skill.chance || 0.2)) {
         skillMul = attacker.skill.mul || 1.5;
         skillName = attacker.skill.name;
         attacker.cd = 3;
+        usedSkill = true;
 
         if (attacker.skill.heal) {
           const healAmt = Math.round(attacker.maxHp * attacker.skill.heal);
           attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmt);
           log(`${attacker.emoji}${attacker.name} 使出「${skillName}」，回復 ${healAmt} 氣血！`, 'skill');
+          emitAction({
+            kind: 'heal', attackerId: attacker.id, targetId: attacker.id,
+            heal: healAmt, skillName: skillName, side: attacker.side
+          });
         }
         if (attacker.skill.shield) {
           const sh = Math.round(attacker.maxHp * attacker.skill.shield);
           attacker.shield = (attacker.shield || 0) + sh;
           log(`${attacker.emoji}${attacker.name}「${skillName}」護體，護盾 +${sh}`, 'skill');
+          emitAction({
+            kind: 'shield', attackerId: attacker.id, targetId: attacker.id,
+            shield: sh, skillName: skillName, side: attacker.side
+          });
         }
         if (attacker.skill.weaken) {
           target.weaken = Math.max(target.weaken || 0, attacker.skill.weaken);
@@ -197,15 +211,37 @@
       if (attacker.weaken > 0) attacker.weaken = Math.max(0, attacker.weaken - 0.03);
 
       if (!didHealOnly) {
-        const dmg = calcDamage(attacker, target, skillMul);
-        applyDamage(target, dmg);
-        if (skillName && skillMul > 1) {
-          log(`${attacker.emoji}${attacker.name}「${skillName}」→ ${target.name}，造成 ${dmg}！`, 'skill');
-        } else if (!skillName) {
-          log(`${attacker.emoji}${attacker.name} 攻向 ${target.name}，傷害 ${dmg}`, attacker.side);
-        }
-        if (target.hp <= 0) {
-          log(`${target.emoji}${target.name} 倒下！`, 'ko');
+        // 偶爾閃避（技能較難閃；約 10%／技能 4%）
+        const dodgeChance = usedSkill ? 0.04 : 0.10;
+        if (Math.random() < dodgeChance) {
+          log(`${target.emoji}${target.name} 側身閃過 ${attacker.name} 的招！`, 'info');
+          emitAction({
+            kind: 'miss', attackerId: attacker.id, targetId: target.id,
+            skillName: skillName, side: attacker.side, damage: 0
+          });
+        } else {
+          const dmg = calcDamage(attacker, target, skillMul);
+          applyDamage(target, dmg);
+          if (skillName && skillMul > 1) {
+            log(`${attacker.emoji}${attacker.name}「${skillName}」→ ${target.name}，造成 ${dmg}！`, 'skill');
+          } else if (!skillName) {
+            log(`${attacker.emoji}${attacker.name} 攻向 ${target.name}，傷害 ${dmg}`, attacker.side);
+          }
+          emitAction({
+            kind: usedSkill && skillMul > 1 ? 'skill' : 'hit',
+            attackerId: attacker.id,
+            targetId: target.id,
+            damage: dmg,
+            skillName: skillName,
+            side: attacker.side
+          });
+          if (target.hp <= 0) {
+            log(`${target.emoji}${target.name} 倒下！`, 'ko');
+            emitAction({
+              kind: 'ko', attackerId: attacker.id, targetId: target.id,
+              side: attacker.side, damage: dmg
+            });
+          }
         }
       }
     }

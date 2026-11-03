@@ -1,4 +1,4 @@
-# 俠客棧 — 設計說明（v0.4.1 style）
+# 俠客棧 — 設計說明（v0.4.2 stage）
 
 ## 定位
 武俠風格 **客棧經營 × 放置養成 × 自動即時戰鬥** 單頁遊戲。  
@@ -115,6 +115,17 @@
 - 客棧 Lv.≥2、聲望 ≥60、任已招募俠客好感 ≥40  
 - 銀兩 450  
 
+## 舞台系統（v0.4.2）
+| 舞台 | 實作 | 表現 |
+|------|------|------|
+| 客棧接客 | `js/stages.js` → `WuxiaStages.Inn` Canvas 320×180 | 客人入場 → 櫃檯 → 店員斟茶遞水 → 銀兩飛入／＋銀兩字 → 離場；掛接放置 tick 接待事件 |
+| 戰鬥對峙 | `WuxiaStages.Combat` Canvas 320×150 | 我左敵右；衝刺揮砍幀、受擊閃白／擊退、閃避側移、技能色塊衝擊、震屏 1–2px、傷害數字；log 縮到舞台下方 |
+
+- 戰鬥數值仍由 `combat.js` 驅動；透過 `onAction`／`onUpdate` 驅動動畫  
+- 普通攻擊約 10%、技能約 4% 閃避（舞台＋日誌）  
+- 客棧分頁每秒只 `softUpdateInn` 刷數字，避免清掉 Canvas  
+- 嚴格跟 ART.md 色盤與 `image-rendering: pixelated`；無寫實圖  
+
 ## 美術方向 — 墨點江湖（Ink-Pixel Inn）
 **獨有風格體系**，規範全文見 **[ART.md](./ART.md)**（v0.4.1 style）。  
 不再混用《大俠立志傳》高清像素立繪或寫實 banner。
@@ -123,7 +134,7 @@
 - 頭像：32×32 SVG `crispEdges` → 顯示 64×64；`image-rendering: pixelated`  
 - 場景：320×180 SVG 客棧；嚴格 22+ 色盤（墨／硃／宣紙／青綠／土黄…）  
 - UI：直角墨框、硬投影、色塊血條；禁止柔邊抗鋸齒與盤外色  
-- 俠客：預設生成像素剪影（每角色武器／道具可辨）；合規 PNG 就緒前不讀 `assets/heroes/*.png`  
+- 俠客：`USE_COMPLIANT_PORTRAITS=true` 讀 `assets/heroes/{id}.png`（32×32，非 `_legacy`）；失敗回退 SVG 剪影  
 - 舊高清稿封存於 `assets/heroes/_legacy/`、`assets/ui/_legacy/`  
 
 ## 設計原則
@@ -135,6 +146,13 @@
 
 ## v0.1–v0.3.1 已完成
 （略：經營／羈絆武學／據點設施任務／像素美術——見 git 歷史）
+
+## v0.4.2 stage 已完成
+- [x] 合規頭像啟用（`USE_COMPLIANT_PORTRAITS`）  
+- [x] 客棧接客 Canvas 舞台（斟茶／付款循環）  
+- [x] 戰鬥像素舞台（揮砍／閃避／技能／震屏／傷害字）  
+- [x] `combat.onAction` 事件；log 縮小為輔助  
+- [x] DESIGN／footer／`GAME.version` → 0.4.2  
 
 ## v0.4.1 style 已完成
 - [x] `ART.md` 墨點江湖規範（色盤／密度／禁止項）  
@@ -150,11 +168,11 @@
 
 ## 仍待做（路線圖）
 ### v0.5+
-- 合規 64×64 俠客／Boss PNG（跟 ART.md 色盤重畫）  
+- 接客／戰鬥更多幀（走、坐、招架多段）與音效  
+- Boss 專屬剪影／入場演出  
 - 季節／慶典活動  
 - 匯出／匯入存檔字串  
 - 合擊技、專屬結局線（羈絆延伸）  
-- 音效／過場動畫  
 - 更多章節與 Boss  
 
 ## 檔案結構
@@ -163,10 +181,11 @@
   index.html
   css/style.css
   js/data.js      # 俠客／敵人／武學／劇情／Boss／成就／據點等常數
-  js/combat.js    # 自動戰鬥（技能／護盾／羈絆／Boss 縮放）
-  js/game.js      # 主循環、migrate、UI、存檔、劇情／成就、像素剪影
+  js/combat.js    # 自動戰鬥（onAction／閃避／技能／護盾／羈絆）
+  js/stages.js    # 客棧接客＋戰鬥 Canvas 舞台
+  js/game.js      # 主循環、migrate、UI、存檔、舞台掛接
   assets/
-    heroes/          # 合規頭像（目前空，用 SVG）
+    heroes/          # 合規 32／64 PNG（啟用中；_legacy 不讀）
     heroes/_legacy/  # 封存非合規高清稿
     ui/
     ui/_legacy/
@@ -176,8 +195,9 @@
 ```
 
 ## 已知限制
-- 無音效／無劇情過場動畫（對話為靜態面板）  
-- Boss／俠客尚無合規 32/64 PNG 立繪（現用 SVG 墨點剪影）  
+- 舞台為第一版：幀數少、無招架多段／物理引擎，碰撞感為擊退＋震屏＋閃白  
+- 無音效；劇情對話仍為靜態面板  
+- 合規 PNG 為程式色盤點陣；精細度有限  
 - 無狀態異常抗性／站位系統  
 - 僅本地存檔  
 - 普通掉落為隨機，未做保底計數（Boss 首次秘籍為保底）  

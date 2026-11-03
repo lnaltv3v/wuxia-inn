@@ -1,4 +1,4 @@
-/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.4.1 style（見 ART.md） */
+/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.4.2 stage（見 ART.md） */
 :root {
   /* 嚴格色盤 — 禁止盤外色 */
   --ink: #1A1510;
@@ -858,3 +858,54 @@ body::before {
   .story-line .speaker { text-align: left; }
   .tab-btn { font-size: 0.8rem; }
 }
+
+/* —— v0.4.2 接客／戰鬥像素舞台 —— */
+.stage-host {
+  margin: 0 0 12px;
+  border: 3px solid var(--ink);
+  background: var(--night);
+  box-shadow: 4px 4px 0 var(--ink), inset 2px 2px 0 var(--ink-soft);
+  overflow: hidden;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+.stage-wrap {
+  position: relative;
+  width: 100%;
+  line-height: 0;
+}
+.stage-wrap .px-stage {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 320 / 180;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  background: var(--wood);
+}
+.combat-stage-wrap .px-stage {
+  aspect-ratio: 320 / 150;
+}
+.stage-caption {
+  line-height: 1.4;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  font-family: var(--font-title);
+  color: var(--cream);
+  background: var(--night);
+  border-top: 2px solid var(--frame);
+  letter-spacing: 0.06em;
+}
+.inn-stage-wrap .px-stage { background: var(--loess); }
+.battle-field-compact {
+  min-height: 72px;
+  margin-top: 8px;
+}
+.combat-log-compact {
+  max-height: 140px;
+  font-size: 0.78rem;
+}
+.tiny-tip { font-size: 0.8rem; }
+.stage-first { order: -1; }
+.card.stage-first h3 { margin-top: 0; }

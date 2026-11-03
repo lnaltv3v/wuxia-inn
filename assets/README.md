@@ -1,22 +1,11 @@
-# 美術資源 — 墨點江湖（Ink-Pixel Inn）
+# 資產說明
 
-權威規範：**[/ART.md](../ART.md)**。不合規素材勿放入執行路徑。
+## heroes/
+合規墨點江湖頭像（原生 32×32，另附 `_64.png` 顯示用變體）：
+- `qingyi.png` / `tiezhang.png` / `langren.png` / `qinshi.png`
+- `boss_heifeng.png` / `boss_xieyi.png`
 
-## 俠客頭像（合規後）
-| 路徑 | 對應 | 規格 |
-|------|------|------|
-| `heroes/qingyi.png` | 青衣劍客 | 32×32 或 64×64、盤內色、透明底、硬邊 |
-| `heroes/tiezhang.png` | 鐵掌醫女 | 同上 |
-| `heroes/langren.png` | 浪人刀客 | 同上 |
-| `heroes/qinshi.png` | 琴心師太 | 同上 |
+`USE_COMPLIANT_PORTRAITS = true`（`js/game.js`）時優先載入上述 PNG；失敗回退 SVG 剪影。
 
-目前目錄為空：遊戲用 `js/game.js` 內 **SVG 像素剪影**。  
-高清舊稿在 `heroes/_legacy/`，執行期不讀取。
-
-合規 PNG 放入後，將 `USE_COMPLIANT_PORTRAITS` 改為 `true`。
-
-## UI
-| 路徑 | 用途 |
-|------|------|
-| `ui/` | 合規 UI 點陣（可選） |
-| `ui/_legacy/inn-banner.png` | 舊寫實感 banner（已停用；場景為 SVG） |
+## _legacy/
+封存不合規高清稿。**遊戲執行期不讀取。**

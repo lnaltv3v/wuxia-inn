@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v0.4：劇情／Boss／成就 · 像素武俠風）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v0.4.2：接客／戰鬥舞台 · 墨點江湖）
  */
 (function () {
   'use strict';
@@ -597,6 +597,10 @@
           const verb = guest.kind === 'stay' ? '住店一夜' : '點了一桌酒菜';
           pushLog(`${guest.name}${verb}，收入 ${pay} 兩。`, 'earn');
         }
+        // 舞台演出：僅即時 tick（非大段離線結算）才逐一播放
+        if (count <= 3 && globalThis.WuxiaStages && WuxiaStages.Inn) {
+          WuxiaStages.Inn.playGuest(guest, pay);
+        }
       }
       const op = processOutpostIncome();
       outpostTotal += op.gained;
@@ -655,7 +659,7 @@
       checkStoryUnlocks();
       checkAchievements();
     }
-    if (activeTab === 'inn') renderInn();
+    if (activeTab === 'inn') softUpdateInn();
     if (activeTab === 'outposts') renderOutposts();
     if (activeTab === 'story') renderStory();
     updateTopbar();
@@ -1310,10 +1314,21 @@
       onUpdate(snap) {
         renderBattleUnits(snap.units);
       },
+      onAction(evt) {
+        if (globalThis.WuxiaStages && WuxiaStages.Combat && WuxiaStages.Combat.isMounted()) {
+          WuxiaStages.Combat.playAction(evt);
+        }
+      },
       onEnd(result, units) {
         finishBattleCommon(result, units, bondInfo, rewardOpts);
       }
     });
+    // 確保戰鬥舞台已掛載；用 clone 後穩定 id 同步首幀
+    ensureCombatStage();
+    if (WuxiaStages && WuxiaStages.Combat) {
+      WuxiaStages.Combat.resetIdle();
+      WuxiaStages.Combat.sync(battle.getUnits().map((u) => Object.assign({}, u)));
+    }
     if (rewardOpts.isBoss) {
       appendCombatLog(`—— Boss 戰：${rewardOpts.boss.name} ——`, 'system');
     }
@@ -1359,7 +1374,7 @@
 
 
   /* —— 墨點江湖像素頭像／場景（ART.md；預設不用 _legacy 高清 PNG） —— */
-  const USE_COMPLIANT_PORTRAITS = false; // 合規 32/64 PNG 就緒後改 true
+  const USE_COMPLIANT_PORTRAITS = true; // assets/heroes/*.png 32×32 合規已就緒（不讀 _legacy）
 
   const HERO_PALETTES = {
     qingyi:   { skin: '#E8C4A0', hair: '#1A1510', robe: '#2A6A6A', accent: '#4A9A9A', trim: '#1A1510', bg: '#4A7A58' },
@@ -1458,9 +1473,16 @@
     </div>`;
   }
 
-  function enemyAvatarHtml(emoji) {
+  function enemyAvatarHtml(emoji, enemyId) {
+    const hid = enemyId && (enemyId === 'boss_heifeng' || enemyId === 'boss_xieyi') ? enemyId : 'enemy';
     const pal = HERO_PALETTES.enemy;
-    return `<div class="px-avatar sm" data-hero="enemy">
+    let img = '';
+    if (USE_COMPLIANT_PORTRAITS && hid !== 'enemy') {
+      img = `<img class="px-portrait on" src="assets/heroes/${hid}.png" alt="" width="64" height="64" loading="lazy"
+        onerror="this.classList.add('missing'); this.classList.remove('on');" />`;
+    }
+    return `<div class="px-avatar sm" data-hero="${hid}">
+      ${img}
       <div class="px-sprite" aria-hidden="true">${pixelFigureSvg(pal, 'enemy')}</div>
     </div>`;
   }
@@ -1532,7 +1554,37 @@
     return s + '秒';
   }
 
-  function renderInn() {
+  function softUpdateInn() {
+    // 不重繪整頁，避免清掉接客 Canvas；只刷數字
+    const inn = innInfo(state.innLevel);
+    const earned = document.getElementById('inn-stat-earned');
+    if (earned) earned.textContent = String(state.totalEarned);
+    const guests = document.getElementById('inn-stat-guests');
+    if (guests) guests.textContent = String(state.guestsServed);
+    const wins = document.getElementById('inn-stat-wins');
+    if (wins) wins.textContent = String(state.battlesWon);
+    const quests = document.getElementById('inn-stat-quests');
+    if (quests) quests.textContent = String(state.questsDone);
+    const mul = document.getElementById('inn-stat-mul');
+    if (mul) mul.textContent = '×' + (inn.incomeMul * cellarIncomeMul()).toFixed(2);
+    if (!document.getElementById('inn-stage-host') || !(WuxiaStages && WuxiaStages.Inn && WuxiaStages.Inn.isMounted())) {
+      renderInn();
+    }
+  }
+
+  function ensureInnStage() {
+    const host = document.getElementById('inn-stage-host');
+    if (!host || !globalThis.WuxiaStages || !WuxiaStages.Inn) return;
+    if (!WuxiaStages.Inn.isMounted()) WuxiaStages.Inn.mount(host);
+  }
+
+  function ensureCombatStage() {
+    const host = document.getElementById('combat-stage-host');
+    if (!host || !globalThis.WuxiaStages || !WuxiaStages.Combat) return;
+    if (!WuxiaStages.Combat.isMounted()) WuxiaStages.Combat.mount(host);
+  }
+
+    function renderInn() {
     const inn = innInfo(state.innLevel);
     const next = INN_LEVELS.find((x) => x.level === state.innLevel + 1);
     const el = $('panel-inn');
@@ -1605,14 +1657,15 @@
 
     el.innerHTML = `
       <div class="card ink-card">
+        <div id="inn-stage-host" class="stage-host" aria-label="客棧接客舞台"></div>
         ${innSceneHtml(inn.name)}
         <h2>${pxIcon('🏯')} ${inn.name}</h2>
         <p class="muted">客棧乃江湖樞紐：賺錢、招募、休養生息、藏書練功。設施加成已計入收入與訓練。</p>
         <div class="stat-grid">
-          <div><span class="label">收入倍率</span><b>×${(inn.incomeMul * cellarIncomeMul()).toFixed(2)}</b></div>
+          <div><span class="label">收入倍率</span><b id="inn-stat-mul">×${(inn.incomeMul * cellarIncomeMul()).toFixed(2)}</b></div>
           <div><span class="label">客容量</span><b>${inn.guestCap}</b></div>
           <div><span class="label">俠客欄位</span><b>${recruited}/${inn.heroSlots}</b></div>
-          <div><span class="label">累計收入</span><b>${state.totalEarned}</b></div>
+          <div><span class="label">累計收入</span><b id="inn-stat-earned">${state.totalEarned}</b></div>
         </div>
         ${next ? `
           <div class="upgrade-box">
@@ -1632,8 +1685,8 @@
       </div>
       <div class="card">
         <h3>今日流水</h3>
-        <p>已接待客人 <b>${state.guestsServed}</b> 位 · 勝仗 <b>${state.battlesWon}</b> 場 · 委託 <b>${state.questsDone}</b> 件</p>
-        <p class="tip">💡 放置中每秒可能有客人上門；離線最長計算 ${GAME.offlineCapHours} 小時。據點與任務請到「據點」分頁。</p>
+        <p>已接待客人 <b id="inn-stat-guests">${state.guestsServed}</b> 位 · 勝仗 <b id="inn-stat-wins">${state.battlesWon}</b> 場 · 委託 <b id="inn-stat-quests">${state.questsDone}</b> 件</p>
+        <p class="tip">💡 上方舞台會演出接客（斟茶／付款）。放置中每秒可能有客人上門；離線最長 ${GAME.offlineCapHours} 小時。</p>
       </div>
     `;
     const btn = $('btn-upgrade');
@@ -1653,6 +1706,7 @@
     el.querySelectorAll('[data-build]').forEach((b) => {
       b.onclick = () => tryBuildFacility(b.dataset.build);
     });
+    ensureInnStage();
   }
 
   function renderOutposts() {
@@ -1960,6 +2014,13 @@
     }).join('');
 
     el.innerHTML = `
+      <div class="card battle-card stage-first">
+        <h3>${pxIcon('🗡️')} 戰場舞台</h3>
+        <p class="muted tiny-tip">左右對峙像素舞台：衝刺揮砍、閃避側移、技能特效、震屏擊退。數值仍由自動戰鬥驅動。</p>
+        <div id="combat-stage-host" class="stage-host combat-stage-host" aria-label="戰鬥舞台"></div>
+        <div id="battle-field" class="battle-field battle-field-compact">${battle ? prevField : '<p class="muted">尚未交鋒——選敵開打後舞台會動起來</p>'}</div>
+        <div id="combat-log" class="combat-log combat-log-compact">${prevLog}</div>
+      </div>
       <div class="card">
         <h2>${pxIcon('🗡️')} 出巡剿匪</h2>
         <p class="muted">全自動即時戰鬥。羈絆同隊加成：${state.party.length >= 2 ? `「${bondInfo.tier.name}」攻擊 ×${bondInfo.mul.toFixed(2)}` : '需至少 2 人'}</p>
@@ -1971,11 +2032,6 @@
         <div class="btn-row">
           ${battle ? '<button class="btn danger" id="btn-flee">鳴金收兵</button>' : ''}
         </div>
-      </div>
-      <div class="card battle-card">
-        <h3>戰場</h3>
-        <div id="battle-field" class="battle-field">${battle ? prevField : '<p class="muted">尚未交鋒</p>'}</div>
-        <div id="combat-log" class="combat-log">${prevLog}</div>
       </div>
     `;
     const list = $('wave-list');
@@ -1993,9 +2049,18 @@
     });
     const flee = $('btn-flee');
     if (flee) flee.onclick = stopBattle;
+    ensureCombatStage();
+    if (!battle && WuxiaStages && WuxiaStages.Combat && WuxiaStages.Combat.isMounted()) {
+      // 閒置時畫空場
+      WuxiaStages.Combat.sync([]);
+    }
   }
 
   function renderBattleUnits(units) {
+    ensureCombatStage();
+    if (WuxiaStages && WuxiaStages.Combat && WuxiaStages.Combat.isMounted()) {
+      WuxiaStages.Combat.sync(units);
+    }
     const field = $('battle-field');
     if (!field) return;
     const allies = units.filter((u) => u.side === 'ally');
@@ -2006,7 +2071,7 @@
       const sh = u.shield > 0 ? ` · 盾${Math.round(u.shield)}` : '';
       const av = cls === 'ally'
         ? heroAvatarHtml(u.id, u.emoji, 'sm')
-        : enemyAvatarHtml(u.emoji);
+        : enemyAvatarHtml(u.emoji, u.id);
       return `<div class="unit ${cls}${dead}">
         ${av}
         <div class="unit-meta">

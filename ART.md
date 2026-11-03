@@ -1,6 +1,6 @@
 # 俠客棧美術規範 — 墨點江湖（Ink-Pixel Inn）
 
-> 版本：v0.4.1 style · 獨有風格體系，**禁止**混用《大俠立志傳》高清像素立繪、照片級插畫、或不同解析度素材。
+> 版本：v0.4.2 stage · 獨有風格體系，**禁止**混用《大俠立志傳》高清像素立繪、照片級插畫、或不同解析度素材。
 
 ## 風格名
 **墨點江湖**（英文：**Ink-Pixel Inn**）
@@ -102,5 +102,6 @@
 |------|------|
 | `css/style.css` | 色變數、框、條、頭像顯示尺寸 |
 | `js/game.js` | `pixelFigureSvg`／`innSceneHtml`／`heroAvatarHtml` |
-| `assets/heroes/` | 僅合規 PNG（目前空，用 SVG） |
+| `assets/heroes/` | 合規 32／64 PNG（已啟用）；失敗回退 SVG |
+| `js/stages.js` | 接客／戰鬥 Canvas 舞台 |
 | `assets/*/ _legacy/` | 封存不合規稿 |
