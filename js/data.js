@@ -1,17 +1,17 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v0.5.5
+ * v0.5.6
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '0.5.5',
+    version: '0.5.6',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
-    combatTickMs: 1000,
+    combatTickMs: 1100,
     dropManualChance: 0.32,
     maxParty: 3,
     questRefreshCost: 25,       // 手動刷新任務板銀兩
@@ -47,7 +47,46 @@
     '酒窖陳釀開封，今晚客似更多。',
     '有遊俠於門前比劍，未傷和氣便散。',
     '聽說邪醫毒霧散於南邊河谷，切莫獨行。',
-    '小二夢見客滿盈門——或許是個好兆頭。'
+    '小二夢見客滿盈門——或許是個好兆頭。',
+    '聽說青衣劍客昨夜於廊下練劍至三更。',
+    '茶客嘀咕：黑風寨主近日少了蹤影，恐有異動。',
+    '有書生在書架前抄方，說要寫話本《俠客棧夜話》。',
+    '邊關來信：哨站缺人手，願出銀請俠客暫駐。',
+    '月下有人撫琴，曲終只留一枚玉扣於門檻。',
+    '富紳嫌菜淡，又立刻為小二加賞——脾氣怪但爽快。',
+    '鎮口張貼告示：莫信路邊「免費傳功」之人。',
+    '廚下傳出鍋鏟聲，像是又有江湖客點了大魚大肉。'
+  ];
+
+  /** 小二對白池（氣氛，不改存檔） */
+  const XIAOER_LINES = [
+    '客官裏面請，熱茶現煮！',
+    '今日雅座尚有空位。',
+    '外間風大，進來歇歇腳罷。',
+    '小店粗茶淡飯，莫嫌棄。',
+    '聽聞江湖不平事，可問櫃上。',
+    '枱面抹亮了，客官請坐。',
+    '剛開一罈陳釀，要不要試試？',
+    '大門那邊有風聲，可是要出巡？',
+    '俠客席的刀劍擦過了，趁手得很。',
+    '告示又換新紙，江湖事一日三變。',
+    '地圖上的紅點——那是去分舵的路。',
+    '有客官鬧脾氣？叫小二來勸勸便是。'
+  ];
+
+  /**
+   * 接客小事件（執行期抽選；只動銀兩／日誌／對白，唔改 migrate 結構）
+   * kind: tip | difficult | meet
+   */
+  const GUEST_EVENTS = [
+    { id: 'tip_kind', kind: 'tip', weight: 30, text: '客人滿意服務，額外賞銀。', tipMin: 2, tipMax: 6 },
+    { id: 'tip_tea', kind: 'tip', weight: 20, text: '為一碗熱茶多付了賞錢。', tipMin: 1, tipMax: 4 },
+    { id: 'hard_bargain', kind: 'difficult', weight: 18, text: '刁難客嫌貴，理論半晌才勉為付款。', cutMin: 1, cutMax: 4 },
+    { id: 'hard_salt', kind: 'difficult', weight: 12, text: '刁難客嚷鹽多了，小費免談。', cutMin: 0, cutMax: 2 },
+    { id: 'meet_qingyi', kind: 'meet', weight: 10, text: '偶遇遊俠點頭：「貴棧刀光不錯。」', heroHint: 'qingyi' },
+    { id: 'meet_doc', kind: 'meet', weight: 8, text: '醫女打扮的過客低聲：「傷藥可曾備足？」', heroHint: 'tiezhang' },
+    { id: 'meet_qin', kind: 'meet', weight: 7, text: '有人聽見琴音，笑道：「此間有佛心。」', heroHint: 'qinshi' },
+    { id: 'meet_blade', kind: 'meet', weight: 5, text: '刀客臨去丟下一句：「黑風未絕，小心。」', heroHint: 'langren' }
   ];
 
 
@@ -690,6 +729,8 @@
     INN_LEVELS,
     GUESTS,
     RUMORS,
+    XIAOER_LINES,
+    GUEST_EVENTS,
     HERO_TEMPLATES,
     ENEMY_WAVES,
     TRAIN,

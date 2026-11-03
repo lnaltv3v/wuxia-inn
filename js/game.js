@@ -1,11 +1,11 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v0.5.5：sprites v1.2／guest_sit 6 幀）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v0.5.6：Hub v1.3／接客事件／趣味內容）
  */
 (function () {
   'use strict';
 
   const {
-    GAME, INN_LEVELS, GUESTS, RUMORS, HERO_TEMPLATES, ENEMY_WAVES, TRAIN,
+    GAME, INN_LEVELS, GUESTS, RUMORS, XIAOER_LINES, GUEST_EVENTS, HERO_TEMPLATES, ENEMY_WAVES, TRAIN,
     MARTIAL_ARTS, BOND_EVENTS, LIBRARY,
     OUTPOSTS, FACILITIES, QUEST_TEMPLATES,
     STORY_CHAPTERS, BOSS_ENCOUNTERS, ACHIEVEMENTS,
@@ -644,12 +644,19 @@
       const chance = Math.min(0.85, 0.35 + inn.guestCap * 0.05);
       if (Math.random() <= chance) {
         const guest = weightedPick(GUESTS);
-        const pay = Math.round(randInt(guest.payMin, guest.payMax) * incomeMul);
+        let pay = Math.round(randInt(guest.payMin, guest.payMax) * incomeMul);
+        let eventNote = null;
+        if (count <= 3) {
+          const evRes = applyGuestEvent(guest, pay);
+          pay = evRes.pay;
+          eventNote = evRes.note;
+        }
         gained += pay;
         state.guestsServed += 1;
         if (i === count - 1 || count <= 3) {
           const verb = guest.kind === 'stay' ? '住店一夜' : '點了一桌酒菜';
           pushLog(`${guest.name}${verb}，收入 ${pay} 兩。`, 'earn');
+          if (eventNote) pushLog(eventNote, 'system');
         }
         // 舞台演出：僅即時 tick（非大段離線結算）才逐一播放
         if (count <= 3 && globalThis.WuxiaStages && WuxiaStages.Inn) {
@@ -692,20 +699,62 @@
   }
 
 
-  const XIAOER_GREETS = [
-    '客官裏面請，熱茶現煮！',
-    '今日雅座尚有空位。',
-    '外間風大，進來歇歇腳罷。',
-    '小店粗茶淡飯，莫嫌棄。',
-    '聽聞江湖不平事，可問櫃上。'
-  ];
+  const XIAOER_GREETS = (typeof XIAOER_LINES !== 'undefined' && XIAOER_LINES && XIAOER_LINES.length)
+    ? XIAOER_LINES
+    : [
+      '客官裏面請，熱茶現煮！',
+      '今日雅座尚有空位。',
+      '外間風大，進來歇歇腳罷。',
+      '小店粗茶淡飯，莫嫌棄。',
+      '聽聞江湖不平事，可問櫃上。'
+    ];
+
+  function pickGuestEvent() {
+    const list = (typeof GUEST_EVENTS !== 'undefined' && GUEST_EVENTS) ? GUEST_EVENTS : [];
+    if (!list.length) return null;
+    let total = 0;
+    list.forEach(function (e) { total += (e.weight || 1); });
+    let r = Math.random() * total;
+    for (let i = 0; i < list.length; i++) {
+      r -= (list[i].weight || 1);
+      if (r <= 0) return list[i];
+    }
+    return list[0];
+  }
+
+  /** 接客小事件：小費／刁難／偶遇一句（不改存檔結構） */
+  function applyGuestEvent(guest, basePay) {
+    if (Math.random() > 0.42) return { pay: basePay, note: null };
+    const ev = pickGuestEvent();
+    if (!ev) return { pay: basePay, note: null };
+    let pay = basePay;
+    let note = ev.text;
+    if (ev.kind === 'tip') {
+      const tip = randInt(ev.tipMin || 1, ev.tipMax || 3);
+      pay += tip;
+      note = guest.name + '——' + ev.text + '（＋' + tip + ' 兩）';
+    } else if (ev.kind === 'difficult') {
+      const cut = randInt(ev.cutMin || 0, ev.cutMax || 2);
+      pay = Math.max(1, basePay - cut);
+      note = guest.name + '——' + ev.text + (cut ? '（−' + cut + ' 兩）' : '');
+      if (WuxiaStages && WuxiaStages.Inn && WuxiaStages.Inn.greetXiaoer) {
+        WuxiaStages.Inn.greetXiaoer('客官息怒，小的再添壺熱茶…');
+      }
+    } else if (ev.kind === 'meet') {
+      note = '【偶遇】' + ev.text;
+      if (WuxiaStages && WuxiaStages.Inn && WuxiaStages.Inn.showBubble) {
+        WuxiaStages.Inn.showBubble(ev.text, 300, 40, 1.4);
+      }
+    }
+    return { pay: pay, note: note, kind: ev.kind };
+  }
 
   function maybeHubFlavor() {
     if (battle) return;
     const now = Date.now();
     if (!globalThis.WuxiaStages || !WuxiaStages.Inn) return;
-    // 每約 45s 一則傳聞
-    if (now - lastRumorAt > 45000) {
+    // 每約 40s 一則傳聞
+    if (now - lastRumorAt > 40000) {
       lastRumorAt = now;
       const list = (typeof RUMORS !== 'undefined' && RUMORS && RUMORS.length) ? RUMORS : ['江湖平靜，茶香正好。'];
       const rumor = list[Math.floor(Math.random() * list.length)];
@@ -713,7 +762,7 @@
       pushLog('【江湖傳聞】' + rumor, 'system');
       const hint = document.getElementById('hub-hint');
       if (hint && !battle) hint.textContent = '傳聞：' + rumor;
-    } else if (now - lastGreetAt > 28000 && Math.random() < 0.35) {
+    } else if (now - lastGreetAt > 22000 && Math.random() < 0.42) {
       lastGreetAt = now;
       const line = XIAOER_GREETS[Math.floor(Math.random() * XIAOER_GREETS.length)];
       if (WuxiaStages.Inn.greetXiaoer) WuxiaStages.Inn.greetXiaoer(line);

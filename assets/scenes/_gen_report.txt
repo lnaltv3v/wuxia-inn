@@ -1,0 +1,9 @@
+# Ink-Pixel Inn Hub scenes report v1.3
+
+SCENE hub_floor.png: size=(480, 270) opaque=58652 oob=0 oob_cols={} bytes=8457
+SCENE hub_wall.png: size=(480, 270) opaque=72000 oob=0 oob_cols={} bytes=3349
+SCENE hub_counter.png: size=(480, 270) opaque=10809 oob=0 oob_cols={} bytes=1913
+SCENE hub_furniture.png: size=(480, 270) opaque=23977 oob=0 oob_cols={} bytes=6746
+SCENE hub_lanterns.png: size=(480, 270) opaque=3383 oob=0 oob_cols={} bytes=1930
+SCENE hub_composed.png: size=(480, 270) opaque=129600 oob=0 oob_cols={} bytes=17728
+PREVIEWS: hub_composed_x2.png hub_read.png refreshed

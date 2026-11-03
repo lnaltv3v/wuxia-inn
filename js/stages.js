@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.5.5：sprites v1.2／guest_sit 6 幀）
+ * 俠客棧 — 墨點江湖舞台（v0.5.6：Hub v1.3／guest_walk 入座／戰鬥招名）
  * Hub 480×270：場景分層、小二／俠客 spritesheet；戰鬥 400×180：attack／hurt／parry 幀
  */
 (function (global) {
@@ -90,6 +90,9 @@
     });
     jobs.push(loadImg('assets/sprites/guest_sit.png').then(function (img) {
       if (img) Assets.sheets.guest_sit = img;
+    }));
+    jobs.push(loadImg('assets/sprites/guest_walk.png').then(function (img) {
+      if (img) Assets.sheets.guest_walk = img;
     }));
     LAYER_ORDER.concat(LAYER_TOP).forEach(function (name) {
       jobs.push(loadImg('assets/scenes/' + name + '.png').then(function (img) {
@@ -261,7 +264,7 @@
     ctx.globalAlpha = 1;
   }
 
-  // ——— 客棧 Hub 舞台（v0.5.3 · 480×270） ———
+  // ——— 客棧 Hub 舞台（v0.5.6 · Hub v1.3 · 480×270） ———
   const InnStage = (function () {
     const W = 480;
     const H = 270;
@@ -301,28 +304,38 @@
     let lastFootstepAt = 0;
     let bubble = null; // { text, x, y, life }
     let rumorText = '';
-    let xiaoer = { x: 200, y: 150, tx: 200, ty: 150, mode: 'idle', tick: 0, flip: false, actionTicks: 0 };
+    let xiaoer = { x: 220, y: 175, tx: 220, ty: 175, mode: 'idle', tick: 0, flip: false, actionTicks: 0, destAct: 'idle' };
+    let guestFrame = 0;       // guest_sit 幀 0–5（入座後）
+    let guestIndex = 0;       // guest_walk 0–3（對齊 sit 0–3）
+    let guestLocal = 0;       // guest_walk local 0–7
+    let guestFlip = false;
+    let guestSeated = false;
+    let seatTarget = { x: 228, y: 188 };
     const PHASE_MS = { enter: 1800, serve: 1800, pay: 1400, leave: 1600 };
 
-    // 場景錨點對齊 assets/scenes/README（大門偏左）
+    // Hub v1.3 熱點對齊 assets/scenes/README.md（480×270）
     const HOTSPOTS = [
-      { id: 'door',     label: '大門·出巡',  x: 8,   y: 95,  w: 55,  h: 60, open: 'combat' },
-      { id: 'counter',  label: '櫃檯·經營',  x: 155, y: 149, w: 180, h: 71, open: 'inn' },
-      { id: 'heroes',   label: '俠客席·養成', x: 48,  y: 178, w: 100, h: 70, open: 'heroes' },
-      { id: 'board',    label: '告示·江湖',  x: 420, y: 40,  w: 52,  h: 90, open: 'story' },
-      { id: 'map',      label: '地圖·據點',  x: 48,  y: 112, w: 55,  h: 42, open: 'outposts' },
-      { id: 'books',    label: '書架·藏書',  x: 210, y: 38,  w: 50,  h: 48, open: 'inn' },
-      { id: 'tableA',   label: '雅座·小費',  x: 50,  y: 195, w: 90,  h: 48, open: 'table' },
-      { id: 'tableB',   label: '雅座·加急',  x: 200, y: 210, w: 90,  h: 48, open: 'table' },
-      { id: 'tableC',   label: '雅座·小費',  x: 320, y: 190, w: 95,  h: 55, open: 'table' }
+      { id: 'door',     label: '大門·出巡',   x: 6,   y: 82,  w: 48,  h: 68, open: 'combat' },
+      { id: 'board',    label: '告示·江湖',   x: 108, y: 92,  w: 44,  h: 28, open: 'story' },
+      { id: 'books',    label: '書架·藏書',   x: 108, y: 120, w: 40,  h: 42, open: 'inn' },
+      { id: 'counter',  label: '櫃檯·經營',   x: 153, y: 163, w: 184, h: 57, open: 'inn' },
+      { id: 'map',      label: '地圖·據點',   x: 362, y: 91,  w: 46,  h: 53, open: 'outposts' },
+      { id: 'heroes',   label: '俠客席·養成', x: 338, y: 178, w: 72,  h: 34, open: 'heroes' },
+      { id: 'tableA',   label: '雅座·小費',   x: 48,  y: 198, w: 86,  h: 46, open: 'table' },
+      { id: 'tableB',   label: '雅座·加急',   x: 200, y: 208, w: 86,  h: 46, open: 'table' },
+      { id: 'tableC',   label: '雅座·小費',   x: 318, y: 192, w: 90,  h: 48, open: 'table' }
     ];
 
+    // 走廊 195–275,160–250 ＋ 枱間抹枱點
     const XIAOER_WAYPOINTS = [
-      { x: 190, y: 148 }, // 櫃檯後
-      { x: 90, y: 188 },
-      { x: 240, y: 200 },
-      { x: 340, y: 185 },
-      { x: 280, y: 155 }
+      { x: 210, y: 168, act: 'idle' },   // 走廊上
+      { x: 240, y: 200, act: 'wipe' },   // 中枱
+      { x: 255, y: 220, act: 'wipe' },   // 走廊下
+      { x: 200, y: 155, act: 'serve' },  // 櫃前
+      { x: 90,  y: 200, act: 'wipe' },   // 左枱
+      { x: 340, y: 198, act: 'wipe' },   // 右枱近俠客席
+      { x: 280, y: 175, act: 'serve' },  // 走廊中
+      { x: 190, y: 148, act: 'idle' }    // 櫃後
     ];
 
     function mount(host) {
@@ -520,9 +533,20 @@
       guestName = job.guest.name || '過路客';
       guestKind = job.guest.kind || 'meal';
       payAmt = job.pay || 0;
+      // guest_walk：guestIndex 0–3＝teal／robe-red／ink-soft／violet（對齊 guest_sit 0–3）
+      guestIndex = Math.floor(Math.random() * 4);
+      guestFrame = guestIndex; // 入座後切同色 sit（有杯）
+      guestLocal = 0;
+      const seats = [
+        { x: 54, y: 198 }, { x: 108, y: 206 }, { x: 168, y: 212 },
+        { x: 248, y: 214 }, { x: 318, y: 200 }, { x: 378, y: 208 }
+      ];
+      seatTarget = seats[guestIndex % seats.length];
       guestX = 28;
       guestY = 168;
       guestStride = 0;
+      guestFlip = false;
+      guestSeated = false;
       staffArm = 0;
       coinAlpha = 0;
       floatLabel = null;
@@ -533,9 +557,10 @@
       playHubSfx('enter');
       setCaption(guestName + ' 推門進場…');
       showBubble('客官裏面請！', xiaoer.x + 10, xiaoer.y - 16, 1);
-      xiaoer.mode = 'serve';
-      xiaoer.tx = 200;
-      xiaoer.ty = 150;
+      xiaoer.mode = 'walk';
+      xiaoer.tx = 160;
+      xiaoer.ty = 175;
+      xiaoer.destAct = 'idle';
     }
 
     function seedSeated() {
@@ -621,7 +646,7 @@
         const on = hoverId === h.id;
         const isTable = h.open === 'table';
         if (on) {
-          ctx.globalAlpha = isTable ? 0.28 : 0.35;
+          ctx.globalAlpha = isTable ? 0.32 : 0.38;
           drawRect(ctx, h.x, h.y, h.w, h.h, isTable ? C.jadeBright : C.gold);
           ctx.globalAlpha = 1;
           drawRect(ctx, h.x, h.y, h.w, 2, C.cream);
@@ -629,9 +654,21 @@
           drawRect(ctx, h.x, h.y, 2, h.h, C.cream);
           drawRect(ctx, h.x + h.w - 2, h.y, 2, h.h, C.cream);
           drawPixelText(ctx, h.label, h.x + 4, Math.max(8, h.y - 12), C.cream);
+        } else if (!isTable) {
+          // 主熱點：半透明提示框，易睇易點
+          ctx.globalAlpha = 0.16;
+          drawRect(ctx, h.x, h.y, h.w, h.h, C.gold);
+          ctx.globalAlpha = 0.7;
+          drawRect(ctx, h.x, h.y, h.w, 1, C.cream);
+          drawRect(ctx, h.x, h.y + h.h - 1, h.w, 1, C.cream);
+          drawRect(ctx, h.x, h.y, 1, h.h, C.cream);
+          drawRect(ctx, h.x + h.w - 1, h.y, 1, h.h, C.cream);
+          ctx.globalAlpha = 0.85;
+          drawRect(ctx, h.x + 2, h.y + 2, 5, 5, C.gold);
+          ctx.globalAlpha = 1;
         } else {
-          ctx.globalAlpha = isTable ? 0.4 : 0.55;
-          drawRect(ctx, h.x + 2, h.y + 2, 4, 4, isTable ? C.jade : C.gold);
+          ctx.globalAlpha = 0.35;
+          drawRect(ctx, h.x + 2, h.y + 2, 4, 4, C.jade);
           ctx.globalAlpha = 1;
         }
       });
@@ -645,38 +682,55 @@
       return null;
     }
 
+    function pickXiaoerWaypoint() {
+      return XIAOER_WAYPOINTS[Math.floor(Math.random() * XIAOER_WAYPOINTS.length)];
+    }
+
     function updateXiaoer(now) {
       xiaoer.tick += 1;
       if (phase === 'serve') {
-        xiaoer.mode = 'serve';
-        xiaoer.tx = 205;
-        xiaoer.ty = 150;
+        // 走到客人座旁斟茶
+        xiaoer.tx = seatTarget.x - 28;
+        xiaoer.ty = seatTarget.y - 6;
+        xiaoer.destAct = 'serve';
+        if (Math.abs(xiaoer.x - xiaoer.tx) < 3 && Math.abs(xiaoer.y - xiaoer.ty) < 3) {
+          xiaoer.mode = 'serve';
+        } else {
+          xiaoer.mode = 'walk';
+        }
         xiaoer.actionTicks = 0;
       } else if (phase === 'enter') {
+        // 迎客：走廊中段靠門
+        xiaoer.tx = 160;
+        xiaoer.ty = 175;
+        xiaoer.destAct = 'idle';
         xiaoer.mode = 'walk';
-        xiaoer.tx = 120;
-        xiaoer.ty = 160;
         xiaoer.actionTicks = 0;
-      } else if (xiaoer.tick % 220 === 0) {
-        const wp = XIAOER_WAYPOINTS[Math.floor(Math.random() * XIAOER_WAYPOINTS.length)];
+      } else if (phase === 'pay') {
+        xiaoer.tx = 220;
+        xiaoer.ty = 168;
+        xiaoer.destAct = 'idle';
+        if (Math.abs(xiaoer.x - xiaoer.tx) > 3) xiaoer.mode = 'walk';
+        else xiaoer.mode = 'idle';
+      } else if (xiaoer.tick % 180 === 0 && phase === 'idle') {
+        const wp = pickXiaoerWaypoint();
         xiaoer.tx = wp.x;
         xiaoer.ty = wp.y;
+        xiaoer.destAct = wp.act || 'idle';
         xiaoer.mode = 'walk';
         xiaoer.actionTicks = 0;
       } else if (Math.abs(xiaoer.x - xiaoer.tx) < 2 && Math.abs(xiaoer.y - xiaoer.ty) < 2) {
         if (xiaoer.mode === 'walk') {
-          // 到位後循環：idle／serve／wipe（抹枱用幀 9–12，唔當 attack）
-          const r = Math.random();
-          if (r < 0.38) xiaoer.mode = 'wipe';
-          else if (r < 0.72) xiaoer.mode = 'serve';
-          else xiaoer.mode = 'idle';
+          xiaoer.mode = xiaoer.destAct || 'idle';
           xiaoer.actionTicks = 0;
         } else if (xiaoer.mode === 'wipe' || xiaoer.mode === 'serve' || xiaoer.mode === 'idle') {
           xiaoer.actionTicks = (xiaoer.actionTicks || 0) + 1;
-          if (xiaoer.actionTicks > 100 && Math.random() < 0.02) {
-            const wp = XIAOER_WAYPOINTS[Math.floor(Math.random() * XIAOER_WAYPOINTS.length)];
+          const hold = xiaoer.mode === 'wipe' ? 90 : (xiaoer.mode === 'serve' ? 70 : 110);
+          if (xiaoer.actionTicks > hold && Math.random() < 0.04) {
+            const wp = pickXiaoerWaypoint();
             xiaoer.tx = wp.x;
             xiaoer.ty = wp.y;
+            xiaoer.destAct = wp.act || 'idle';
             xiaoer.mode = 'walk';
             xiaoer.actionTicks = 0;
           }
@@ -685,11 +739,17 @@
       const dx = xiaoer.tx - xiaoer.x;
       const dy = xiaoer.ty - xiaoer.y;
       if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
-        xiaoer.x += clamp(dx, -0.9, 0.9);
-        xiaoer.y += clamp(dy, -0.7, 0.7);
+        // 先橫後直，走走廊感
+        if (Math.abs(dx) > 1.2) {
+          xiaoer.x += clamp(dx, -1.05, 1.05);
+        } else {
+          xiaoer.y += clamp(dy, -0.85, 0.85);
+          xiaoer.x += clamp(dx, -0.6, 0.6);
+        }
         xiaoer.flip = dx < 0;
-        // 移動中一律 walk；唔好把 wipe／serve 當攻擊播
-        if (phase !== 'serve') xiaoer.mode = 'walk';
+        if (phase !== 'serve' || Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+          xiaoer.mode = 'walk';
+        }
       }
     }
 
@@ -728,18 +788,28 @@
       if (phase === 'enter') {
         const dur = PHASE_MS.enter;
         doorOpen = clamp(1 - Math.abs(elapsed - dur * 0.35) / (dur * 0.55), 0.15, 1);
-        guestX = 28 + Math.min(1, elapsed / dur) * 200;
-        guestY = 168;
-        guestStride = Math.floor(elapsed / 160) % 2;
-        if (elapsed - lastFootstepAt > 320 && elapsed < dur * 0.85) {
+        const u = Math.min(1, elapsed / dur);
+        // 門→走廊→座位；guest_walk local：0–3 walk｜4–5 approach｜6 彎腰｜7 坐定
+        guestX = 28 + u * (seatTarget.x - 28);
+        guestY = 168 + u * (seatTarget.y - 168);
+        guestFlip = false;
+        guestSeated = false;
+        if (u < 0.62) guestLocal = Math.floor((elapsed / 160) % 4);           // walk 0–3
+        else if (u < 0.78) guestLocal = 4 + Math.floor(((u - 0.62) / 0.16) * 2) % 2; // approach 4–5
+        else if (u < 0.9) guestLocal = 6;                                     // 彎腰
+        else guestLocal = 7;                                                  // 坐定無杯
+        guestStride = guestLocal;
+        if (elapsed - lastFootstepAt > 280 && u < 0.75) {
           lastFootstepAt = elapsed;
           playSfx('footstep', { volume: 0.45 });
         }
         if (elapsed >= dur) {
           phase = 'serve';
           t0 = now;
-          guestX = 228;
-          guestY = 188;
+          guestX = seatTarget.x;
+          guestY = seatTarget.y;
+          guestSeated = true;
+          guestLocal = 7;
           guestStride = 0;
           doorOpen = 0.08;
           playHubSfx('sit');
@@ -782,9 +852,17 @@
       } else if (phase === 'leave') {
         const dur = PHASE_MS.leave;
         doorOpen = clamp(0.3 + Math.sin(Math.min(1, elapsed / dur) * Math.PI) * 0.7, 0.2, 1);
-        guestX = 228 - Math.min(1, elapsed / dur) * 200;
-        guestStride = Math.floor(elapsed / 160) % 2;
-        if (elapsed - lastFootstepAt > 320 && elapsed < dur * 0.85) {
+        const u = Math.min(1, elapsed / dur);
+        guestSeated = false;
+        guestX = seatTarget.x + u * (28 - seatTarget.x);
+        guestY = seatTarget.y + u * (168 - seatTarget.y);
+        guestFlip = true;
+        // 離場：先 approach 起身感 → walk
+        if (u < 0.18) guestLocal = 5;
+        else if (u < 0.28) guestLocal = 4;
+        else guestLocal = Math.floor((elapsed / 150) % 4);
+        guestStride = guestLocal;
+        if (elapsed - lastFootstepAt > 280 && elapsed < dur * 0.85) {
           lastFootstepAt = elapsed;
           playSfx('footstep', { volume: 0.4 });
         }
@@ -843,13 +921,29 @@
         drawActor(hid, x, y, 'walk', walkerPhase + i * 12, { flip: flipping, scale: 1 });
       });
 
-      // 進場客人（剪影）
+      // 進場客人：guest_walk（absIndex=guestIndex*8+local）→ 入座後 guest_sit 同色加杯
       if (phase !== 'idle') {
-        const robe = guestKind === 'stay' ? C.inkSoft : C.mist;
-        drawFigure(ctx, guestX, guestY, { robe: robe, accent: C.gold, skin: C.skin, hair: C.inkSoft }, {
-          stride: guestStride,
-          scale: 1.15
-        });
+        if (guestSeated || phase === 'serve' || phase === 'pay') {
+          const gsheet = Assets.sheets.guest_sit;
+          if (gsheet) {
+            drawSheetFrame(ctx, gsheet, guestFrame % 6, guestX, guestY - 4, { scale: 1 });
+          } else {
+            const robe = guestKind === 'stay' ? C.inkSoft : C.mist;
+            drawFigure(ctx, guestX, guestY, { robe: robe, accent: C.gold, skin: C.skin, hair: C.inkSoft }, { scale: 1.1 });
+          }
+        } else {
+          const gwalk = Assets.sheets.guest_walk;
+          const absIndex = guestIndex * 8 + (guestLocal % 8);
+          if (gwalk) {
+            drawSheetFrame(ctx, gwalk, absIndex, guestX, guestY - 4, { scale: 1, flip: guestFlip, alpha: 1 });
+          } else {
+            const robe = guestKind === 'stay' ? C.inkSoft : C.mist;
+            drawFigure(ctx, guestX, guestY, { robe: robe, accent: C.gold, skin: C.skin, hair: C.inkSoft }, {
+              stride: guestLocal % 2,
+              scale: 1.15
+            });
+          }
+        }
       } else if (idleBlink < 25) {
         drawRect(ctx, 18, 150, 10, 22, C.inkSoft);
       }
@@ -1051,10 +1145,10 @@
 
       if (atk && (evt.kind === 'hit' || evt.kind === 'skill' || evt.kind === 'miss' || evt.kind === 'parry')) {
         const dir = atk.side === 'ally' ? 1 : -1;
-        anims[atk.id] = { kind: 'lunge', t: 0, dur: 48, dir: dir };
+        anims[atk.id] = { kind: 'lunge', t: 0, dur: 64, dir: dir };
         if (evt.skillName) {
           fx.push({ kind: 'burst', x: atk.x + 6, y: atk.y + 4, life: 24, max: 24, color: evt.kind === 'skill' ? C.cinnabarBright : C.gold });
-          fx.push({ kind: 'text', text: evt.skillName, x: atk.x - 4, y: atk.y - 14, life: 40, max: 40, color: C.cream });
+          fx.push({ kind: 'text', text: '「' + evt.skillName + '」', x: atk.x - 12, y: atk.y - 20, life: 58, max: 58, color: C.gold });
         }
         if (tgt && (evt.kind === 'hit' || evt.kind === 'skill')) {
           fx.push({
@@ -1070,13 +1164,13 @@
       }
 
       if (evt.kind === 'miss' && tgt) {
-        anims[tgt.id] = { kind: 'dodge', t: 0, dur: 32, dir: tgt.side === 'ally' ? -1 : 1 };
+        anims[tgt.id] = { kind: 'dodge', t: 0, dur: 40, dir: tgt.side === 'ally' ? -1 : 1 };
         fx.push({ kind: 'text', text: '閃', x: tgt.x + 2, y: tgt.y - 6, life: 30, max: 30, color: C.sky });
         return;
       }
 
       if (evt.kind === 'parry' && tgt) {
-        anims[tgt.id] = { kind: 'parry', t: 0, dur: 40, dir: tgt.side === 'ally' ? -1 : 1 };
+        anims[tgt.id] = { kind: 'parry', t: 0, dur: 48, dir: tgt.side === 'ally' ? -1 : 1 };
         tgt.flash = 12;
         fx.push({ kind: 'text', text: '架', x: tgt.x + 2, y: tgt.y - 6, life: 30, max: 30, color: C.gold });
         fx.push({ kind: 'slash', x: tgt.x, y: tgt.y + 2, life: 16, max: 16, color: C.gold });
@@ -1086,9 +1180,9 @@
 
       if ((evt.kind === 'hit' || evt.kind === 'skill') && tgt) {
         const dmg = evt.damage || 0;
-        anims[tgt.id] = { kind: 'hit', t: 0, dur: 42, dir: tgt.side === 'ally' ? -1 : 1, heavy: evt.kind === 'skill' };
+        anims[tgt.id] = { kind: 'hit', t: 0, dur: 56, dir: tgt.side === 'ally' ? -1 : 1, heavy: evt.kind === 'skill' };
         tgt.flash = 18;
-        fx.push({ kind: 'text', text: '-' + dmg, x: tgt.x + 2, y: tgt.y - 4, life: 42, max: 42, color: C.cinnabarBright });
+        fx.push({ kind: 'text', text: '-' + dmg, x: tgt.x + 2, y: tgt.y - 4, life: 52, max: 52, color: C.cinnabarBright });
         fx.push({ kind: 'slash', x: tgt.x + 4, y: tgt.y + 4, life: 18, max: 18, color: C.cream });
         shake = Math.max(shake, evt.kind === 'skill' ? 5.5 : 3.2);
       }
@@ -1271,7 +1365,7 @@
       });
       fx = fx.filter((f) => {
         f.life -= 1;
-        if (f.kind === 'text') f.y -= 0.45;
+        if (f.kind === 'text') f.y -= 0.32;
         return f.life > 0;
       });
       if (shake > 0) shake = Math.max(0, shake - 0.16);

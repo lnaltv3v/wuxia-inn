@@ -1084,3 +1084,22 @@ body.hub-mode .app { max-width: 1100px; }
   .hub-hint { font-size: 0.75rem; }
   .sheet { width: calc(100vw - 8px); max-height: 92vh; }
 }
+
+
+/* v0.5.6 pixel quickbar icons */
+.hub-qbtn .px-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.45em;
+  height: 1.45em;
+  padding: 0;
+  overflow: hidden;
+}
+.hub-qbtn .px-ico img {
+  width: 16px;
+  height: 16px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  display: block;
+}

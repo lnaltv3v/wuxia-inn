@@ -984,6 +984,188 @@ def make_guest_sit() -> Image.Image:
     return sheet
 
 
+def _guest_hat_kwargs(hat: str, hair):
+    if hat == "topknot":
+        return dict(topknot=True, tall_knot=True)
+    if hat == "bun":
+        return dict(bun=True, double_bun=True, hair_side=hair)
+    if hat == "fringe":
+        return dict(fringe=True)
+    if hat == "bald":
+        return dict(bald_cap=True, hair_side=PAPER_L)
+    if hat == "hat":
+        return dict(hat_wood=True)
+    return {}
+
+
+def draw_guest_walk_frame(robe, belt, hair, face, hat, phase: int) -> Image.Image:
+    """One 32×32 guest frame facing right.
+
+    phase 0–3: walk (L lift, mid, R lift, mid)
+    phase 4–5: approach (slowed walk / micro pause)
+    phase 6: sit_down bend
+    phase 7: sit settled (near guest_sit pose, no stool prop — stool is scene)
+    """
+    img = new_frame(32, 32)
+    kw = _guest_hat_kwargs(hat, hair)
+
+    # walk / approach parameters
+    if phase in (0, 4):
+        lift_l, lift_r, stride, breath = 6, 0, 2, 0
+    elif phase in (1, 5):
+        lift_l, lift_r, stride, breath = 0, 0, 0, 1
+    elif phase == 2:
+        lift_l, lift_r, stride, breath = 0, 6, 2, 0
+    elif phase == 3:
+        lift_l, lift_r, stride, breath = 0, 0, 0, 0
+    else:
+        lift_l, lift_r, stride, breath = 0, 0, 0, 0
+
+    bx = 0
+    if phase in (0, 4):
+        bx = -1
+    elif phase == 2:
+        bx = 1
+    elif phase == 6:
+        bx = 0
+    elif phase == 7:
+        bx = 0
+
+    if phase <= 5:
+        # —— standing / walking ——
+        head_y = 1 + breath
+        draw_head(img, 13 + bx, head_y, hair=hair, face=face, **kw)
+        if hat == "bald":
+            px(img, 12, 7, VIOLET)
+        if hat == "fringe":
+            fill_rect(img, 8, 5, 18, 7, CINN_B)
+        fill_rect(img, 11 + bx, 8 + breath, 15 + bx, 10 + breath, face)
+        # torso
+        ty = 9 + breath
+        fill_rect(img, 8 + bx, ty, 19 + bx, ty + 12, robe)
+        fill_rect(img, 10 + bx, ty + 1, 16 + bx, ty + 3, PAPER_L)
+        draw_shoulder(img, 13 + bx, ty, 6, robe, GOLD)
+        draw_robe_folds(img, 8 + bx, 19 + bx, ty + 5, NIGHT)
+        draw_belt(img, 8 + bx, 19 + bx, ty + 7, belt, GOLD)
+        # swinging arms
+        if lift_l:
+            fill_rect(img, 4 + bx, ty + 2, 9 + bx, ty + 8, robe)
+            fill_rect(img, 3 + bx, ty + 7, 7 + bx, ty + 10, face)
+            fill_rect(img, 17 + bx, ty + 1, 22 + bx, ty + 6, robe)
+            fill_rect(img, 20 + bx, ty + 5, 24 + bx, ty + 8, face)
+        elif lift_r:
+            fill_rect(img, 17 + bx, ty + 2, 23 + bx, ty + 8, robe)
+            fill_rect(img, 21 + bx, ty + 7, 25 + bx, ty + 10, face)
+            fill_rect(img, 5 + bx, ty + 1, 10 + bx, ty + 6, robe)
+            fill_rect(img, 4 + bx, ty + 5, 8 + bx, ty + 8, face)
+        else:
+            fill_rect(img, 5 + bx, ty + 2, 9 + bx, ty + 9, robe)
+            fill_rect(img, 4 + bx, ty + 8, 8 + bx, ty + 11, face)
+            fill_rect(img, 17 + bx, ty + 2, 22 + bx, ty + 9, robe)
+            fill_rect(img, 20 + bx, ty + 8, 24 + bx, ty + 11, face)
+        # legs + hem
+        ly = ty + 12
+        fill_rect(img, 9 + bx - (2 if lift_l else 0), ly - lift_l, 13 + bx - (2 if lift_l else 0), ly + 6 - lift_l, robe)
+        fill_rect(img, 13 + bx + (2 if lift_r else 0), ly - lift_r, 17 + bx + (2 if lift_r else 0), ly + 6 - lift_r, robe)
+        draw_hem_sway(img, 8 + bx, 19 + bx, ly + 1, lift_l, lift_r, robe, NIGHT)
+        draw_feet(img, 8 + bx, 28, 14 + bx, 28, INK_SOFT, lift_l=lift_l, lift_r=lift_r, stride=stride)
+        # approach pause: slightly tucked arms / slower silhouette cue
+        if phase == 5:
+            fill_rect(img, 16 + bx, ty + 3, 20 + bx, ty + 8, robe)
+            px(img, 14 + bx, ty + 4, CREAM)
+
+    elif phase == 6:
+        # —— sit_down bend：彎腰下坐 ——
+        draw_head(img, 14, 4, hair=hair, face=face, **kw)
+        if hat == "bald":
+            px(img, 13, 8, VIOLET)
+        if hat == "fringe":
+            fill_rect(img, 9, 6, 19, 8, CINN_B)
+        fill_rect(img, 12, 11, 16, 13, face)
+        # stool appearing under
+        fill_rect(img, 7, 24, 23, 28, WOOD_L)
+        outline_rect(img, 7, 24, 23, 28, INK)
+        fill_rect(img, 9, 28, 12, 32, WOOD)
+        fill_rect(img, 18, 28, 21, 32, WOOD)
+        # bent torso leaning forward
+        fill_rect(img, 7, 12, 20, 22, robe)
+        fill_rect(img, 10, 12, 16, 14, PAPER_L)
+        draw_belt(img, 7, 20, 17, belt, GOLD)
+        draw_shoulder(img, 13, 12, 5, robe, GOLD)
+        # thighs folding onto stool
+        fill_rect(img, 8, 18, 24, 25, robe)
+        fill_rect(img, 16, 20, 26, 26, robe)
+        hline(img, 8, 24, 24, NIGHT)
+        # arms reaching down / bracing
+        fill_rect(img, 18, 13, 26, 17, robe)
+        fill_rect(img, 24, 15, 28, 18, face)
+        fill_rect(img, 5, 15, 10, 19, robe)
+        fill_rect(img, 4, 17, 8, 20, face)
+        # feet still nearly standing then tuck
+        fill_rect(img, 10, 26, 15, 30, INK_SOFT)
+        fill_rect(img, 17, 25, 22, 29, INK_SOFT)
+        hline(img, 10, 15, 29, INK)
+        hline(img, 17, 22, 28, INK)
+
+    else:
+        # —— sit settled：接近 guest_sit（無杯，方便切換到 guest_sit）——
+        fill_rect(img, 7, 23, 23, 28, WOOD_L)
+        outline_rect(img, 7, 23, 23, 28, INK)
+        hline(img, 9, 21, 25, WOOD)
+        fill_rect(img, 9, 28, 12, 32, WOOD)
+        fill_rect(img, 18, 28, 21, 32, WOOD)
+        px(img, 10, 31, INK)
+        px(img, 19, 31, INK)
+        draw_head(img, 14, 3, hair=hair, face=face, **kw)
+        if hat == "bald":
+            px(img, 13, 7, VIOLET)
+        if hat == "fringe":
+            fill_rect(img, 9, 5, 19, 7, CINN_B)
+        fill_rect(img, 12, 10, 16, 12, face)
+        fill_rect(img, 8, 11, 21, 22, robe)
+        fill_rect(img, 11, 11, 17, 13, PAPER_L)
+        draw_robe_folds(img, 8, 21, 14, NIGHT)
+        draw_belt(img, 8, 21, 16, belt, GOLD)
+        draw_shoulder(img, 14, 11, 6, robe, GOLD)
+        fill_rect(img, 9, 19, 23, 25, robe)
+        fill_rect(img, 17, 21, 25, 26, robe)
+        hline(img, 9, 23, 24, NIGHT)
+        fill_rect(img, 10, 25, 15, 29, INK_SOFT)
+        fill_rect(img, 18, 26, 24, 30, INK_SOFT)
+        hline(img, 10, 15, 28, INK)
+        hline(img, 18, 24, 29, INK)
+        # hands on lap (no cup — cut to guest_sit for prop)
+        fill_rect(img, 17, 13, 23, 17, robe)
+        fill_rect(img, 21, 14, 25, 17, face)
+        fill_rect(img, 6, 16, 10, 19, robe)
+        fill_rect(img, 5, 17, 8, 20, face)
+
+    return img
+
+
+def make_guest_walk() -> Image.Image:
+    """4 guests × 8 frames = 1024×32 — walk / approach / sit_down.
+
+    Guest order matches guest_sit 0–3: teal / robe-red / ink-soft / violet.
+    Per guest local frames:
+      0–3 walk, 4–5 approach, 6–7 sit_down.
+    Absolute index = guest * 8 + local.
+    """
+    sheet = Image.new("RGBA", (1024, 32), TRANS)
+    variants = [
+        # (robe, belt, hair, face, hat) — align guest_sit 0–3
+        (TEAL, WOOD_L, INK, SKIN, "topknot"),
+        (ROBE_R, GOLD, INK, SKIN, "bun"),
+        (INK_SOFT, FRAME, INK, SKIN_D, "fringe"),
+        (VIOLET, GOLD, PAPER_L, SKIN, "bald"),
+    ]
+    for gi, (robe, belt, hair, face, hat) in enumerate(variants):
+        for phase in range(8):
+            fr = draw_guest_walk_frame(robe, belt, hair, face, hat, phase)
+            sheet.paste(fr, ((gi * 8 + phase) * 32, 0), fr)
+    return sheet
+
+
 # ---------- Hub ----------
 
 def draw_wood_floor(img, y0, y1):
@@ -1617,20 +1799,50 @@ def write_previews(sprites_only=False):
         b.resize((128, 128), Image.NEAREST).save(PREVIEW / f"boss_{bid}_combat_x4.png")
     guests = Image.open(SPRITES / "guest_sit.png")
     guests.resize((guests.width * 4, guests.height * 4), Image.NEAREST).save(PREVIEW / "guest_sit_x4.png")
+    gwalk = Image.open(SPRITES / "guest_walk.png")
+    gwalk.resize((gwalk.width * 4, gwalk.height * 4), Image.NEAREST).save(PREVIEW / "guest_walk_x4.png")
     if not sprites_only:
         hub = Image.open(SCENES / "hub_composed.png")
         hub.resize((hub.width * 2, hub.height * 2), Image.NEAREST).save(PREVIEW / "hub_composed_x2.png")
         hub.resize((hub.width * 2, hub.height * 2), Image.NEAREST).save(PREVIEW / "hub_read.png")
 
 
-def main():
+def write_scenes_only():
+    """Regenerate Hub layers only — owned by 墨點場景. Does not touch sprites."""
+    SCENES.mkdir(parents=True, exist_ok=True)
+    PREVIEW.mkdir(parents=True, exist_ok=True)
+    report = ["# Ink-Pixel Inn Hub scenes report v1.3", ""]
+    layers = make_hub_layers()
+    for name, im in layers.items():
+        assert im.size == (480, 270), f"{name} size {im.size}"
+        opaque, oob, cols = audit(im, name)
+        out = SCENES / name
+        im.save(out)
+        line = f"SCENE {name}: size={im.size} opaque={opaque} oob={oob} oob_cols={cols} bytes={out.stat().st_size}"
+        report.append(line)
+        print(line)
+        if oob:
+            raise SystemExit(f"OOB colors in {name}: {cols}")
+    hub = layers["hub_composed.png"]
+    hub.resize((hub.width * 2, hub.height * 2), Image.NEAREST).save(PREVIEW / "hub_composed_x2.png")
+    hub.resize((hub.width * 2, hub.height * 2), Image.NEAREST).save(PREVIEW / "hub_read.png")
+    report.append("PREVIEWS: hub_composed_x2.png hub_read.png refreshed")
+    print("PREVIEWS: hub_composed_x2.png hub_read.png refreshed")
+    (SCENES / "_gen_report.txt").write_text("\n".join(report) + "\n", encoding="utf-8")
+    print("DONE v1.3 scenes-only")
+
+
+def main(scenes_only=False):
+    if scenes_only:
+        write_scenes_only()
+        return
     SPRITES.mkdir(parents=True, exist_ok=True)
     SCENES.mkdir(parents=True, exist_ok=True)
-    report = ["# Ink-Pixel Inn asset gen report v1.2", ""]
+    report = ["# Ink-Pixel Inn asset gen report v1.2+guest_walk", ""]
     for cid in ["qingyi", "tiezhang", "langren", "qinshi", "xiaoer"]:
         sheet = make_spritesheet(cid)
-        path = SPRITES / f"{cid}.png"
-        sheet.save(path)
+        spath = SPRITES / f"{cid}.png"
+        sheet.save(spath)
         opaque, oob, cols, empty = verify_spritesheet(sheet, cid)
         line = f"SPRITE {cid}: size={sheet.size} opaque={opaque} oob={oob} empty_frames={empty} oob_cols={cols}"
         report.append(line)
@@ -1639,9 +1851,9 @@ def main():
             raise SystemExit(f"OOB colors in {cid}: {cols}")
     for bid in ["heifeng", "xieyi"]:
         im = make_boss_combat(bid)
-        path = SPRITES / f"boss_{bid}_combat.png"
-        im.save(path)
-        opaque, oob, cols = audit(im, path.name)
+        spath = SPRITES / f"boss_{bid}_combat.png"
+        im.save(spath)
+        opaque, oob, cols = audit(im, spath.name)
         line = f"BOSS {bid}: size={im.size} opaque={opaque} oob={oob} oob_cols={cols}"
         report.append(line)
         print(line)
@@ -1656,14 +1868,35 @@ def main():
     print(line)
     if oob:
         raise SystemExit(f"OOB in guest_sit: {cols}")
-    # v1.2 steering: Hub/scenes owned by 墨點場景 — do NOT overwrite assets/scenes/
-    report.append("SCENES: skipped (owned by 墨點場景; assets/scenes/ untouched)")
-    print("SCENES: skipped (assets/scenes/ untouched)")
+    gwalk = make_guest_walk()
+    gwpath = SPRITES / "guest_walk.png"
+    gwalk.save(gwpath)
+    opaque, oob, cols = audit(gwalk, "guest_walk")
+    empty = []
+    for i in range(32):
+        col_opaque = 0
+        for y in range(32):
+            for x in range(i * 32, i * 32 + 32):
+                if gwalk.getpixel((x, y))[3] > 0:
+                    col_opaque += 1
+        if col_opaque < 20:
+            empty.append(i)
+    line = f"GUEST walk: size={gwalk.size} opaque={opaque} oob={oob} empty_frames={empty} oob_cols={cols}"
+    report.append(line)
+    print(line)
+    if oob:
+        raise SystemExit(f"OOB in guest_walk: {cols}")
+    if empty:
+        raise SystemExit(f"Empty frames in guest_walk: {empty}")
+    # Hub/scenes owned by 墨點場景 — default path does NOT overwrite assets/scenes/
+    report.append("SCENES: skipped (owned by 墨點場景; use --scenes-only)")
+    print("SCENES: skipped (assets/scenes/ untouched; use --scenes-only)")
     write_previews(sprites_only=True)
     report.append("PREVIEWS: sprite previews refreshed under assets/_preview/")
     (SPRITES / "_gen_report.txt").write_text("\n".join(report) + "\n", encoding="utf-8")
-    print("DONE v1.2 sprites-only")
+    print("DONE sprites-only (scenes untouched)")
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    main(scenes_only=("--scenes-only" in sys.argv))

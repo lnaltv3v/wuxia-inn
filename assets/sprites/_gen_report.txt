@@ -1,4 +1,4 @@
-# Ink-Pixel Inn asset gen report v1.2
+# Ink-Pixel Inn asset gen report v1.2+guest_walk
 
 SPRITE qingyi: size=(576, 32) opaque=6398 oob=0 empty_frames=[] oob_cols={}
 SPRITE tiezhang: size=(576, 32) opaque=6789 oob=0 empty_frames=[] oob_cols={}
@@ -8,5 +8,6 @@ SPRITE xiaoer: size=(576, 32) opaque=6417 oob=0 empty_frames=[] oob_cols={}
 BOSS heifeng: size=(32, 32) opaque=585 oob=0 oob_cols={}
 BOSS xieyi: size=(32, 32) opaque=459 oob=0 oob_cols={}
 GUEST sit: size=(192, 32) opaque=2608 oob=0 oob_cols={}
-SCENES: skipped (owned by 墨點場景; assets/scenes/ untouched)
+GUEST walk: size=(1024, 32) opaque=11765 oob=0 empty_frames=[] oob_cols={}
+SCENES: skipped (owned by 墨點場景; use --scenes-only)
 PREVIEWS: sprite previews refreshed under assets/_preview/
