@@ -1676,14 +1676,16 @@
     const inn = innInfo(state.innLevel);
     $('stat-silver').textContent = Math.floor(state.silver);
     $('stat-rep').textContent = state.reputation;
-    $('stat-inn').textContent = `Lv.${state.innLevel} ${inn.name}`;
+    const innEl = $('stat-inn');
+    innEl.textContent = `Lv.${state.innLevel}`;
+    innEl.title = `客棧 Lv.${state.innLevel} · ${inn.name}`;
     syncDayPhaseChip();
     const saveEl = $('stat-save');
     if (Date.now() < saveFlashUntil) {
-      saveEl.textContent = '已存檔';
+      saveEl.textContent = '已存';
       saveEl.classList.add('ok');
     } else {
-      saveEl.textContent = '自動存檔';
+      saveEl.textContent = '';
       saveEl.classList.remove('ok');
     }
   }

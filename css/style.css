@@ -1,4 +1,4 @@
-/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.8.3（戰場背景加厚／960×540） */
+/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.8.4（Hub 減雜／浮層預熱／960×540） */
 :root {
   /* 嚴格色盤 — 禁止盤外色 */
   --ink: #1A1510;
@@ -983,8 +983,8 @@ body.hub-mode .app { max-width: 1100px; }
 .sheet-backdrop {
   position: fixed;
   inset: 0;
-  background: var(--ink);
-  opacity: 0.55;
+  background: rgba(26, 21, 16, 0.28);
+  opacity: 1;
   z-index: 40;
   image-rendering: pixelated;
 }
@@ -1322,4 +1322,172 @@ body.hub-mode .app { max-width: 1100px; }
 /* v0.8 戰鬥讀招提示（舞台內已畫；外層輕框） */
 .combat-overlay .combat-stage-host {
   outline: 0 solid var(--gold);
+}
+
+
+/* —— v0.8.4 Hub 減雜＋宣紙浮層預熱（v1.0 場景化前奏） —— */
+.topbar-chips {
+  padding: 4px 10px;
+  gap: 6px 10px;
+  min-height: 0;
+}
+.topbar-chips .brand {
+  font-size: 1.2rem;
+  letter-spacing: 0.1em;
+}
+.topbar-chips .brand small { display: none; }
+.stats-chips {
+  gap: 4px 6px;
+  font-size: 0.78rem;
+}
+.stats-chips .stat-chip {
+  padding: 2px 6px;
+  border-width: 2px;
+  line-height: 1.2;
+}
+.stats-chips .stat-chip b { font-size: 0.55rem; }
+.save-ok-chip {
+  min-width: 0;
+  max-width: 4.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.65rem;
+  color: var(--mist);
+  opacity: 0.75;
+}
+.save-ok-chip:empty { display: none; }
+.save-ok-chip.ok { color: var(--jade-bright); opacity: 1; }
+.btn-chip {
+  min-width: 2.2em;
+  padding: 4px 8px !important;
+  font-size: 0.85rem !important;
+}
+
+.hub-shell {
+  margin: 4px 0 4px;
+  position: relative;
+}
+.hub-stage-host {
+  /* 主視覺多留空間 */
+}
+.hub-stage-wrap .px-stage,
+.hub-stage-wrap .hub-canvas {
+  max-height: min(86vh, 980px);
+}
+
+/* 提示改薄芯片：喺場景下方，唔再大塊橫幅 */
+.hub-hint,
+.hub-hint-chip {
+  margin: 4px 0 2px;
+  padding: 4px 10px;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  background: rgba(244, 230, 196, 0.88);
+  border: 2px solid var(--ink);
+  border-left: 5px solid var(--gold);
+  letter-spacing: 0.03em;
+  box-shadow: 2px 2px 0 rgba(26, 21, 16, 0.35);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hub-hint-hot {
+  border-left-color: var(--cinnabar) !important;
+  background: rgba(255, 248, 238, 0.95);
+  color: var(--ink);
+  white-space: normal;
+}
+
+/* 快捷列芯片化：矮、圖示＋單字，唔搶場景 */
+.hub-quickbar-chips {
+  gap: 6px;
+  margin-top: 4px;
+  justify-content: center;
+}
+.hub-quickbar-chips .hub-qbtn {
+  flex: 0 1 auto;
+  min-width: 52px;
+  min-height: 40px;
+  padding: 6px 10px;
+  font-size: 0.95rem;
+  box-shadow: 3px 3px 0 var(--ink);
+  background: rgba(244, 230, 196, 0.92);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.hub-quickbar-chips .hub-qbtn-lab {
+  font-family: var(--font-title);
+  letter-spacing: 0.04em;
+}
+
+/* 經營等 overlay：薄宣紙浮層，唔蓋死場景中心 */
+.sheet-backdrop {
+  background: rgba(26, 21, 16, 0.28) !important;
+  opacity: 1 !important;
+  /* 點背景可關：仍由既有 JS／點返回 */
+}
+.sheet.sheet-float,
+.sheet-float.px-frame {
+  left: auto;
+  right: max(8px, 2vw);
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(440px, 42vw, calc(100vw - 24px));
+  max-height: min(78vh, 720px);
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(26,21,16,0.04) 3px, rgba(26,21,16,0.04) 4px),
+    rgba(232, 213, 168, 0.92) !important;
+  border: 3px solid var(--ink) !important;
+  box-shadow:
+    0 0 0 2px var(--wood),
+    4px 4px 0 rgba(26, 21, 16, 0.55) !important;
+}
+.sheet-float .sheet-head {
+  padding: 8px 12px;
+  background: rgba(42, 34, 24, 0.92);
+  border-bottom: 2px solid var(--gold);
+}
+.sheet-float .sheet-head h2 {
+  font-size: 1.05rem;
+}
+.sheet-float .sheet-body {
+  padding: 8px 10px 12px;
+  background: transparent;
+}
+.sheet-float .sheet-body .panel {
+  background: rgba(244, 230, 196, 0.55);
+  border: 2px solid var(--frame);
+  box-shadow: none;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 820px), (orientation: portrait) {
+  .sheet.sheet-float,
+  .sheet-float.px-frame {
+    left: 50%;
+    right: auto;
+    top: auto;
+    bottom: 6px;
+    transform: translateX(-50%);
+    width: min(960px, calc(100vw - 12px));
+    max-height: min(48vh, 420px);
+  }
+  .hub-quickbar-chips .hub-qbtn {
+    min-width: 44px;
+    padding: 5px 8px;
+    font-size: 0.85rem;
+  }
+}
+
+@media (orientation: landscape) and (min-height: 500px) {
+  .hub-stage-wrap .px-stage,
+  .hub-stage-wrap .hub-canvas {
+    max-height: min(88vh, 1000px);
+  }
 }

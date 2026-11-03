@@ -12,18 +12,18 @@
 </head>
 <body class="ink-pixel-theme hub-mode">
   <div class="app">
-    <header class="topbar px-frame topbar-slim">
-      <div class="brand">俠客棧<small>場景 hub · 放置養成 · 即時走位戰鬥</small></div>
-      <div class="stats">
-        <span class="stat-chip">銀兩 <b id="stat-silver">0</b></span>
-        <span class="stat-chip">聲望 <b id="stat-rep">0</b></span>
-        <span class="stat-chip" id="stat-inn">Lv.1</span>
+    <header class="topbar px-frame topbar-slim topbar-chips">
+      <div class="brand" title="俠客棧 · 墨點江湖">俠客棧</div>
+      <div class="stats stats-chips" role="group" aria-label="資源">
+        <span class="stat-chip" title="銀兩">銀 <b id="stat-silver">0</b></span>
+        <span class="stat-chip" title="聲望">望 <b id="stat-rep">0</b></span>
+        <span class="stat-chip" id="stat-inn" title="客棧等級">Lv.1</span>
         <span class="stat-chip dayphase-chip" id="stat-dayphase" data-phase="day" title="白日營業" aria-label="時辰：白日營業">晝</span>
-        <span class="save-ok" id="stat-save">自動存檔</span>
+        <span class="save-ok save-ok-chip" id="stat-save" title="存檔狀態" aria-live="polite"></span>
       </div>
       <div class="top-actions">
-        <button class="btn tiny" id="btn-manual-save" type="button">存檔</button>
-        <button class="btn tiny" id="btn-hub-menu" type="button" title="次要選單">選單</button>
+        <button class="btn tiny btn-chip" id="btn-manual-save" type="button" title="手動存檔">存</button>
+        <button class="btn tiny btn-chip" id="btn-hub-menu" type="button" title="次要選單">⋯</button>
       </div>
     </header>
 
@@ -31,14 +31,14 @@
     <section class="hub-shell" aria-label="客棧內部主畫面">
       <div id="hub-stage-host" class="stage-host hub-stage-host" aria-label="客棧內部像素場景"></div>
       <div class="landscape-nudge" role="status">建議橫持螢幕遊玩 · 客棧場景同按鈕會更大更清楚</div>
-      <p class="hub-hint" id="hub-hint">移近熱點睇提示 · 櫃檯經營 · 俠客席養成 · 大門出巡 · 告示江湖 · 地圖據點 · 書架藏書</p>
+      <p class="hub-hint hub-hint-chip" id="hub-hint" title="熱點提示">移近熱點 · 櫃檯／俠客／大門／告示／地圖／書架</p>
       <div id="hub-choice-bar" class="hub-choice-bar hidden" role="group" aria-label="江湖事件選擇"></div>
-      <div class="hub-quickbar" role="toolbar" aria-label="快捷入口">
-        <button type="button" class="hub-qbtn" data-open="inn"><span class="px-ico"><img src="assets/ui/ico_jingying.png" alt="" width="16" height="16" decoding="async"></span>經營</button>
-        <button type="button" class="hub-qbtn" data-open="heroes"><span class="px-ico"><img src="assets/ui/ico_xiake.png" alt="" width="16" height="16" decoding="async"></span>俠客</button>
-        <button type="button" class="hub-qbtn" data-open="combat"><span class="px-ico"><img src="assets/ui/ico_chuxun.png" alt="" width="16" height="16" decoding="async"></span>出巡</button>
-        <button type="button" class="hub-qbtn" data-open="outposts"><span class="px-ico"><img src="assets/ui/ico_judian.png" alt="" width="16" height="16" decoding="async"></span>據點</button>
-        <button type="button" class="hub-qbtn" data-open="story"><span class="px-ico"><img src="assets/ui/ico_jianghu.png" alt="" width="16" height="16" decoding="async"></span>江湖</button>
+      <div class="hub-quickbar hub-quickbar-chips" role="toolbar" aria-label="快捷入口">
+        <button type="button" class="hub-qbtn" data-open="inn" title="經營"><span class="px-ico"><img src="assets/ui/ico_jingying.png" alt="" width="16" height="16" decoding="async"></span><span class="hub-qbtn-lab">經</span></button>
+        <button type="button" class="hub-qbtn" data-open="heroes" title="俠客"><span class="px-ico"><img src="assets/ui/ico_xiake.png" alt="" width="16" height="16" decoding="async"></span><span class="hub-qbtn-lab">俠</span></button>
+        <button type="button" class="hub-qbtn" data-open="combat" title="出巡"><span class="px-ico"><img src="assets/ui/ico_chuxun.png" alt="" width="16" height="16" decoding="async"></span><span class="hub-qbtn-lab">巡</span></button>
+        <button type="button" class="hub-qbtn" data-open="outposts" title="據點"><span class="px-ico"><img src="assets/ui/ico_judian.png" alt="" width="16" height="16" decoding="async"></span><span class="hub-qbtn-lab">據</span></button>
+        <button type="button" class="hub-qbtn" data-open="story" title="江湖"><span class="px-ico"><img src="assets/ui/ico_jianghu.png" alt="" width="16" height="16" decoding="async"></span><span class="hub-qbtn-lab">江</span></button>
       </div>
     </section>
 
@@ -54,7 +54,7 @@
 
     <!-- 功能疊層（非戰鬥） -->
     <div id="sheet-backdrop" class="sheet-backdrop hidden" aria-hidden="true"></div>
-    <aside id="sheet" class="sheet hidden px-frame" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <aside id="sheet" class="sheet sheet-float hidden px-frame" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
       <header class="sheet-head">
         <h2 id="sheet-title">功能</h2>
         <button type="button" class="btn tiny primary" id="btn-sheet-close">返回客棧</button>
@@ -85,7 +85,7 @@
     </div>
 
     <div id="toast-host" class="toast-host hidden" aria-live="polite"></div>
-    <footer class="footer">俠客棧 v0.7.0 · Hub 960×540 · 橫屏優先 · 墨點江湖</footer>
+    <footer class="footer">俠客棧 v0.8.4 · Hub 減雜／浮層預熱 · 960×540 · 墨點江湖</footer>
   </div>
 
   <script src="js/data.js"></script>
