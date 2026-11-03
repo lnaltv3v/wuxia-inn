@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v1.7.0
+ * v1.8.0
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '1.7.0',
+    version: '1.8.0',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -116,9 +116,9 @@
    * kind: tip | difficult | meet
    */
   const GUEST_EVENTS = [
-    { id: 'tip_kind', kind: 'tip', weight: 28, text: '客人滿意服務，額外賞銀。', tipMin: 2, tipMax: 6 },
-    { id: 'tip_tea', kind: 'tip', weight: 18, text: '為一碗熱茶多付了賞錢。', tipMin: 1, tipMax: 4 },
-    { id: 'tip_phase', kind: 'tip', weight: 14, text: '正合時辰偏好，賞得爽快。', tipMin: 3, tipMax: 8, preferBoost: true },
+    { id: 'tip_kind', kind: 'tip', weight: 28, text: '客人點頭稱善，額外賞了些銀。', tipMin: 2, tipMax: 6 },
+    { id: 'tip_tea', kind: 'tip', weight: 18, text: '熱茶對味，客官多付了賞錢。', tipMin: 1, tipMax: 4 },
+    { id: 'tip_phase', kind: 'tip', weight: 14, text: '來得正是時候，賞得爽快。', tipMin: 3, tipMax: 8, preferBoost: true },
     { id: 'hard_bargain', kind: 'difficult', weight: 16, text: '刁難客嫌貴，理論半晌才勉為付款。', cutMin: 1, cutMax: 4 },
     { id: 'hard_salt', kind: 'difficult', weight: 10, text: '刁難客嚷鹽多了，小費免談。', cutMin: 0, cutMax: 2 },
     { id: 'hard_rush', kind: 'difficult', weight: 8, text: '趕路客罵上菜慢，少給了錢。', cutMin: 1, cutMax: 3 },
@@ -964,7 +964,7 @@
       id: 'qingfeng',
       name: '青鋒十三式',
       type: 'active',
-      desc: '劍勢連環，傷害提高。',
+      desc: '劍勢連環，出手時傷害提高。',
       effect: { mul: 1.7, chance: 0.24 },
       learnCost: 70,
       dropWeight: 12
@@ -973,7 +973,7 @@
       id: 'tiesha',
       name: '鐵砂掌',
       type: 'active',
-      desc: '掌勁剛猛，並回復少量氣血。',
+      desc: '掌勁剛猛，打中時可回少量氣血。',
       effect: { mul: 1.45, chance: 0.26, heal: 0.12 },
       learnCost: 85,
       dropWeight: 10
@@ -982,7 +982,7 @@
       id: 'langren_slash',
       name: '浪人斬',
       type: 'active',
-      desc: '狂刀一擊，高倍率、較低觸發。',
+      desc: '孤刀猛劈，威力大、出手稍稀。',
       effect: { mul: 2.15, chance: 0.16 },
       learnCost: 100,
       dropWeight: 8
@@ -991,7 +991,7 @@
       id: 'fanyin',
       name: '梵音破障',
       type: 'active',
-      desc: '琴音亂神，傷害並短暫削弱敵方出力。',
+      desc: '琴音亂神，傷敵之餘略削其力。',
       effect: { mul: 1.65, chance: 0.25, weaken: 0.12 },
       learnCost: 130,
       dropWeight: 5
@@ -1000,7 +1000,7 @@
       id: 'tuna',
       name: '吐納心法',
       type: 'passive',
-      desc: '內息綿長：內力提升，每回合微量回血。',
+      desc: '內息綿長，內力見長，緩慢回血。',
       effect: { neiBonus: 0.14, regen: 0.025 },
       learnCost: 80,
       dropWeight: 11
@@ -1009,7 +1009,7 @@
       id: 'jinzhong',
       name: '金鐘罩',
       type: 'passive',
-      desc: '周身護氣：減傷，開戰獲少量護盾。',
+      desc: '周身護氣，減傷，開戰略帶護盾。',
       effect: { mitBonus: 0.10, startShield: 0.08 },
       learnCost: 95,
       dropWeight: 7
@@ -1018,7 +1018,7 @@
       id: 'liuyun',
       name: '流雲步',
       type: 'passive',
-      desc: '身法輕靈：略增武力，並提高主動技觸發。',
+      desc: '身法輕靈，略增武力，主動技更常出手。',
       effect: { forceBonus: 0.08, skillChanceBonus: 0.06 },
       learnCost: 90,
       dropWeight: 9
@@ -1027,7 +1027,7 @@
       id: 'xueying',
       name: '血影雙刃',
       type: 'active',
-      desc: '雙刃錯落，高觸發傷害並短暫削弱敵方。',
+      desc: '雙刃錯落，出手頻密，並短暫削弱敵方。',
       effect: { mul: 1.85, chance: 0.28, weaken: 0.1 },
       learnCost: 150,
       dropWeight: 3

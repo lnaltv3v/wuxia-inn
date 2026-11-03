@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v1.7.0：新手引導／第六章／教學重開）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v1.8.0：橫屏提示／文案打磨／玩法摘要）
  */
 (function () {
   'use strict';
@@ -2327,7 +2327,7 @@
     {
       hotspot: 'door',
       title: '大門·出巡',
-      body: '點左側大門進入戰場。自動走位：靠近 → 讀招 → 判定。速度預設 1×，可再調。'
+      body: '點左側大門出巡。俠客會自己靠近、蓄勢、出手。速度預設 1×，可再調。'
     }
   ];
   let hubTourIndex = 0;
@@ -2852,7 +2852,7 @@
         } else {
           hint.classList.remove('hub-hint-hot');
           const inn = innInfo(state.innLevel);
-          hint.textContent = inn.name + ' · 已接客 ' + state.guestsServed + ' · 移近熱點睇提示';
+          hint.textContent = inn.name + ' · 已接客 ' + state.guestsServed + ' · 移近高亮處睇提示';
         }
       });
     }
@@ -3706,7 +3706,7 @@
     } else {
       state = defaultState();
       ensureQuestBoard(true);
-      pushLog('新開張！你站在客棧大廳——點櫃檯經營、點俠客養成、點大門出巡。青衣劍客已願為護院。', 'system');
+      pushLog('新開張。大廳裡：櫃檯經營、俠客席養成、大門出巡。青衣劍客已願護院。', 'system');
     }
 
     document.querySelectorAll('.tab-btn').forEach((btn) => {
@@ -3794,7 +3794,8 @@
       syncCombatAutoTipUI();
     });
 
-    $('btn-manual-save').addEventListener('click', () => {
+    const btnManualSave = $('btn-manual-save');
+    if (btnManualSave) btnManualSave.addEventListener('click', () => {
       save();
       pushLog('手動存檔完成。', 'system');
     });

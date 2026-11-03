@@ -340,7 +340,7 @@
       finished = true;
       result = win ? 'win' : 'lose';
       stop();
-      log(win ? '—— 勝！殘敵潰逃 ——' : '—— 敗……俠客負傷退回 ——', win ? 'win' : 'lose');
+      log(win ? '—— 勝。殘敵散去 ——' : '—— 敗。俠客負傷退回客棧 ——', win ? 'win' : 'lose');
       emit();
       if (hooks && hooks.onEnd) hooks.onEnd(result, units);
     }
@@ -502,9 +502,9 @@
       applyDamage(target, dmg);
       attacker.comboHits = (attacker.comboHits || 0) + 1;
       if (isCounter) {
-        log(attacker.emoji + attacker.name + ' 招架反打 → ' + target.name + '，傷害 ' + dmg + '！', 'skill');
+        log(attacker.emoji + attacker.name + ' 招架反打 ' + target.name + '（' + dmg + '）', 'skill');
       } else if (skillName && skillMul > 1) {
-        log(attacker.emoji + attacker.name + '「' + skillName + '」→ ' + target.name + '，造成 ' + dmg + '！', 'skill');
+        log(attacker.emoji + attacker.name + '「' + skillName + '」打中 ' + target.name + '（' + dmg + '）', 'skill');
       } else {
         log(attacker.emoji + attacker.name + ' 攻向 ' + target.name + '，傷害 ' + dmg, attacker.side);
       }
@@ -779,7 +779,7 @@
         if (attacker.skill.heal) {
           const healAmt = Math.round(attacker.maxHp * attacker.skill.heal);
           attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmt);
-          log(attacker.emoji + attacker.name + ' 使出「' + skillName + '」，回復 ' + healAmt + ' 氣血！', 'skill');
+          log(attacker.emoji + attacker.name + '「' + skillName + '」，回氣血 ' + healAmt, 'skill');
           emitAction({
             kind: 'heal',
             attackerId: attacker.id,
@@ -806,7 +806,7 @@
         }
         if (attacker.skill.weaken) {
           target.weaken = Math.max(target.weaken || 0, attacker.skill.weaken);
-          log(attacker.emoji + attacker.name + '「' + skillName + '」削弱 ' + target.name + '！', 'skill');
+          log(attacker.emoji + attacker.name + '「' + skillName + '」令 ' + target.name + ' 氣勢一滯', 'skill');
         }
         if (attacker.skill.heal && skillMul <= 1 && !attacker.skill.weaken) {
           didHealOnly = true;
@@ -1069,13 +1069,13 @@
       result = null;
       turn = 0;
       holdTicks = 0;
-      log('戰鼓擂響，俠客出巡！', 'system');
-      log('狀態機交鋒：讀招→判定→硬直；近戰須接觸。速度 ×' + speedMul, 'system');
+      log('戰鼓輕響，俠客出巡。', 'system');
+      log('近戰須貼身：靠近、蓄勢、出手。速度 ×' + speedMul, 'system');
       const withBond = units.filter(function (u) {
         return u.side === 'ally' && u.bondMul > 1;
       });
       if (withBond.length) {
-        log('羈絆加持！同隊攻擊 ×' + withBond[0].bondMul.toFixed(2), 'skill');
+        log('羈絆加持，同隊出手更利（×' + withBond[0].bondMul.toFixed(2) + '）', 'skill');
       }
       emit();
       timer = setInterval(step, effectiveTickMs());

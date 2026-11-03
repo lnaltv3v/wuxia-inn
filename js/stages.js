@@ -174,13 +174,19 @@
         if (img) Assets.layers[name] = img;
       }));
     });
+    // 合成場景後備（缺單層時仍可標 ready）
+    ['hub_composed', 'battle_composed'].forEach(function (name) {
+      jobs.push(loadImg('assets/scenes/' + name + '.png').then(function (img) {
+        if (img) Assets.layers[name] = img;
+      }));
+    });
     Object.keys(FX_SHEETS).forEach(function (id) {
       jobs.push(loadImg('assets/sprites/fx/' + id + '.png').then(function (img) {
         if (img) Assets.fx[id] = img;
       }));
     });
     Promise.all(jobs).then(function () {
-      Assets.ready = !!(Assets.layers.hub_wall && Assets.sheets.xiaoer);
+      Assets.ready = !!((Assets.layers.hub_wall || Assets.layers.hub_composed) && Assets.sheets.xiaoer);
       Assets.failed = !Assets.ready;
     });
   }

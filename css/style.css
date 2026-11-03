@@ -1267,16 +1267,40 @@ body.hub-mode .app { max-width: 1100px; }
 /* —— v0.7.0 landscape 橫屏優先＋直屏簡化 —— */
 .landscape-nudge {
   display: none;
-  margin: 8px 12px;
-  padding: 10px 14px;
-  font-family: var(--font-title);
-  font-size: 0.95rem;
-  color: var(--cream);
-  background: var(--night);
+  margin: 8px 10px 6px;
+  padding: 12px 14px;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  color: var(--paper-light);
+  background: linear-gradient(180deg, #3a2e20 0%, var(--night) 100%);
   border: 3px solid var(--gold);
-  box-shadow: 4px 4px 0 var(--ink);
+  box-shadow: 4px 4px 0 var(--ink), inset 0 0 0 1px rgba(232,200,106,0.25);
+  letter-spacing: 0.02em;
+  text-align: left;
+  align-items: flex-start;
+  gap: 10px;
+}
+.landscape-nudge-ico {
+  flex: 0 0 auto;
+  font-size: 1.35rem;
+  line-height: 1.2;
+  filter: grayscale(0.15);
+}
+.landscape-nudge-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.landscape-nudge-copy strong {
+  font-family: var(--font-title);
+  font-size: 1.05rem;
+  color: var(--gold);
   letter-spacing: 0.06em;
-  text-align: center;
+}
+.landscape-nudge-copy span {
+  color: var(--paper-dark);
+  line-height: 1.4;
 }
 
 @media (orientation: landscape) {
@@ -1302,7 +1326,7 @@ body.hub-mode .app { max-width: 1100px; }
 }
 
 @media (orientation: portrait) and (max-width: 900px) {
-  .landscape-nudge { display: block; }
+  .landscape-nudge { display: flex; }
   .hub-stage-wrap .px-stage,
   .hub-stage-wrap .hub-canvas {
     max-height: min(48vh, 420px);
@@ -2108,4 +2132,14 @@ body.combat-open .hub-shell {
 }
 body.hub-tour-active .hub-stage-wrap .px-stage {
   box-shadow: 0 0 0 2px rgba(232, 200, 106, 0.55);
+}
+
+
+/* ——— v1.8 橫屏提示加強 ——— */
+@media (orientation: portrait) and (max-width: 900px) {
+  .landscape-nudge {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+  }
 }
