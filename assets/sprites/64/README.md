@@ -7,8 +7,8 @@
 
 | 檔 | 尺寸 | 狀態 | 生成腳本 |
 |----|------|------|----------|
-| `qingyi.png` | **1152×64** | **v0.9 精修**（推倒重畫） | `tools/gen_sprites_64_v09.py` |
-| `langren.png` | **1152×64** | **v0.9 精修**（推倒重畫） | `tools/gen_sprites_64_v09.py` |
+| `qingyi.png` | **1152×64** | **v0.9 r2 精修**（姿勢差加大／判定幀） | `tools/gen_sprites_64_v09.py` |
+| `langren.png` | **1152×64** | **v0.9 r2 精修**（姿勢差加大／判定幀） | `tools/gen_sprites_64_v09.py` |
 | `tiezhang.png` | 1152×64 | 待 v0.9（暫留舊版） | `tools/gen_sprites_64.py` |
 | `qinshi.png` | 1152×64 | 待 v0.9（暫留舊版） | `tools/gen_sprites_64.py` |
 | `xiaoer.png` | 1152×64 | 待 v0.9（暫留舊版） | `tools/gen_sprites_64.py` |

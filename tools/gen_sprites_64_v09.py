@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """v0.9 Ink-Pixel Inn — high-density native 64×64 spritesheets (qingyi + langren).
 
-Push-over refinement. Hard-edge, palette-locked, transparent bg, facing RIGHT.
+v0.9 r2 — bigger windup/parry vs idle; denser folds/arcs; clear hit-frame silhouette.
 Layout: body biased LEFT so weapon silhouette reads clearly on the RIGHT.
 
 Frame map:
@@ -655,27 +655,33 @@ def lr_blade_vert(img, hx, hy, tip_down=True):
 
 
 def lr_blade_back(img, hx, hy, lean=0):
-    rect(img, hx, hy, hx + 5, hy + 5, INK_SOFT)
+    """Windup r2: odachi HIGH-BACK behind head."""
+    rect(img, hx - 1, hy, hx + 6, hy + 6, INK_SOFT)
     for yy in range(hy + 1, hy + 5, 2):
         hline(img, hx, hx + 5, yy, FRAME)
-    rect(img, hx - 4, hy - 2, hx + 9, hy + 2, WOOD)
-    outline_rect(img, hx - 4, hy - 2, hx + 9, hy + 2, INK)
+    rect(img, hx - 5, hy - 3, hx + 10, hy + 2, WOOD)
+    outline_rect(img, hx - 5, hy - 3, hx + 10, hy + 2, INK)
     px(img, hx + 2, hy - 1, CINN_B)
-    for i in range(22):
-        x = hx - 1 - (i * 2) // 3 - lean
-        y = hy - 3 - i
+    px(img, hx + 5, hy, GOLD)
+    for i in range(26):
+        x = hx - (i // 2) - lean * 2
+        y = hy - 4 - i
         rect(img, x, y, x + 5, y + 3, INK_SOFT)
         px(img, x, y, INK)
         px(img, x + 2, y + 1, MIST)
-        if i % 3 == 0:
+        if i % 2 == 0:
             px(img, x + 3, y + 1, CINN_B)
-    tx = hx - 1 - (21 * 2) // 3 - lean
-    ty = hy - 3 - 21
+        if i % 4 == 0:
+            px(img, x - 1, y + 1, FRAME)
+    tx = hx - (25 // 2) - lean * 2
+    ty = hy - 4 - 25
     px(img, tx + 2, ty - 1, CREAM)
     px(img, tx + 1, ty, MIST)
+    px(img, tx + 2, ty - 2, CREAM)
 
 
 def lr_blade_slash(img, hx, hy, length=22, dy=0, flash=False):
+    """Horizontal odachi + arc trail r2."""
     rect(img, hx - 4, hy - 1, hx + 1, hy + 4, INK_SOFT)
     for yy in range(hy, hy + 3, 2):
         hline(img, hx - 3, hx, yy, FRAME)
@@ -687,16 +693,20 @@ def lr_blade_slash(img, hx, hy, length=22, dy=0, flash=False):
     hline(img, hx + 5, hx + 5 + length, hy + 4 + dy, FRAME)
     rect(img, hx + 6, hy + 1 + dy, hx + 4 + length, hy + 3 + dy, MIST)
     hline(img, hx + 7, hx + 3 + length, hy + 2 + dy, CINN_B)
+    for i in range(0, length - 2, 3):
+        px(img, hx + 7 + i, hy - 2 + dy - (i // 8), FRAME)
+        px(img, hx + 8 + i, hy - 3 + dy - (i // 8), MIST)
+        px(img, hx + 7 + i, hy + 6 + dy + (i // 10), CINN_B)
     tip = hx + 4 + length
     px(img, tip, hy + 2 + dy, CREAM)
     px(img, tip, hy + 1 + dy, MIST)
     px(img, tip - 1, hy - 1 + dy, INK_SOFT)
+    px(img, tip + 1, hy + 2 + dy, CREAM)
     if flash:
-        px(img, tip - 2, hy - 3 + dy, GOLD)
-        px(img, tip, hy - 2 + dy, CREAM)
-        px(img, tip + 1, hy + 2 + dy, CREAM)
-        px(img, tip - 1, hy + 6 + dy, CINN_B)
-        px(img, tip - 3, hy + 7 + dy, BLOOD)
+        for dx, dy2, c in [(-2, -3, GOLD), (0, -2, CREAM), (1, 2, CREAM),
+                           (-1, 6, CINN_B), (-3, -4, CINN_B), (2, 0, CREAM),
+                           (-4, -5, GOLD), (1, 4, BLOOD), (-2, 7, CREAM)]:
+            px(img, tip + dx, hy + dy + dy2, c)
 
 
 def lr_blade_diag(img, hx, hy):
@@ -761,8 +771,7 @@ def langren_draw(img, pose):
     rect(img, rx0, ly - lift_r, rx0 + 9, ly + 16 - lift_r, INK_SOFT)
     hline(img, rx0 + 1, rx0 + 8, ly - lift_r + 6, NIGHT)
     hline(img, rx0 + 1, rx0 + 8, ly - lift_r + 11, FRAME)
-    hline(img, cx - 13, cx + 14, ly + 1, NIGHT)
-    hline(img, cx - 12, cx + 13, ly + 2, FRAME)
+    hem_layers(img, cx - 13, cx + 14, ly + 1, INK_SOFT, NIGHT, FRAME)
     if lift_l:
         px(img, lx0 - 2, ly - lift_l + 1, INK_SOFT)
         px(img, lx0 - 1, ly - lift_l, NIGHT)
@@ -799,38 +808,59 @@ def langren_draw(img, pose):
 
     elif kind == "windup":
         phase = pose.get("phase", 0)
-        rect(img, cx - 17, ty + 2, cx - 6, ty + 13, INK_SOFT)
-        rect(img, cx - 19, ty + 8, cx - 11, ty + 15, INK_SOFT)
-        hand(img, cx - 19, ty + 12, SKIN_D, fist=True)
-        rect(img, cx + 2, ty + 3, cx + 12, ty + 13, INK_SOFT)
-        hand(img, cx - 5, ty + 5, SKIN_D, fist=True)
-        px(img, cx + 14, ty + 16, INK_SOFT)
-        px(img, cx + 15, ty + 18, NIGHT)
-        px(img, cx - 14, ty + 18, FRAME)
-        lr_blade_back(img, cx - 13, ty + 6, lean=phase)
+        # r2 heavy coil: arms high-back, jacket flares, weight on rear
+        rect(img, cx - 19, ty - 6, cx - 8, ty + 6, INK_SOFT)
+        sleeve_folds(img, cx - 19, cx - 8, ty - 5, ty + 5, NIGHT, FRAME)
+        rect(img, cx - 21, ty - 2, cx - 13, ty + 6, INK_SOFT)
+        hand(img, cx - 21, ty + 2, SKIN_D, fist=True)
+        rect(img, cx - 8, ty - 8, cx + 4, ty + 2, INK_SOFT)
+        sleeve_folds(img, cx - 8, cx + 4, ty - 7, ty + 1, NIGHT, FRAME)
+        hand(img, cx - 10, ty - 6, SKIN_D, fist=True)
+        rect(img, cx + 12, ty + 12, cx + 20, ty + 24, INK_SOFT)
+        robe_folds(img, cx + 12, cx + 20, ty + 13, ty + 23, NIGHT, FRAME)
+        rect(img, cx - 17, ty + 14, cx - 9, ty + 26, INK_SOFT)
+        for dx, dy in [(15, 16), (17, 18), (18, 20), (-14, 18), (-16, 21)]:
+            px(img, cx + dx, ty + dy, CINN_B if dx > 0 else FRAME)
+        lr_blade_back(img, cx - 15, ty - 2, lean=phase + 1)
+        rect(img, cx - 17, ly + 4, cx - 3, ly + 16, INK_SOFT)
+        hline(img, cx - 16, cx - 4, ly + 8, NIGHT)
+        hline(img, cx - 15, cx - 5, ly + 12, FRAME)
         if phase >= 1:
-            rect(img, cx - 14, ly + 8, cx - 2, ly + 16, INK_SOFT)
+            rect(img, cx + 2, ly - 8, cx + 11, ly + 6, INK_SOFT)
+            hline(img, cx + 3, cx + 10, ly - 4, NIGHT)
 
     elif kind == "strike":
         phase = pose.get("phase", 0)
         if phase == 0:
-            rect(img, cx - 13, ty + 3, cx - 5, ty + 13, INK_SOFT)
-            hand(img, cx - 13, ty + 10, SKIN_D, fist=True)
-            rect(img, cx + 8, ty + 0, cx + 16, ty + 11, INK_SOFT)
-            hand(img, cx + 13, ty + 5, SKIN_D, fist=True)
-            lr_blade_diag(img, cx + 14, ty + 5)
+            rect(img, cx - 14, ty - 4, cx - 4, ty + 8, INK_SOFT)
+            sleeve_folds(img, cx - 14, cx - 4, ty - 3, ty + 7, NIGHT, FRAME)
+            hand(img, cx - 14, ty + 4, SKIN_D, fist=True)
+            rect(img, cx + 6, ty - 6, cx + 16, ty + 6, INK_SOFT)
+            hand(img, cx + 13, ty - 2, SKIN_D, fist=True)
+            lr_blade_diag(img, cx + 14, ty - 2)
+            rect(img, cx - 14, ty + 14, cx - 6, ty + 26, INK_SOFT)
         elif phase == 1:
-            rect(img, cx - 11, ty + 5, cx - 3, ty + 15, INK_SOFT)
-            hand(img, cx - 11, ty + 13, SKIN_D)
-            rect(img, cx + 8, ty + 2, cx + 18, ty + 12, INK_SOFT)
-            hand(img, cx + 16, ty + 4, SKIN_D, fist=True)
-            lr_blade_slash(img, cx + 18, ty + 5, length=24, dy=-1, flash=True)
+            # === HIT FRAME — heavy lunge, arm out, blade long ===
+            rect(img, cx - 14, ty + 8, cx - 4, ty + 18, INK_SOFT)
+            sleeve_folds(img, cx - 14, cx - 4, ty + 9, ty + 17, NIGHT, FRAME)
+            hand(img, cx - 14, ty + 16, SKIN_D)
+            rect(img, cx + 6, ty + 0, cx + 22, ty + 10, INK_SOFT)
+            sleeve_folds(img, cx + 6, cx + 22, ty + 1, ty + 9, NIGHT, FRAME)
+            sleeve_cuff(img, cx + 16, cx + 22, ty + 8, INK_SOFT, FRAME)
+            hand(img, cx + 20, ty + 2, SKIN_D, fist=True)
+            lr_blade_slash(img, cx + 22, ty + 3, length=28, dy=-2, flash=True)
+            rect(img, cx + 12, ty + 12, cx + 22, ty + 24, INK_SOFT)
+            robe_folds(img, cx + 12, cx + 22, ty + 13, ty + 23, NIGHT, FRAME)
+            for i, (dx, dy) in enumerate([(-2, 2), (-4, 0), (-6, 3), (-3, -2)]):
+                px(img, cx + 4 + dx, ty + 4 + dy, CINN_B if i % 2 == 0 else CREAM)
         elif phase == 2:
-            rect(img, cx - 9, ty + 7, cx - 1, ty + 17, INK_SOFT)
-            hand(img, cx - 9, ty + 15, SKIN_D)
-            rect(img, cx + 9, ty + 3, cx + 19, ty + 13, INK_SOFT)
-            hand(img, cx + 17, ty + 5, SKIN_D, fist=True)
-            lr_blade_slash(img, cx + 19, ty + 6, length=26, dy=0, flash=True)
+            rect(img, cx - 10, ty + 10, cx - 2, ty + 20, INK_SOFT)
+            hand(img, cx - 10, ty + 18, SKIN_D)
+            rect(img, cx + 8, ty + 2, cx + 24, ty + 12, INK_SOFT)
+            sleeve_folds(img, cx + 8, cx + 24, ty + 3, ty + 11, NIGHT, FRAME)
+            hand(img, cx + 22, ty + 4, SKIN_D, fist=True)
+            lr_blade_slash(img, cx + 24, ty + 5, length=26, dy=1, flash=True)
+            rect(img, cx + 10, ty + 14, cx + 20, ty + 24, INK_SOFT)
         else:
             rect(img, cx - 13, ty + 5, cx - 5, ty + 15, INK_SOFT)
             hand(img, cx - 13, ty + 13, SKIN_D)
@@ -862,19 +892,32 @@ def langren_draw(img, pose):
     elif kind == "parry":
         phase = pose.get("phase", 0)
         shake = pose.get("shake", 0)
-        rect(img, cx - 15, ty + 3, cx - 7, ty + 13, INK_SOFT)
-        hand(img, cx - 15, ty + 11, SKIN_D)
-        rect(img, cx + 6, ty - 2, cx + 15, ty + 8, INK_SOFT)
-        hand(img, cx + 9 + shake, ty - 1, SKIN_D, fist=True)
-        lr_blade_vert(img, cx + 11 + shake, ty + 0, tip_down=False)
-        if phase == 1:
-            for dx, dy, c in [(2, -24, CREAM), (6, -20, GOLD), (4, -16, CREAM),
-                              (8, -22, CINN_B), (0, -18, GOLD)]:
-                px(img, cx + 11 + shake + dx, ty + dy, c)
-        if phase == 2:
-            px(img, cx - 15, ty + 18, INK_SOFT)
-            px(img, cx - 17, ty + 20, NIGHT)
-            px(img, cx - 16, ty + 22, FRAME)
+        if phase < 2:
+            # overhead guard — arms up, blade high above head
+            rect(img, cx - 17, ty - 10, cx - 6, ty + 2, INK_SOFT)
+            sleeve_folds(img, cx - 17, cx - 6, ty - 9, ty + 1, NIGHT, FRAME)
+            hand(img, cx - 10, ty - 12, SKIN_D, fist=True)
+            rect(img, cx + 2, ty - 12, cx + 15, ty + 0, INK_SOFT)
+            sleeve_folds(img, cx + 2, cx + 15, ty - 11, ty - 1, NIGHT, FRAME)
+            hand(img, cx + 9 + shake, ty - 14, SKIN_D, fist=True)
+            lr_blade_vert(img, cx + 7 + shake, ty - 8, tip_down=False)
+            rect(img, cx - 15, ty + 16, cx - 5, ty + 26, INK_SOFT)
+            rect(img, cx + 8, ty + 16, cx + 18, ty + 26, INK_SOFT)
+            if phase == 1:
+                for dx, dy, c in [(0, -28, CREAM), (4, -26, GOLD), (2, -24, CREAM),
+                                  (6, -30, CINN_B), (-2, -26, GOLD), (8, -22, CREAM),
+                                  (3, -32, GOLD)]:
+                    px(img, cx + 7 + shake + dx, ty + dy, c)
+        else:
+            # dodge — deep side lean
+            rect(img, cx - 19, ty + 2, cx - 8, ty + 14, INK_SOFT)
+            sleeve_folds(img, cx - 19, cx - 8, ty + 3, ty + 13, NIGHT, FRAME)
+            hand(img, cx - 19, ty + 12, SKIN_D)
+            rect(img, cx - 4, ty - 4, cx + 8, ty + 8, INK_SOFT)
+            hand(img, cx + 4, ty - 2, SKIN_D, fist=True)
+            lr_blade_slash(img, cx + 6, ty + 0, length=18, dy=2, flash=False)
+            rect(img, cx - 19, ty + 14, cx - 7, ty + 28, INK_SOFT)
+            robe_folds(img, cx - 19, cx - 7, ty + 15, ty + 27, NIGHT, FRAME)
 
     vline(img, cx - 13, ty, ty + 18, INK)
     vline(img, cx + 13, ty, ty + 16, INK)
@@ -884,6 +927,7 @@ def langren_draw(img, pose):
 # assembly
 # ============================================================
 def poses_v09():
+    """r2: exaggerated windup/parry/strike offsets vs idle."""
     poses = []
     poses.append({"kind": "idle", "breath": 0, "bx": 0, "by": 0})
     poses.append({"kind": "idle", "breath": 1, "bx": 0, "by": 0})
@@ -891,20 +935,21 @@ def poses_v09():
     poses.append({"kind": "walk", "breath": 0, "lift_l": 4, "bx": 0})
     poses.append({"kind": "walk", "breath": 0, "lift_r": 12, "stride_r": 1, "bx": 2})
     poses.append({"kind": "walk", "breath": 1, "lift_r": 4, "bx": 0})
-    # windup — shift LEFT so back-sword fits
-    poses.append({"kind": "windup", "phase": 0, "breath": 0, "bx": -2})
-    poses.append({"kind": "windup", "phase": 1, "breath": 0, "bx": -4})
-    poses.append({"kind": "windup", "phase": 2, "breath": 1, "bx": -6})
-    # strike — body left so blade tip stays in frame
-    poses.append({"kind": "strike", "phase": 0, "breath": 0, "bx": -4})
-    poses.append({"kind": "strike", "phase": 1, "breath": 0, "bx": -2, "lift_r": 5})
-    poses.append({"kind": "strike", "phase": 2, "breath": 1, "bx": 0, "lift_l": 3})
-    poses.append({"kind": "strike", "phase": 3, "breath": 0, "bx": -2})
-    poses.append({"kind": "hurt", "phase": 0, "breath": 0, "bx": -6, "lift_l": 5})
-    poses.append({"kind": "hurt", "phase": 1, "breath": 1, "bx": -10, "by": 1, "lift_r": 3})
-    poses.append({"kind": "parry", "phase": 0, "breath": 0, "shake": 0, "bx": 0})
-    poses.append({"kind": "parry", "phase": 1, "breath": 0, "shake": 2, "bx": -2})
-    poses.append({"kind": "parry", "phase": 2, "breath": 1, "shake": 0, "bx": -5})
+    # windup — deep LEFT lean + slight crouch so high-back sword fits
+    poses.append({"kind": "windup", "phase": 0, "breath": 0, "bx": -4, "by": 2, "lift_l": 2})
+    poses.append({"kind": "windup", "phase": 1, "breath": 0, "bx": -8, "by": 2, "lift_r": 10})
+    poses.append({"kind": "windup", "phase": 2, "breath": 1, "bx": -10, "by": 3, "lift_r": 12})
+    # strike — body left; hit frame (phase1=frame10) lunges forward with front lift
+    poses.append({"kind": "strike", "phase": 0, "breath": 0, "bx": -6, "by": 0})
+    poses.append({"kind": "strike", "phase": 1, "breath": 0, "bx": -4, "by": 0, "lift_r": 10, "stride_r": 1})
+    poses.append({"kind": "strike", "phase": 2, "breath": 1, "bx": -2, "by": 0, "lift_l": 6})
+    poses.append({"kind": "strike", "phase": 3, "breath": 0, "bx": -4})
+    poses.append({"kind": "hurt", "phase": 0, "breath": 0, "bx": -8, "lift_l": 6})
+    poses.append({"kind": "hurt", "phase": 1, "breath": 1, "bx": -12, "by": 2, "lift_r": 4})
+    # parry — crouch + overhead; dodge deep left
+    poses.append({"kind": "parry", "phase": 0, "breath": 0, "shake": 0, "bx": 2, "by": 3, "lift_l": 4, "lift_r": 4})
+    poses.append({"kind": "parry", "phase": 1, "breath": 0, "shake": 3, "bx": 0, "by": 3, "lift_l": 5, "lift_r": 5})
+    poses.append({"kind": "parry", "phase": 2, "breath": 1, "shake": 0, "bx": -10, "by": 1, "lift_l": 8})
     return poses
 
 
@@ -978,8 +1023,8 @@ def write_readme():
 
 | 檔 | 尺寸 | 狀態 | 生成腳本 |
 |----|------|------|----------|
-| `qingyi.png` | **1152×64** | **v0.9 精修**（推倒重畫） | `tools/gen_sprites_64_v09.py` |
-| `langren.png` | **1152×64** | **v0.9 精修**（推倒重畫） | `tools/gen_sprites_64_v09.py` |
+| `qingyi.png` | **1152×64** | **v0.9 r2 精修**（姿勢差加大／判定幀） | `tools/gen_sprites_64_v09.py` |
+| `langren.png` | **1152×64** | **v0.9 r2 精修**（姿勢差加大／判定幀） | `tools/gen_sprites_64_v09.py` |
 | `tiezhang.png` | 1152×64 | 待 v0.9（暫留舊版） | `tools/gen_sprites_64.py` |
 | `qinshi.png` | 1152×64 | 待 v0.9（暫留舊版） | `tools/gen_sprites_64.py` |
 | `xiaoer.png` | 1152×64 | 待 v0.9（暫留舊版） | `tools/gen_sprites_64.py` |
@@ -1027,7 +1072,7 @@ python3 /workspace/wuxia-inn/tools/gen_sprites_64_v09.py
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     PREV.mkdir(parents=True, exist_ok=True)
-    report = ["# v0.9 sprite gen report", ""]
+    report = ["# v0.9 r2 sprite gen report", ""]
     total_oob = 0
     frame_labels = [
         "idle0", "idle1", "walk0", "walk1", "walk2", "walk3",
@@ -1035,7 +1080,7 @@ def main():
         "strike0", "strike1", "strike2", "strike3",
         "hurt0", "hurt1", "parry0", "parry1", "parry2",
     ]
-    key_preview = {"idle": 0, "windup": 7, "strike": 10, "hurt": 13, "parry": 15, "walk": 2}
+    key_preview = {"idle": 0, "windup": 7, "strike": 10, "strike_hit": 10, "hurt": 13, "parry": 15, "parry_dodge": 17, "walk": 2}
 
     for cid in ("qingyi", "langren"):
         sheet = make_sheet(cid)
