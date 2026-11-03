@@ -1,17 +1,17 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v0.5.6
+ * v0.5.7
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '0.5.6',
+    version: '0.5.7',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
-    combatTickMs: 1100,
+    combatTickMs: 1250,
     dropManualChance: 0.32,
     maxParty: 3,
     questRefreshCost: 25,       // 手動刷新任務板銀兩
@@ -88,6 +88,53 @@
     { id: 'meet_qin', kind: 'meet', weight: 7, text: '有人聽見琴音，笑道：「此間有佛心。」', heroHint: 'qinshi' },
     { id: 'meet_blade', kind: 'meet', weight: 5, text: '刀客臨去丟下一句：「黑風未絕，小心。」', heroHint: 'langren' }
   ];
+
+  /**
+   * 場景化江湖事件（Hub 泡泡＋短暫行人演出；唔淨對話面板）
+   * beats.at：毫秒；line／caption／move／end
+   */
+  const SCENE_EVENTS = [
+    {
+      id: 'door_spar',
+      caption: '門前兩俠比劃兩招…',
+      walkers: [
+        { id: 'langren', x: 36, y: 168, tx: 110, ty: 176 },
+        { id: 'qingyi', x: 170, y: 176, tx: 118, ty: 170 }
+      ],
+      beats: [
+        { at: 0, caption: '門前刀光一閃——', line: '領教！', walker: 0, life: 1.1 },
+        { at: 700, line: '好刀法！', walker: 1, life: 1.1, move: { i: 0, tx: 130, ty: 174 } },
+        { at: 1500, line: '點到即止。', walker: 0, life: 1.0, move: { i: 1, tx: 100, ty: 168 } },
+        { at: 2400, line: '改日再戰。', walker: 1, life: 1.0, end: true }
+      ]
+    },
+    {
+      id: 'tea_rumor',
+      caption: '雅座茶客低聲議論…',
+      walkers: [
+        { id: 'qinshi', x: 300, y: 180, tx: 260, ty: 186 },
+        { id: 'tiezhang', x: 220, y: 188, tx: 250, ty: 184 }
+      ],
+      beats: [
+        { at: 0, caption: '茶香裡飄來江湖話', line: '聽說黑風又動。', walker: 1, life: 1.2 },
+        { at: 900, line: '莫慌，本棧有俠客。', walker: 0, life: 1.15 },
+        { at: 1800, line: '琴音可定心神。', walker: 0, life: 1.0, end: true }
+      ]
+    },
+    {
+      id: 'merchant_boast',
+      caption: '行商在櫃前誇貨…',
+      walkers: [
+        { id: 'langren', x: 200, y: 160, tx: 230, ty: 168 }
+      ],
+      beats: [
+        { at: 0, caption: '櫃前一陣喧嘩', line: '總有一款適合您！', x: 240, y: 100, life: 1.2 },
+        { at: 800, line: '江湖隱藏各路高手。', walker: 0, life: 1.15 },
+        { at: 1700, line: '客官裏面請。', x: 210, y: 140, life: 1.0, end: true }
+      ]
+    }
+  ];
+
 
 
   /**
@@ -731,6 +778,7 @@
     RUMORS,
     XIAOER_LINES,
     GUEST_EVENTS,
+    SCENE_EVENTS,
     HERO_TEMPLATES,
     ENEMY_WAVES,
     TRAIN,

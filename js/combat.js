@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 自動即時戰鬥（v0.5.6：onAction 含招架、閃避、Boss／武學／羈絆）
+ * 俠客棧 — 自動即時戰鬥（v0.5.7：單人逐步出手＋命中停頓；onAction 含招架／閃避）
  */
 (function (global) {
   'use strict';
@@ -124,6 +124,8 @@
     let turn = 0;
     let finished = false;
     let result = null;
+    let actCursor = 0;
+    let holdTicks = 0; // 命中後跳過若干 tick，配合畫面 hit-stop
 
     function log(msg, kind) {
       if (hooks && hooks.onLog) hooks.onLog(msg, kind || 'info');
@@ -151,6 +153,11 @@
 
     function emitAction(evt) {
       if (hooks && hooks.onAction) hooks.onAction(evt);
+      if (!evt) return;
+      // 命中／招架／擊倒：戰鬥邏輯短停，等刀光同閃白睇得清
+      if (evt.kind === 'hit') holdTicks = Math.max(holdTicks, 1);
+      else if (evt.kind === 'skill' || evt.kind === 'parry') holdTicks = Math.max(holdTicks, 1);
+      else if (evt.kind === 'ko') holdTicks = Math.max(holdTicks, 2);
     }
 
     function act(attacker) {
@@ -257,22 +264,30 @@
 
     function step() {
       if (finished) return;
+      if (holdTicks > 0) {
+        holdTicks -= 1;
+        emit();
+        return;
+      }
       turn += 1;
       const order = units
         .filter((u) => u.hp > 0)
         .sort((a, b) => b.nei + b.force * 0.5 - (a.nei + a.force * 0.5) + (Math.random() - 0.5));
-
-      for (const u of order) {
-        if (finished) break;
-        act(u);
-        if (!living(units, 'enemy').length) {
-          end(true);
-          return;
-        }
-        if (!living(units, 'ally').length) {
-          end(false);
-          return;
-        }
+      if (!order.length) {
+        emit();
+        return;
+      }
+      // 每次 tick 只一人出手，刀光／受擊幀先睇得清
+      const u = order[actCursor % order.length];
+      actCursor = (actCursor + 1) % order.length;
+      act(u);
+      if (!living(units, 'enemy').length) {
+        end(true);
+        return;
+      }
+      if (!living(units, 'ally').length) {
+        end(false);
+        return;
       }
       emit();
     }
@@ -282,6 +297,8 @@
       finished = false;
       result = null;
       turn = 0;
+      actCursor = 0;
+      holdTicks = 0;
       log('戰鼓擂響，俠客出巡！', 'system');
       const withBond = units.filter((u) => u.side === 'ally' && u.bondMul > 1);
       if (withBond.length) {

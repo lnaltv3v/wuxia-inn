@@ -1,11 +1,11 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v0.5.6：Hub v1.3／接客事件／趣味內容）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v0.5.7：場景江湖事件／藏書熱點／戰鬥刀光）
  */
 (function () {
   'use strict';
 
   const {
-    GAME, INN_LEVELS, GUESTS, RUMORS, XIAOER_LINES, GUEST_EVENTS, HERO_TEMPLATES, ENEMY_WAVES, TRAIN,
+    GAME, INN_LEVELS, GUESTS, RUMORS, XIAOER_LINES, GUEST_EVENTS, SCENE_EVENTS, HERO_TEMPLATES, ENEMY_WAVES, TRAIN,
     MARTIAL_ARTS, BOND_EVENTS, LIBRARY,
     OUTPOSTS, FACILITIES, QUEST_TEMPLATES,
     STORY_CHAPTERS, BOSS_ENCOUNTERS, ACHIEVEMENTS,
@@ -749,10 +749,33 @@
     return { pay: pay, note: note, kind: ev.kind };
   }
 
+  let lastSceneAt = 0;
+
+  function pickSceneEvent() {
+    const list = (typeof SCENE_EVENTS !== 'undefined' && SCENE_EVENTS && SCENE_EVENTS.length)
+      ? SCENE_EVENTS
+      : (WuxiaData && WuxiaData.SCENE_EVENTS) || [];
+    if (!list.length) return null;
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
   function maybeHubFlavor() {
     if (battle) return;
     const now = Date.now();
     if (!globalThis.WuxiaStages || !WuxiaStages.Inn) return;
+    const busy = WuxiaStages.Inn.isScenePlaying && WuxiaStages.Inn.isScenePlaying();
+    // 場景化江湖事件：Hub 內泡泡＋行人短暫演出（約 55s）
+    if (!busy && now - lastSceneAt > 55000 && Math.random() < 0.55) {
+      const sc = pickSceneEvent();
+      if (sc && WuxiaStages.Inn.playSceneEvent) {
+        lastSceneAt = now;
+        WuxiaStages.Inn.playSceneEvent(sc);
+        pushLog('【江湖一景】' + (sc.caption || sc.id), 'system');
+        const hint = document.getElementById('hub-hint');
+        if (hint) hint.textContent = sc.caption || '江湖一景…';
+        return;
+      }
+    }
     // 每約 40s 一則傳聞
     if (now - lastRumorAt > 40000) {
       lastRumorAt = now;
@@ -762,7 +785,7 @@
       pushLog('【江湖傳聞】' + rumor, 'system');
       const hint = document.getElementById('hub-hint');
       if (hint && !battle) hint.textContent = '傳聞：' + rumor;
-    } else if (now - lastGreetAt > 22000 && Math.random() < 0.42) {
+    } else if (!busy && now - lastGreetAt > 22000 && Math.random() < 0.42) {
       lastGreetAt = now;
       const line = XIAOER_GREETS[Math.floor(Math.random() * XIAOER_GREETS.length)];
       if (WuxiaStages.Inn.greetXiaoer) WuxiaStages.Inn.greetXiaoer(line);
@@ -1826,6 +1849,14 @@
     if (WuxiaStages.Inn.setHotspotHandler) {
       WuxiaStages.Inn.setHotspotHandler((openId) => {
         if (openId === 'table') return;
+        if (openId === 'library') {
+          openSheet('inn');
+          setTimeout(function () {
+            const el = document.getElementById('library-section');
+            if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 60);
+          return;
+        }
         setTab(openId);
       });
     }
@@ -1953,7 +1984,7 @@
         <p class="muted">酒窖增收、練武場降費增益、醫館加快回血與戰後療傷。</p>
         <div class="facility-list">${facHtml}</div>
       </div>
-      <div class="card">
+      <div class="card" id="library-section">
         <h3>${pxIcon('📚')} 藏書閣／練功</h3>
         <p class="muted">已收藏秘籍 ${state.unlockedManuals.length}/${MARTIAL_ARTS.length}</p>
         ${libHtml}

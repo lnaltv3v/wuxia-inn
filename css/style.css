@@ -1,4 +1,4 @@
-/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.5.5（見 ART.md／DESIGN.md／AUDIO.md） */
+/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.5.7（見 ART.md／DESIGN.md／AUDIO.md） */
 :root {
   /* 嚴格色盤 — 禁止盤外色 */
   --ink: #1A1510;
@@ -1086,7 +1086,7 @@ body.hub-mode .app { max-width: 1100px; }
 }
 
 
-/* v0.5.6 pixel quickbar icons */
+/* v0.5.7 pixel quickbar icons */
 .hub-qbtn .px-ico {
   display: inline-flex;
   align-items: center;

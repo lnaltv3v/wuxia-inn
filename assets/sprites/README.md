@@ -1,9 +1,10 @@
-# 俠客棧精靈表 — 墨點江湖對幀說明（v1.2）
+# 俠客棧精靈表 — 墨點江湖對幀說明（v1.2.1）
 
 > 原生像素 · Pillow 生成 · 僅盤內色 · 透明底 · 硬邊無抗鋸齒  
 > 生成腳本：`/workspace/wuxia-inn/tools/gen_ink_pixel_assets.py`（**sprites-only**；Hub 場景改由「墨點場景」負責，唔覆寫 `assets/scenes/`）  
 > **v1.2**：同解析度加資訊量——頭／帽／髮型／肩飾剪影差更大；袍領口／袖口／下擺褶 1–2px；腰帶扣／藥囊／劍鞘；walk 抬腳約 **8px**＋衣擺跟動；serve 茶盤／壺／杯分離＋倒茶弧；attack／hurt／parry 姿勢一眼可讀；Boss 威脅剪影加厚；`guest_sit` 扩至 **6** 幀（杯／碗）。  
-> **+guest_walk**：4 主色客人 × 8 幀 walk／approach／sit_down（**1024×32**），坐定幀對齊 `guest_sit` 0–3 以便切換。
+> **+guest_walk**：4 主色客人 × 8 幀 walk／approach／sit_down（**1024×32**），坐定幀對齊 `guest_sit` 0–3 以便切換。  
+> **v1.2.1**：四俠客 **attack（9–12）／hurt（13–14）** 再加清楚——起手收勢差更大（後引 → 大弧 → 擊中刃尖／掌風 1px 盤內亮色 → 收回）、身體前傾／後坐一眼可辨；hurt 兩幀姿勢差大（高甩臂 vs 下甩＋更深後仰）、血點 `#C42B2B`／`#8B2942`。對幀不變。`xiaoer`／`guest_*`／boss 行為維持。
 
 ## 檔名與尺寸
 
@@ -28,8 +29,8 @@
 | 0–1 | **idle** | 呼吸微動（1px 上下） |
 | 2–5 | **walk** | 高抬左 → 過渡 → 高抬右 → 過渡；抬腳約 **8px**＋跨步＋衣擺跟動 |
 | 6–8 | **serve** | 起盤 → 端穩 → 微傾倒茶（茶盤／壺／杯分離＋倒茶弧）。`qinshi`＝撫琴／持琴 |
-| 9–12 | **attack** *或* **wipe** | 俠客：起手 → 揮出 → 擊中（刃尖高光）→ 收勢。**小二見下** |
-| 13–14 | **hurt** | 後仰＋血點＋甩臂 |
+| 9–12 | **attack** *或* **wipe** | 俠客 v1.2.1：後引起手 → 大弧揮出 → 擊中（刃尖／掌風 1px `#FFF8EE`／盤內亮）→ 收回；身體後坐→前傾可辨。**小二見下** |
+| 13–14 | **hurt** | v1.2.1：兩幀差大——高甩臂後仰 vs 下甩更深 stagger；血點 `#C42B2B`／`#8B2942` |
 | 15–17 | **parry** | 舉武器／盤擋身前 → 微震 → 回穩 |
 
 ### ⚠ xiaoer 幀位（不變）
@@ -117,3 +118,15 @@ jade／wood-hat 客人暫只在 `guest_sit` 幀 4–5；walk 後加。
 所有俠客／小二 `size==(576,32)`、`guest_sit==(192,32)`、`guest_walk==(1024,32)`、Boss `32×32`、oob=0、每 32px 欄有可見像素。詳見 `_gen_report.txt`。
 
 重生（只精靈）：`python3 tools/gen_ink_pixel_assets.py`
+
+## 戰鬥 VFX（`fx/`）
+
+短 VFX 橫向 sheet，詳見 [`fx/README.md`](fx/README.md)。生成：`tools/gen_combat_fx.py`。
+
+| 檔案 | 尺寸 | 幀 | 綁定 |
+|------|------|----|------|
+| `fx/slash.png` | 192×32 | 6 | attack 擊中幀 |
+| `fx/spark.png` | 160×32 | 5 | hurt／hit |
+| `fx/parry_flash.png` | 128×32 | 4 | parry |
+| `fx/hit_ring.png` | 96×32 | 3 | 可選受擊圈 |
+

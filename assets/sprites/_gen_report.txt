@@ -1,10 +1,10 @@
-# Ink-Pixel Inn asset gen report v1.2+guest_walk
+# Ink-Pixel Inn asset gen report v1.2.1 attack/hurt clarity
 
-SPRITE qingyi: size=(576, 32) opaque=6398 oob=0 empty_frames=[] oob_cols={}
-SPRITE tiezhang: size=(576, 32) opaque=6789 oob=0 empty_frames=[] oob_cols={}
-SPRITE langren: size=(576, 32) opaque=6788 oob=0 empty_frames=[] oob_cols={}
-SPRITE qinshi: size=(576, 32) opaque=6700 oob=0 empty_frames=[] oob_cols={}
-SPRITE xiaoer: size=(576, 32) opaque=6417 oob=0 empty_frames=[] oob_cols={}
+SPRITE qingyi: size=(576, 32) opaque=6530 oob=0 empty_frames=[] oob_cols={}
+SPRITE tiezhang: size=(576, 32) opaque=6958 oob=0 empty_frames=[] oob_cols={}
+SPRITE langren: size=(576, 32) opaque=6923 oob=0 empty_frames=[] oob_cols={}
+SPRITE qinshi: size=(576, 32) opaque=6847 oob=0 empty_frames=[] oob_cols={}
+SPRITE xiaoer: size=(576, 32) opaque=6414 oob=0 empty_frames=[] oob_cols={}
 BOSS heifeng: size=(32, 32) opaque=585 oob=0 oob_cols={}
 BOSS xieyi: size=(32, 32) opaque=459 oob=0 oob_cols={}
 GUEST sit: size=(192, 32) opaque=2608 oob=0 oob_cols={}

@@ -192,16 +192,20 @@ def draw_feet(img, lx, ly, rx, ry, shoe=INK_SOFT, lift_l=0, lift_r=0, stride=0):
 
 
 def body_shift(pose):
+    """v1.2.1: attack lean (wind-up ↔ impact) + two-phase hurt; keep weapons on-canvas."""
     if pose.get("hurt"):
-        return -4
+        # phase0 reel-back; phase1 deeper stagger — readable at slow combat
+        return -4 if pose.get("hurt_phase", 0) == 0 else -6
     if pose.get("wipe_phase") is not None:
         return 1 if pose.get("wipe_phase", 0) % 2 else 0
     if pose.get("attack_phase") == 0:
-        return -3
-    if pose.get("attack_phase") in (1, 2):
-        return 3
+        return -2  # wind-up lean back (weapon stays in 32px)
+    if pose.get("attack_phase") == 1:
+        return 1   # swing mid
+    if pose.get("attack_phase") == 2:
+        return 3   # impact lean forward
     if pose.get("attack_phase") == 3:
-        return 1
+        return 0   # recover
     if pose.get("lift_l"):
         return -2
     if pose.get("lift_r"):
@@ -295,33 +299,54 @@ def qingyi_body(img, ox, oy, pose):
         px(img, 18 + bx, ty + 7, GOLD)
     elif pose.get("attack_phase") is not None:
         ap = pose["attack_phase"]
-        if ap == 0:  # wind-up: sword pulled far back
-            fill_rect(img, 1 + bx, ty + 2, 8 + bx, ty + 7, TEAL)
-            fill_rect(img, 0 + bx, ty + 5, 4 + bx, ty + 8, SKIN)
-            fill_rect(img, bx - 1, ty + 0, bx + 2, ty + 18, TEAL_B)
-            fill_rect(img, bx - 1, ty - 1, bx + 3, ty + 1, GOLD)
-            px(img, bx, ty + 17, WOOD)
-        elif ap == 1:  # swing out long
-            fill_rect(img, 16 + bx, ty + 1, 23 + bx, ty + 5, TEAL)
-            fill_rect(img, 21 + bx, ty + 2, 25 + bx, ty + 5, SKIN)
-            fill_rect(img, bx + 19, ty - 1, bx + 32, ty + 1, TEAL_B)
-            fill_rect(img, bx + 18, ty - 1, bx + 21, ty + 2, GOLD)
-            px(img, bx + 31, ty - 1, CREAM)
-            px(img, bx + 30, ty - 2, GOLD)
-        elif ap == 2:  # impact tip high
-            fill_rect(img, 17 + bx, ty + 2, 25 + bx, ty + 6, TEAL)
-            fill_rect(img, 23 + bx, ty + 3, 27 + bx, ty + 6, SKIN)
-            fill_rect(img, bx + 22, ty + 0, bx + 32, ty + 2, TEAL_B)
-            fill_rect(img, bx + 21, ty - 1, bx + 24, ty + 3, GOLD)
-            px(img, bx + 31, ty - 1, CREAM)
-            px(img, bx + 30, ty, CREAM)
+        if ap == 0:  # wind-up: sword vertical left of body, tip high (on-canvas)
+            fill_rect(img, 4 + bx, ty + 1, 10 + bx, ty + 7, TEAL)
+            fill_rect(img, 2 + bx, ty + 4, 6 + bx, ty + 8, SKIN)
+            # blade vertical left, tip up — clear wind-up silhouette
+            fill_rect(img, 1 + bx, ty - 7, 4 + bx, ty + 14, TEAL_B)
+            fill_rect(img, 0 + bx, ty - 9, 5 + bx, ty - 6, GOLD)
+            px(img, 2 + bx, ty - 5, CREAM)
+            px(img, 2 + bx, ty + 13, WOOD)
+            # free arm tucked back-right
+            fill_rect(img, 15 + bx, ty + 4, 20 + bx, ty + 9, TEAL)
+            fill_rect(img, 17 + bx, ty + 7, 21 + bx, ty + 10, SKIN)
+        elif ap == 1:  # big arc swing out (diagonal tip rising)
+            fill_rect(img, 15 + bx, ty + 0, 24 + bx, ty + 5, TEAL)
+            fill_rect(img, 21 + bx, ty + 1, 26 + bx, ty + 5, SKIN)
+            # long blade arc: hilt mid → tip far right-up
+            fill_rect(img, bx + 18, ty + 1, bx + 22, ty + 4, GOLD)
+            fill_rect(img, bx + 21, ty - 2, bx + 32, ty + 1, TEAL_B)
+            px(img, bx + 20, ty + 0, WOOD)
+            px(img, bx + 31, ty - 3, TEAL_B)
+            px(img, bx + 30, ty - 2, CREAM)
+            px(img, bx + 29, ty - 1, GOLD)
+            # left arm counterbalance back
+            fill_rect(img, 1 + bx, ty + 3, 7 + bx, ty + 8, TEAL)
+            fill_rect(img, 0 + bx, ty + 6, 4 + bx, ty + 9, SKIN)
+        elif ap == 2:  # impact: tip thrust + 1px cream highlight cluster
+            fill_rect(img, 16 + bx, ty + 1, 26 + bx, ty + 6, TEAL)
+            fill_rect(img, 23 + bx, ty + 2, 28 + bx, ty + 6, SKIN)
+            fill_rect(img, bx + 20, ty + 0, bx + 24, ty + 3, GOLD)
+            fill_rect(img, bx + 23, ty - 1, bx + 32, ty + 2, TEAL_B)
+            # tip flash (palette cream / teal-bright / gold)
+            px(img, bx + 31, ty - 2, CREAM)
+            px(img, bx + 30, ty - 1, CREAM)
+            px(img, bx + 31, ty + 0, TEAL_B)
             px(img, bx + 29, ty - 2, GOLD)
-        else:  # recover
-            fill_rect(img, 15 + bx, ty + 3, 21 + bx, ty + 8, TEAL)
-            fill_rect(img, 18 + bx, ty + 6, 22 + bx, ty + 9, SKIN)
-            fill_rect(img, bx + 19, ty + 2, bx + 21, ty + 15, TEAL_B)
-            fill_rect(img, bx + 18, ty + 1, bx + 22, ty + 3, GOLD)
-    else:
+            px(img, bx + 28, ty - 1, CREAM)
+            # trailing afterimage speck
+            px(img, bx + 26, ty - 3, TEAL_B)
+            fill_rect(img, 2 + bx, ty + 4, 8 + bx, ty + 9, TEAL)
+            fill_rect(img, 1 + bx, ty + 7, 5 + bx, ty + 10, SKIN)
+        else:  # recover: blade returns toward hip, slight forward settle
+            fill_rect(img, 14 + bx, ty + 2, 21 + bx, ty + 7, TEAL)
+            fill_rect(img, 18 + bx, ty + 5, 22 + bx, ty + 8, SKIN)
+            fill_rect(img, bx + 18, ty + 1, bx + 21, ty + 14, TEAL_B)
+            fill_rect(img, bx + 17, ty + 0, bx + 22, ty + 2, GOLD)
+            px(img, bx + 19, ty + 13, WOOD)
+            fill_rect(img, 4 + bx, ty + 3, 9 + bx, ty + 8, TEAL)
+            fill_rect(img, 3 + bx, ty + 6, 7 + bx, ty + 9, SKIN)
+    elif not pose.get("hurt"):
         # idle / walk arms
         fill_rect(img, 4 + bx, ty + 2, 9 + bx, ty + 8, TEAL)
         fill_rect(img, 3 + bx, ty + 6, 7 + bx, ty + 9, SKIN)
@@ -350,14 +375,33 @@ def qingyi_body(img, ox, oy, pose):
     draw_feet(img, 8 + bx, ly + 6, 14 + bx, ly + 6, INK_SOFT, lift_l, lift_r, stride=stride)
 
     if pose.get("hurt"):
-        # reeling: arm flung, blood spray
-        fill_rect(img, 18 + bx, ty + 1, 24 + bx, ty + 5, TEAL)
-        fill_rect(img, 22 + bx, ty + 2, 26 + bx, ty + 5, SKIN)
-        px(img, 16 + bx, 6 + oy, BLOOD)
-        px(img, 18 + bx, 8 + oy, CINN)
-        px(img, 10 + bx, 11 + oy, BLOOD)
-        px(img, 19 + bx, 10 + oy, BLOOD)
-        px(img, 20 + bx, 7 + oy, CINN_B)
+        hp = pose.get("hurt_phase", 0)
+        if hp == 0:
+            # reel: arm flung high-right, blood spray chest/face
+            fill_rect(img, 17 + bx, ty - 2, 24 + bx, ty + 3, TEAL)
+            fill_rect(img, 22 + bx, ty - 3, 27 + bx, ty + 1, SKIN)
+            fill_rect(img, 1 + bx, ty + 5, 7 + bx, ty + 10, TEAL)
+            fill_rect(img, 0 + bx, ty + 8, 4 + bx, ty + 11, SKIN)
+            px(img, 15 + bx, 5 + oy, CINN_B)
+            px(img, 17 + bx, 6 + oy, BLOOD)
+            px(img, 18 + bx, 8 + oy, CINN_B)
+            px(img, 10 + bx, 10 + oy, BLOOD)
+            px(img, 19 + bx, 9 + oy, BLOOD)
+            px(img, 20 + bx, 5 + oy, CINN_B)
+            px(img, 12 + bx, 7 + oy, BLOOD)
+        else:
+            # deeper stagger: arm flung down-out, different blood arc
+            fill_rect(img, 18 + bx, ty + 4, 25 + bx, ty + 9, TEAL)
+            fill_rect(img, 23 + bx, ty + 7, 28 + bx, ty + 11, SKIN)
+            fill_rect(img, 2 + bx, ty + 2, 8 + bx, ty + 7, TEAL)
+            fill_rect(img, 1 + bx, ty + 5, 5 + bx, ty + 8, SKIN)
+            px(img, 14 + bx, 4 + oy, BLOOD)
+            px(img, 16 + bx, 7 + oy, CINN_B)
+            px(img, 9 + bx, 12 + oy, BLOOD)
+            px(img, 18 + bx, 11 + oy, CINN_B)
+            px(img, 21 + bx, 8 + oy, BLOOD)
+            px(img, 11 + bx, 9 + oy, CINN_B)
+            px(img, 20 + bx, 13 + oy, BLOOD)
 
 
 def tiezhang_body(img, ox, oy, pose):
@@ -413,25 +457,42 @@ def tiezhang_body(img, ox, oy, pose):
             px(img, 27 + bx, ty - 6, CREAM)
     elif pose.get("attack_phase") is not None:
         ap = pose["attack_phase"]
-        if ap == 0:
-            fill_rect(img, 1 + bx, ty + 1, 8 + bx, ty + 6, ROBE_R)
-            fill_rect(img, 0 + bx, ty + 3, 4 + bx, ty + 7, SKIN)
-            px(img, 1 + bx, ty + 2, JADE_B)
-        elif ap == 1:
-            fill_rect(img, 16 + bx, ty + 0, 24 + bx, ty + 5, ROBE_R)
-            fill_rect(img, 21 + bx, ty + 1, 28 + bx, ty + 5, SKIN)
-            px(img, 27 + bx, ty, JADE_B)
-        elif ap == 2:
-            fill_rect(img, 17 + bx, ty + 1, 26 + bx, ty + 6, ROBE_R)
-            fill_rect(img, 23 + bx, ty + 2, 31 + bx, ty + 6, SKIN)
-            px(img, 29 + bx, ty + 1, JADE_B)
-            px(img, 30 + bx, ty + 3, GOLD)
-            px(img, 31 + bx, ty + 2, CREAM)
-            px(img, 28 + bx, ty, CREAM)
-        else:
-            fill_rect(img, 15 + bx, ty + 3, 22 + bx, ty + 8, ROBE_R)
-            fill_rect(img, 18 + bx, ty + 5, 23 + bx, ty + 9, SKIN)
-    else:
+        if ap == 0:  # charge: rear palm high-back + jade glow (readable wind-up)
+            fill_rect(img, 2 + bx, ty - 2, 9 + bx, ty + 5, ROBE_R)
+            fill_rect(img, 1 + bx, ty - 1, 5 + bx, ty + 4, SKIN)
+            fill_rect(img, 0 + bx, ty - 3, 4 + bx, ty + 0, JADE_B)
+            px(img, 1 + bx, ty - 4, CREAM)
+            px(img, 2 + bx, ty - 2, JADE)
+            px(img, 0 + bx, ty - 1, JADE_B)
+            # front arm chambered
+            fill_rect(img, 15 + bx, ty + 2, 21 + bx, ty + 7, ROBE_R)
+            fill_rect(img, 18 + bx, ty + 4, 22 + bx, ty + 8, SKIN)
+        elif ap == 1:  # thrust mid — palm extending
+            fill_rect(img, 15 + bx, ty - 1, 25 + bx, ty + 5, ROBE_R)
+            fill_rect(img, 21 + bx, ty + 0, 29 + bx, ty + 5, SKIN)
+            fill_rect(img, 26 + bx, ty - 1, 30 + bx, ty + 2, JADE_B)
+            px(img, 28 + bx, ty - 2, JADE)
+            fill_rect(img, 1 + bx, ty + 3, 7 + bx, ty + 8, ROBE_R)
+            fill_rect(img, 0 + bx, ty + 6, 4 + bx, ty + 9, SKIN)
+        elif ap == 2:  # impact: palm blast + hard 1px highlights
+            fill_rect(img, 16 + bx, ty + 0, 27 + bx, ty + 6, ROBE_R)
+            fill_rect(img, 23 + bx, ty + 1, 31 + bx, ty + 6, SKIN)
+            fill_rect(img, 28 + bx, ty - 1, 32 + bx, ty + 3, JADE_B)
+            px(img, 31, ty - 2, CREAM)
+            px(img, 30, ty - 1, CREAM)
+            px(img, 31, ty + 1, GOLD)
+            px(img, 29, ty - 2, JADE)
+            px(img, 28, ty + 0, CREAM)
+            px(img, 27, ty - 3, JADE_B)
+            fill_rect(img, 2 + bx, ty + 4, 8 + bx, ty + 9, ROBE_R)
+            fill_rect(img, 1 + bx, ty + 7, 5 + bx, ty + 10, SKIN)
+        else:  # recover settle
+            fill_rect(img, 14 + bx, ty + 2, 22 + bx, ty + 7, ROBE_R)
+            fill_rect(img, 18 + bx, ty + 4, 23 + bx, ty + 8, SKIN)
+            px(img, 21 + bx, ty + 3, JADE_B)
+            fill_rect(img, 3 + bx, ty + 3, 8 + bx, ty + 8, ROBE_R)
+            fill_rect(img, 2 + bx, ty + 6, 6 + bx, ty + 9, SKIN)
+    elif not pose.get("hurt"):
         fill_rect(img, 3 + bx, ty + 2, 8 + bx, ty + 8, ROBE_R)
         fill_rect(img, 2 + bx, ty + 6, 6 + bx, ty + 9, SKIN)
         if lift_r:
@@ -453,11 +514,27 @@ def tiezhang_body(img, ox, oy, pose):
     draw_feet(img, 8 + bx, ly + 6, 14 + bx, ly + 6, INK_SOFT, lift_l, lift_r,
               stride=3 if (lift_l or lift_r) else 0)
     if pose.get("hurt"):
-        fill_rect(img, 18 + bx, ty + 1, 24 + bx, ty + 5, ROBE_R)
-        px(img, 15 + bx, 6 + oy, BLOOD)
-        px(img, 9 + bx, 10 + oy, CINN)
-        px(img, 17 + bx, 9 + oy, BLOOD)
-        px(img, 19 + bx, 7 + oy, CINN_B)
+        hp = pose.get("hurt_phase", 0)
+        if hp == 0:
+            fill_rect(img, 17 + bx, ty - 2, 25 + bx, ty + 3, ROBE_R)
+            fill_rect(img, 22 + bx, ty - 3, 27 + bx, ty + 1, SKIN)
+            fill_rect(img, 1 + bx, ty + 5, 7 + bx, ty + 10, ROBE_R)
+            px(img, 15 + bx, 5 + oy, CINN_B)
+            px(img, 17 + bx, 7 + oy, BLOOD)
+            px(img, 9 + bx, 10 + oy, BLOOD)
+            px(img, 18 + bx, 9 + oy, CINN_B)
+            px(img, 20 + bx, 6 + oy, BLOOD)
+            px(img, 12 + bx, 8 + oy, CINN_B)
+        else:
+            fill_rect(img, 18 + bx, ty + 4, 26 + bx, ty + 9, ROBE_R)
+            fill_rect(img, 23 + bx, ty + 7, 28 + bx, ty + 11, SKIN)
+            fill_rect(img, 2 + bx, ty + 2, 8 + bx, ty + 7, ROBE_R)
+            px(img, 14 + bx, 4 + oy, BLOOD)
+            px(img, 16 + bx, 8 + oy, CINN_B)
+            px(img, 8 + bx, 12 + oy, BLOOD)
+            px(img, 19 + bx, 11 + oy, CINN_B)
+            px(img, 21 + bx, 9 + oy, BLOOD)
+            px(img, 11 + bx, 9 + oy, CINN_B)
 
 
 def langren_body(img, ox, oy, pose):
@@ -507,30 +584,51 @@ def langren_body(img, ox, oy, pose):
             px(img, 24 + bx, ty - 3, GOLD)
     elif pose.get("attack_phase") is not None:
         ap = pose["attack_phase"]
-        if ap == 0:
-            fill_rect(img, 1 + bx, ty + 2, 8 + bx, ty + 7, INK_SOFT)
-            fill_rect(img, bx - 1, ty + 0, bx + 3, ty + 17, INK_SOFT)
-            fill_rect(img, bx + 0, ty + 1, bx + 2, ty + 15, MIST)
-            fill_rect(img, bx - 1, ty + 17, bx + 3, ty + 19, WOOD)
-            px(img, bx, ty - 1, CINN_B)
-        elif ap == 1:
-            fill_rect(img, 16 + bx, ty + 1, 23 + bx, ty + 5, INK_SOFT)
-            fill_rect(img, 19 + bx, ty - 1, 32, ty + 2, INK_SOFT)
-            fill_rect(img, 20 + bx, ty + 0, 31, ty + 1, MIST)
-            fill_rect(img, 18 + bx, ty - 1, 21 + bx, ty + 3, WOOD)
-            px(img, 31, ty - 1, CREAM)
-        elif ap == 2:
-            fill_rect(img, 17 + bx, ty + 2, 24 + bx, ty + 6, INK_SOFT)
-            fill_rect(img, 20 + bx, ty + 0, 32, ty + 3, INK_SOFT)
-            fill_rect(img, 21 + bx, ty + 1, 31, ty + 2, CINN_B)
+        if ap == 0:  # dao raised high left of body — thick blade on-canvas
+            fill_rect(img, 4 + bx, ty + 1, 10 + bx, ty + 7, INK_SOFT)
+            fill_rect(img, 2 + bx, ty + 4, 6 + bx, ty + 8, SKIN_D)
+            # tall rear dao left
+            fill_rect(img, 0 + bx, ty - 8, 4 + bx, ty + 13, INK_SOFT)
+            fill_rect(img, 1 + bx, ty - 7, 3 + bx, ty + 11, MIST)
+            fill_rect(img, 0 + bx, ty + 13, 4 + bx, ty + 16, WOOD)
+            px(img, 1 + bx, ty - 9, CINN_B)
+            px(img, 2 + bx, ty - 6, CREAM)
+            fill_rect(img, 15 + bx, ty + 4, 20 + bx, ty + 9, INK_SOFT)
+            fill_rect(img, 17 + bx, ty + 7, 21 + bx, ty + 10, SKIN_D)
+        elif ap == 1:  # wide horizontal cleave arc
+            fill_rect(img, 15 + bx, ty + 0, 24 + bx, ty + 5, INK_SOFT)
+            fill_rect(img, 20 + bx, ty + 1, 25 + bx, ty + 5, SKIN_D)
+            fill_rect(img, 18 + bx, ty - 1, 22 + bx, ty + 3, WOOD)
+            fill_rect(img, 20 + bx, ty - 3, 32, ty + 1, INK_SOFT)
+            fill_rect(img, 21 + bx, ty - 2, 31, ty + 0, MIST)
+            px(img, 31, ty - 4, INK_SOFT)
+            px(img, 30, ty - 3, CREAM)
+            px(img, 29, ty - 2, CINN_B)
+            fill_rect(img, 1 + bx, ty + 3, 7 + bx, ty + 8, INK_SOFT)
+            fill_rect(img, 0 + bx, ty + 6, 4 + bx, ty + 9, SKIN_D)
+        elif ap == 2:  # impact: blood-edge flash on tip
+            fill_rect(img, 16 + bx, ty + 1, 25 + bx, ty + 6, INK_SOFT)
+            fill_rect(img, 22 + bx, ty + 2, 27 + bx, ty + 6, SKIN_D)
+            fill_rect(img, 19 + bx, ty + 0, 23 + bx, ty + 3, WOOD)
+            fill_rect(img, 21 + bx, ty - 1, 32, ty + 3, INK_SOFT)
+            fill_rect(img, 22 + bx, ty + 0, 31, ty + 2, CINN_B)
+            px(img, 31, ty - 2, CREAM)
             px(img, 30, ty - 1, CREAM)
-            px(img, 31, ty, GOLD)
-            px(img, 29, ty - 1, CINN)
-        else:
-            fill_rect(img, 15 + bx, ty + 3, 21 + bx, ty + 8, INK_SOFT)
-            fill_rect(img, 18 + bx, ty + 3, 21 + bx, ty + 17, INK_SOFT)
-            fill_rect(img, 19 + bx, ty + 4, 20 + bx, ty + 15, MIST)
-    else:
+            px(img, 31, ty + 1, GOLD)
+            px(img, 29, ty - 2, CINN)
+            px(img, 28, ty - 1, CREAM)
+            px(img, 27, ty - 3, CINN_B)
+            fill_rect(img, 2 + bx, ty + 4, 8 + bx, ty + 9, INK_SOFT)
+            fill_rect(img, 1 + bx, ty + 7, 5 + bx, ty + 10, SKIN_D)
+        else:  # recover: dao returns toward hip
+            fill_rect(img, 14 + bx, ty + 2, 21 + bx, ty + 7, INK_SOFT)
+            fill_rect(img, 18 + bx, ty + 2, 22 + bx, ty + 16, INK_SOFT)
+            fill_rect(img, 19 + bx, ty + 3, 21 + bx, ty + 14, MIST)
+            fill_rect(img, 18 + bx, ty + 15, 22 + bx, ty + 17, WOOD)
+            px(img, 19 + bx, ty + 1, CINN_B)
+            fill_rect(img, 3 + bx, ty + 3, 8 + bx, ty + 8, INK_SOFT)
+            fill_rect(img, 2 + bx, ty + 6, 6 + bx, ty + 9, SKIN_D)
+    elif not pose.get("hurt"):
         fill_rect(img, 3 + bx, ty + 2, 8 + bx, ty + 8, INK_SOFT)
         fill_rect(img, 2 + bx, ty + 6, 6 + bx, ty + 9, SKIN_D)
         fill_rect(img, 18 + bx, ty + 1, 22 + bx, ty + 16, INK_SOFT)
@@ -549,12 +647,28 @@ def langren_body(img, ox, oy, pose):
     draw_feet(img, 8 + bx, ly + 6, 14 + bx, ly + 6, INK, lift_l, lift_r,
               stride=3 if (lift_l or lift_r) else 0)
     if pose.get("hurt"):
-        fill_rect(img, 18 + bx, ty + 0, 24 + bx, ty + 4, INK_SOFT)
-        px(img, 14 + bx, 5 + oy, BLOOD)
-        px(img, 16 + bx, 7 + oy, CINN_B)
-        px(img, 11 + bx, 12 + oy, BLOOD)
-        px(img, 19 + bx, 9 + oy, BLOOD)
-        px(img, 20 + bx, 6 + oy, CINN)
+        hp = pose.get("hurt_phase", 0)
+        if hp == 0:
+            fill_rect(img, 17 + bx, ty - 3, 25 + bx, ty + 2, INK_SOFT)
+            fill_rect(img, 22 + bx, ty - 4, 27 + bx, ty + 0, SKIN_D)
+            fill_rect(img, 1 + bx, ty + 5, 7 + bx, ty + 10, INK_SOFT)
+            px(img, 14 + bx, 4 + oy, CINN_B)
+            px(img, 16 + bx, 6 + oy, BLOOD)
+            px(img, 11 + bx, 11 + oy, BLOOD)
+            px(img, 19 + bx, 8 + oy, CINN_B)
+            px(img, 20 + bx, 5 + oy, BLOOD)
+            px(img, 12 + bx, 7 + oy, CINN_B)
+        else:
+            fill_rect(img, 18 + bx, ty + 4, 26 + bx, ty + 9, INK_SOFT)
+            fill_rect(img, 23 + bx, ty + 7, 28 + bx, ty + 11, SKIN_D)
+            fill_rect(img, 2 + bx, ty + 2, 8 + bx, ty + 7, INK_SOFT)
+            px(img, 13 + bx, 3 + oy, BLOOD)
+            px(img, 15 + bx, 7 + oy, CINN_B)
+            px(img, 10 + bx, 13 + oy, BLOOD)
+            px(img, 18 + bx, 10 + oy, CINN_B)
+            px(img, 21 + bx, 8 + oy, BLOOD)
+            px(img, 11 + bx, 9 + oy, CINN)
+            px(img, 20 + bx, 12 + oy, BLOOD)
 
 
 def qinshi_body(img, ox, oy, pose):
@@ -610,25 +724,49 @@ def qinshi_body(img, ox, oy, pose):
             px(img, 22 + bx, ty - 5, CREAM)
     elif pose.get("attack_phase") is not None:
         ap = pose["attack_phase"]
-        if ap == 0:
-            fill_rect(img, 1 + bx, ty + 2, 8 + bx, ty + 7, VIOLET)
-            fill_rect(img, 0 + bx, ty + 0, 4 + bx, ty + 15, WOOD)
-            fill_rect(img, bx - 1, ty - 1, bx + 5, ty + 1, PAPER_L)
-        elif ap == 1:
-            fill_rect(img, 16 + bx, ty + 1, 23 + bx, ty + 5, VIOLET)
-            fill_rect(img, 19 + bx, ty - 1, 32, ty + 1, WOOD)
-            fill_rect(img, 28, ty - 2, 32, ty, PAPER_L)
-            px(img, 31, ty - 2, CREAM)
-        elif ap == 2:
-            fill_rect(img, 17 + bx, ty + 2, 24 + bx, ty + 6, VIOLET)
-            fill_rect(img, 20 + bx, ty + 0, 32, ty + 2, WOOD)
-            px(img, 30, ty - 1, GOLD)
-            px(img, 31, ty, CREAM)
-            px(img, 29, ty - 2, CREAM)
-        else:
-            fill_rect(img, 15 + bx, ty + 3, 21 + bx, ty + 8, VIOLET)
-            fill_rect(img, 17 + bx, ty + 3, 20 + bx, ty + 15, WOOD)
-    else:
+        if ap == 0:  # staff vertical left + paper tuft on tip (not tray-like)
+            fill_rect(img, 4 + bx, ty + 1, 10 + bx, ty + 7, VIOLET)
+            fill_rect(img, 2 + bx, ty + 4, 6 + bx, ty + 8, SKIN)
+            fill_rect(img, 1 + bx, ty - 5, 4 + bx, ty + 13, WOOD)
+            # tuft = vertical fluff on tip (taller than wide)
+            fill_rect(img, 0 + bx, ty - 10, 5 + bx, ty - 5, PAPER_L)
+            vline(img, 2 + bx, ty - 10, ty - 4, CREAM)
+            px(img, 1 + bx, ty - 9, CREAM)
+            px(img, 3 + bx, ty - 8, CREAM)
+            px(img, 2 + bx, ty - 4, GOLD)
+            fill_rect(img, 15 + bx, ty + 4, 20 + bx, ty + 9, VIOLET)
+            fill_rect(img, 17 + bx, ty + 7, 21 + bx, ty + 10, SKIN)
+        elif ap == 1:  # horizontal whisk sweep arc
+            fill_rect(img, 15 + bx, ty + 0, 24 + bx, ty + 5, VIOLET)
+            fill_rect(img, 20 + bx, ty + 1, 25 + bx, ty + 5, SKIN)
+            fill_rect(img, 19 + bx, ty - 2, 32, ty + 1, WOOD)
+            fill_rect(img, 27, ty - 4, 32, ty - 1, PAPER_L)
+            px(img, 31, ty - 5, CREAM)
+            px(img, 30, ty - 3, CREAM)
+            px(img, 28, ty - 2, GOLD)
+            fill_rect(img, 1 + bx, ty + 3, 7 + bx, ty + 8, VIOLET)
+            fill_rect(img, 0 + bx, ty + 6, 4 + bx, ty + 9, SKIN)
+        elif ap == 2:  # impact tip sparkle
+            fill_rect(img, 16 + bx, ty + 1, 25 + bx, ty + 6, VIOLET)
+            fill_rect(img, 22 + bx, ty + 2, 27 + bx, ty + 6, SKIN)
+            fill_rect(img, 20 + bx, ty - 1, 32, ty + 2, WOOD)
+            fill_rect(img, 28, ty - 3, 32, ty + 0, PAPER_L)
+            px(img, 31, ty - 4, CREAM)
+            px(img, 30, ty - 2, CREAM)
+            px(img, 31, ty + 0, GOLD)
+            px(img, 29, ty - 3, GOLD)
+            px(img, 28, ty - 1, CREAM)
+            px(img, 27, ty - 4, PAPER_L)
+            fill_rect(img, 2 + bx, ty + 4, 8 + bx, ty + 9, VIOLET)
+            fill_rect(img, 1 + bx, ty + 7, 5 + bx, ty + 10, SKIN)
+        else:  # recover staff to side
+            fill_rect(img, 14 + bx, ty + 2, 21 + bx, ty + 7, VIOLET)
+            fill_rect(img, 17 + bx, ty + 2, 20 + bx, ty + 14, WOOD)
+            hline(img, 17 + bx, 20 + bx, ty + 4, WOOD_L)
+            px(img, 18 + bx, ty + 2, GOLD)
+            fill_rect(img, 3 + bx, ty + 3, 8 + bx, ty + 8, VIOLET)
+            fill_rect(img, 2 + bx, ty + 6, 6 + bx, ty + 9, SKIN)
+    elif not pose.get("hurt"):
         fill_rect(img, 3 + bx, ty + 2, 8 + bx, ty + 8, VIOLET)
         fill_rect(img, 2 + bx, ty + 6, 6 + bx, ty + 9, SKIN)
         fill_rect(img, 18 + bx, ty + 4, 21 + bx, ty + 15, WOOD)
@@ -646,11 +784,27 @@ def qinshi_body(img, ox, oy, pose):
     draw_feet(img, 8 + bx, ly + 5, 14 + bx, ly + 5, INK_SOFT, lift_l, lift_r,
               stride=3 if (lift_l or lift_r) else 0)
     if pose.get("hurt"):
-        fill_rect(img, 18 + bx, ty + 1, 24 + bx, ty + 5, VIOLET)
-        px(img, 15 + bx, 6 + oy, BLOOD)
-        px(img, 10 + bx, 10 + oy, CINN)
-        px(img, 18 + bx, 9 + oy, BLOOD)
-        px(img, 19 + bx, 7 + oy, CINN_B)
+        hp = pose.get("hurt_phase", 0)
+        if hp == 0:
+            fill_rect(img, 17 + bx, ty - 2, 25 + bx, ty + 3, VIOLET)
+            fill_rect(img, 22 + bx, ty - 3, 27 + bx, ty + 1, SKIN)
+            fill_rect(img, 1 + bx, ty + 5, 7 + bx, ty + 10, VIOLET)
+            px(img, 15 + bx, 5 + oy, CINN_B)
+            px(img, 17 + bx, 7 + oy, BLOOD)
+            px(img, 10 + bx, 10 + oy, BLOOD)
+            px(img, 18 + bx, 9 + oy, CINN_B)
+            px(img, 20 + bx, 6 + oy, BLOOD)
+            px(img, 12 + bx, 8 + oy, CINN_B)
+        else:
+            fill_rect(img, 18 + bx, ty + 4, 26 + bx, ty + 9, VIOLET)
+            fill_rect(img, 23 + bx, ty + 7, 28 + bx, ty + 11, SKIN)
+            fill_rect(img, 2 + bx, ty + 2, 8 + bx, ty + 7, VIOLET)
+            px(img, 14 + bx, 4 + oy, BLOOD)
+            px(img, 16 + bx, 8 + oy, CINN_B)
+            px(img, 9 + bx, 12 + oy, BLOOD)
+            px(img, 19 + bx, 11 + oy, CINN_B)
+            px(img, 21 + bx, 9 + oy, BLOOD)
+            px(img, 11 + bx, 9 + oy, CINN)
 
 
 def xiaoer_body(img, ox, oy, pose):
@@ -816,8 +970,9 @@ def poses_for_character(kind):
     else:
         for ap in range(4):
             poses.append({"attack_phase": ap, "breath": 0 if ap < 2 else 1})
-    poses.append({"hurt": True, "breath": 0, "lift_l": 3})
-    poses.append({"hurt": True, "breath": 1})
+    # hurt 13–14: two strongly different reels (v1.2.1)
+    poses.append({"hurt": True, "hurt_phase": 0, "breath": 0, "lift_l": 4})
+    poses.append({"hurt": True, "hurt_phase": 1, "breath": 1, "lift_r": 3})
     poses.append({"parry": True, "breath": 0, "shake": 0})
     poses.append({"parry": True, "breath": 0, "shake": 1})
     poses.append({"parry": True, "breath": 1, "shake": 0})
@@ -1144,20 +1299,23 @@ def draw_guest_walk_frame(robe, belt, hair, face, hat, phase: int) -> Image.Imag
 
 
 def make_guest_walk() -> Image.Image:
-    """4 guests × 8 frames = 1024×32 — walk / approach / sit_down.
+    """6 guests × 8 frames = 1536×32 — walk / approach / sit_down.
 
-    Guest order matches guest_sit 0–3: teal / robe-red / ink-soft / violet.
+    Guest order matches guest_sit 0–5:
+      teal / robe-red / ink-soft / violet / jade / wood-hat.
     Per guest local frames:
-      0–3 walk, 4–5 approach, 6–7 sit_down.
+      0–3 walk, 4–5 approach, 6 sit_down bend, 7 sit settled (no cup).
     Absolute index = guest * 8 + local.
     """
-    sheet = Image.new("RGBA", (1024, 32), TRANS)
+    sheet = Image.new("RGBA", (1536, 32), TRANS)
     variants = [
-        # (robe, belt, hair, face, hat) — align guest_sit 0–3
+        # (robe, belt, hair, face, hat) — align guest_sit 0–5
         (TEAL, WOOD_L, INK, SKIN, "topknot"),
         (ROBE_R, GOLD, INK, SKIN, "bun"),
         (INK_SOFT, FRAME, INK, SKIN_D, "fringe"),
         (VIOLET, GOLD, PAPER_L, SKIN, "bald"),
+        (JADE, WOOD_L, INK, SKIN, "topknot"),   # guestIndex 4 = jade
+        (WOOD, CINN, INK, SKIN_D, "hat"),       # guestIndex 5 = wood-hat
     ]
     for gi, (robe, belt, hair, face, hat) in enumerate(variants):
         for phase in range(8):
@@ -1395,8 +1553,100 @@ def draw_hero_seat_marker(img, x, y, w=70, h=22):
         px(img, i, y + h - 4, PAPER_L)
 
 
+def draw_hard_shadow(img, x, y, w, h, ox=3, oy=2, col=NIGHT):
+    """Opaque hard-offset footprint shadow — no alpha, no blur (ART.md)."""
+    fill_rect(img, x + ox, y + oy, x + w + ox, y + h + oy, col)
+
+
+def draw_pennant_string(img, x0, y0, x1, n=14, colors=None, drop=8):
+    """Triangular pennant string (旗串) along a near-horizontal rope."""
+    if colors is None:
+        colors = [CINN, JADE, GOLD, PAPER_L, TEAL, CINN_B, BLOOD, LOESS]
+    if x1 < x0:
+        x0, x1 = x1, x0
+    hline(img, x0, x1, y0, INK_SOFT)
+    hline(img, x0, x1, y0 + 1, FRAME)
+    span = max(1, x1 - x0)
+    for i in range(n):
+        cx = x0 + (i * span) // max(1, n - 1) if n > 1 else x0
+        col = colors[i % len(colors)]
+        for dy in range(drop):
+            ww = max(1, 5 - dy // 2)
+            fill_rect(img, cx - ww // 2, y0 + 2 + dy, cx - ww // 2 + ww, y0 + 3 + dy, col)
+        px(img, cx, y0 + 1 + drop, INK)
+
+
+def draw_banner(img, x, y, w=12, h=36, cloth=PAPER_L, accent=CINN, pole=True):
+    """Vertical hanging cloth banner (豎旗／布幌)."""
+    if pole:
+        vline(img, x + w // 2, y - 8, y, INK_SOFT)
+        fill_rect(img, x - 1, y - 2, x + w + 1, y + 1, WOOD_L)
+        outline_rect(img, x - 1, y - 2, x + w + 1, y + 1, INK)
+    fill_rect(img, x, y, x + w, y + h, cloth)
+    outline_rect(img, x, y, x + w, y + h, INK)
+    fill_rect(img, x + 1, y + 1, x + w - 1, y + 4, accent)
+    for sy in range(y + 7, y + h - 5, 5):
+        hline(img, x + 2, x + w - 2, sy, INK_SOFT)
+        if ((sy - y) // 5) % 2 == 0:
+            fill_rect(img, x + 3, sy + 1, x + w - 3, sy + 3, accent if accent != cloth else INK)
+    for fx in range(x + 1, x + w - 1, 3):
+        vline(img, fx, y + h, y + h + 3, cloth)
+    px(img, x + w // 2, y + 2, GOLD)
+
+
+def draw_hanging_cloth(img, x, y, w=22, h=14, cloth=CINN):
+    """Short shop cloth 布幌 under beam."""
+    fill_rect(img, x, y, x + w, y + 3, WOOD_L)
+    outline_rect(img, x, y, x + w, y + 3, INK)
+    fill_rect(img, x + 1, y + 3, x + w - 1, y + h, cloth)
+    outline_rect(img, x + 1, y + 3, x + w - 1, y + h, INK)
+    px(img, x + w // 2, y + 6, GOLD)
+    px(img, x + w // 2 - 1, y + 8, LOESS)
+    for fx in range(x + 2, x + w - 2, 4):
+        vline(img, fx, y + h, y + h + 3, cloth)
+
+
+def draw_crate(img, x, y, w=16, h=12):
+    """Wooden crate / box prop."""
+    fill_rect(img, x, y, x + w, y + h, WOOD)
+    outline_rect(img, x, y, x + w, y + h, INK)
+    hline(img, x + 1, x + w - 1, y + h // 2, INK_SOFT)
+    vline(img, x + w // 2, y + 1, y + h - 1, FRAME)
+    px(img, x + 2, y + 2, WOOD_L)
+    px(img, x + w - 3, y + h - 3, NIGHT)
+
+
+def draw_basket(img, x, y, w=14, h=10, fill=JADE_B):
+    """Woven basket with peeking contents."""
+    fill_rect(img, x, y + 2, x + w, y + h, LOESS)
+    outline_rect(img, x, y + 2, x + w, y + h, INK)
+    fill_rect(img, x + 1, y, x + w - 1, y + 4, fill)
+    for i in range(x + 2, x + w - 2, 3):
+        vline(img, i, y + 3, y + h - 1, WOOD)
+    px(img, x + w // 2, y + 1, CREAM)
+
+
+def draw_scroll_stack(img, x, y, n=3):
+    """Stacked scrolls / books on floor or shelf foot."""
+    for i in range(n):
+        paper = PAPER if i % 2 == 0 else PAPER_L
+        fill_rect(img, x + i, y - i * 3, x + 14 + i, y + 4 - i * 3, paper)
+        outline_rect(img, x + i, y - i * 3, x + 14 + i, y + 4 - i * 3, INK)
+        px(img, x + 12 + i, y - i * 3 + 1, CINN)
+        hline(img, x + 2 + i, x + 10 + i, y - i * 3 + 2, INK_SOFT)
+
+
+def draw_stall_cloth(img, tx, ty, tw, cloth=MIST):
+    """Tattered cloth drape over table edge (攤布感)."""
+    fill_rect(img, tx + 2, ty + 6, tx + tw - 2, ty + 14, cloth)
+    outline_rect(img, tx + 2, ty + 6, tx + tw - 2, ty + 14, INK)
+    for fx in range(tx + 3, tx + tw - 3, 5):
+        vline(img, fx, ty + 14, ty + 17, cloth)
+    px(img, tx + tw // 2, ty + 9, PAPER_D)
+
+
 def make_hub_layers():
-    """Hub v1.3 — thicker life density + clear hotspot landmarks (notice/map/books/seat)."""
+    """Hub v1.4 — pennants / banners / props / hard shadows; keep hotspot + corridor."""
     W, H = 480, 270
     layers = {}
 
@@ -1410,20 +1660,29 @@ def make_hub_layers():
                 if a and (r, g, b) == WOOD[:3]:
                     floor.putpixel((x, y), WOOD_L)
     # guest rugs (left / right dining)
+    draw_hard_shadow(floor, 78, 200, 62, 20, ox=2, oy=2, col=INK_SOFT)
     draw_rug(floor, 78, 200, 62, 20)
+    draw_hard_shadow(floor, 78, 236, 50, 16, ox=2, oy=2, col=INK_SOFT)
     draw_rug(floor, 78, 236, 50, 16)
+    draw_hard_shadow(floor, 300, 200, 56, 18, ox=2, oy=2, col=INK_SOFT)
     draw_rug(floor, 300, 200, 56, 18)
+    draw_hard_shadow(floor, 310, 236, 48, 16, ox=2, oy=2, col=INK_SOFT)
     draw_rug(floor, 310, 236, 48, 16)
     # 俠客席 carpet — right of corridor, near weapon rack / screen
+    draw_hard_shadow(floor, 338, 188, 72, 24, ox=3, oy=2, col=NIGHT)
     draw_hero_seat_marker(floor, 338, 188, 72, 24)
     # door threshold (大門可點感)
+    draw_hard_shadow(floor, 8, 146, 46, 4, ox=2, oy=1, col=NIGHT)
     draw_door_threshold(floor, 8, 54, 146)
+    # counter hard shadow footprint (經營熱點 grounding)
+    draw_hard_shadow(floor, 155, 210, 180, 12, ox=4, oy=3, col=NIGHT)
+    draw_hard_shadow(floor, 157, 200, 176, 8, ox=3, oy=2, col=INK_SOFT)
     # central corridor walk-band x≈195–275 keep light / clear
     for y in range(160, 268):
         for x in range(195, 276):
             if (x + y) % 7 == 0:
                 r, g, b, a = floor.getpixel((x, y))
-                if a and (r, g, b) in (WOOD[:3], WOOD_L[:3], INK_SOFT[:3]):
+                if a and (r, g, b) in (WOOD[:3], WOOD_L[:3], INK_SOFT[:3], NIGHT[:3]):
                     floor.putpixel((x, y), WOOD_L)
     for y in range(155, 270, 3):
         px(floor, 194, y, FRAME)
@@ -1444,7 +1703,6 @@ def make_hub_layers():
     fill_rect(wall, 0, 68, W, 148, NIGHT)
     fill_rect(wall, 0, 88, W, 148, WOOD)
     # wall panels: windows / scrolls / plaques — skip slots reserved for landmarks
-    # slot width 36; notice board ~x108–150, map ~x360–410, door x6–54
     for x in range(0, W, 36):
         if 100 <= x <= 144:  # leave for notice board + bookshelf zone
             continue
@@ -1528,11 +1786,26 @@ def make_hub_layers():
     for bx in range(12, W, 40):
         fill_rect(wall, bx, 136, bx + 8, 142, WOOD_L)
         px(wall, bx + 3, 138, GOLD)
+    # ===== v1.4 豎旗／布幌 on wall (density, not covering hotspots) =====
+    draw_banner(wall, 70, 100, 11, 34, cloth=PAPER_L, accent=CINN)
+    draw_banner(wall, 158, 98, 12, 38, cloth=PAPER, accent=JADE)
+    draw_banner(wall, 196, 96, 10, 40, cloth=CREAM, accent=TEAL)
+    draw_banner(wall, 280, 98, 11, 36, cloth=PAPER_L, accent=BLOOD)
+    draw_banner(wall, 318, 100, 12, 34, cloth=PAPER_D, accent=CINN_B)
+    draw_banner(wall, 412, 96, 11, 38, cloth=PAPER, accent=VIOLET)
+    # short 布幌 under beam gaps
+    draw_hanging_cloth(wall, 78, 128, 24, 16, cloth=CINN)
+    draw_hanging_cloth(wall, 168, 126, 20, 14, cloth=JADE)
+    draw_hanging_cloth(wall, 248, 124, 22, 15, cloth=TEAL)
+    draw_hanging_cloth(wall, 300, 126, 18, 14, cloth=CINN_B)
+    draw_hanging_cloth(wall, 430, 128, 22, 16, cloth=BLOOD)
     layers["hub_wall.png"] = wall
 
     # ----- COUNTER (經營熱點) -----
     counter = Image.new("RGBA", (W, H), TRANS)
     cx, cy, cw, ch = 155, 165, 180, 55
+    # hard shadow of counter body (opaque, on counter layer under body)
+    draw_hard_shadow(counter, cx + 2, cy + 12, cw - 4, ch - 10, ox=4, oy=3, col=NIGHT)
     # clickable top accent strip (more readable hotspot)
     fill_rect(counter, cx - 2, cy - 2, cx + cw + 2, cy + 14, FRAME)
     fill_rect(counter, cx, cy, cx + cw, cy + 12, WOOD_L)
@@ -1601,6 +1874,10 @@ def make_hub_layers():
     fill_rect(counter, cx + 32, cy + 2, cx + 42, cy + 9, NIGHT)
     outline_rect(counter, cx + 32, cy + 2, cx + 42, cy + 9, INK)
     px(counter, cx + 36, cy + 4, MIST)
+    # v1.4 counter-top extras: small basket + scroll + hanging cloth edge
+    draw_basket(counter, cx + 108, cy - 8, 12, 9, fill=LOESS)
+    draw_scroll_stack(counter, cx + 70, cy - 2, n=2)
+    draw_hanging_cloth(counter, cx + 40, cy + 12, 28, 12, cloth=CINN)
     layers["hub_counter.png"] = counter
 
     # ----- FURNITURE -----
@@ -1626,7 +1903,13 @@ def make_hub_layers():
         (430, 175, 40, 16, True, "full"),
     ]
     for t in tables:
+        tx, ty, tw, th = t[0], t[1], t[2], t[3]
+        draw_hard_shadow(furn, tx + 2, ty + 8, tw - 4, th - 6, ox=3, oy=2, col=NIGHT)
         draw_table(furn, *t)
+    # stall cloths on a few tables (攤布 densify without cluttering corridor)
+    draw_stall_cloth(furn, 48, 210, 46, cloth=MIST)
+    draw_stall_cloth(furn, 320, 210, 46, cloth=PAPER_D)
+    draw_stall_cloth(furn, 95, 228, 42, cloth=FRAME)
     stools = [
         (30, 184), (86, 184), (36, 226), (90, 226),
         (90, 198), (140, 198), (85, 244), (132, 244),
@@ -1643,6 +1926,8 @@ def make_hub_layers():
         (340, 196), (400, 196),
     ]
     for s in stools:
+        sx, sy = s
+        draw_hard_shadow(furn, sx, sy + 5, 12, 8, ox=2, oy=2, col=NIGHT)
         draw_stool(furn, *s)
     # floor jars — keep out of corridor mid
     for jx, jy, col in [
@@ -1650,9 +1935,14 @@ def make_hub_layers():
         (278, 230, ROBE_R), (460, 230, JADE), (460, 250, CINN),
         (180, 255, VIOLET), (250, 255, JADE),
         (70, 175, TEAL), (445, 210, VIOLET),
+        # v1.4 denser jars at wall feet / table gaps (not corridor)
+        (18, 250, JADE_B), (132, 210, CINN), (290, 190, TEAL),
+        (470, 175, ROBE_R), (85, 175, VIOLET),
     ]:
+        draw_hard_shadow(furn, jx, jy + 4, 10, 10, ox=2, oy=2, col=NIGHT)
         draw_floor_jar(furn, jx, jy, col)
     # wine shelf denser jars
+    draw_hard_shadow(furn, 48, 130, 57, 26, ox=3, oy=2, col=NIGHT)
     fill_rect(furn, 48, 118, 105, 156, WOOD)
     outline_rect(furn, 48, 118, 105, 156, INK)
     hline(furn, 50, 103, 130, INK_SOFT)
@@ -1665,8 +1955,10 @@ def make_hub_layers():
             if row == 0:
                 px(furn, jx + 3, y0 + 3, CREAM)
     # ===== 書架 (藏書熱點) — left of counter / beside stove =====
+    draw_hard_shadow(furn, 108, 130, 40, 32, ox=3, oy=2, col=NIGHT)
     draw_bookshelf(furn, 108, 112, 40, 50)
     # weapon rack denser (near 俠客席)
+    draw_hard_shadow(furn, 448, 130, 28, 34, ox=3, oy=2, col=NIGHT)
     fill_rect(furn, 448, 120, 476, 164, WOOD)
     outline_rect(furn, 448, 120, 476, 164, INK)
     vline(furn, 454, 124, 160, TEAL_B)
@@ -1677,6 +1969,7 @@ def make_hub_layers():
     px(furn, 460, 124, CINN_B)
     px(furn, 466, 122, GOLD)
     # folding screen with ink landscape
+    draw_hard_shadow(furn, 416, 120, 30, 46, ox=3, oy=2, col=NIGHT)
     fill_rect(furn, 416, 108, 446, 166, PAPER_D)
     outline_rect(furn, 416, 108, 446, 166, INK)
     vline(furn, 431, 108, 166, WOOD)
@@ -1688,6 +1981,7 @@ def make_hub_layers():
     px(furn, 424, 140, SKY)
     px(furn, 438, 138, CINN)
     # stove / hearth
+    draw_hard_shadow(furn, 150, 156, 33, 14, ox=2, oy=2, col=NIGHT)
     fill_rect(furn, 150, 146, 183, 170, INK_SOFT)
     fill_rect(furn, 154, 150, 179, 166, NIGHT)
     px(furn, 161, 154, CINN_B)
@@ -1700,6 +1994,7 @@ def make_hub_layers():
     fill_rect(furn, 162, 141, 172, 146, MIST)
     px(furn, 166, 142, CREAM)
     # side cabinet
+    draw_hard_shadow(furn, 455, 210, 23, 38, ox=3, oy=2, col=NIGHT)
     fill_rect(furn, 455, 198, 478, 248, WOOD)
     outline_rect(furn, 455, 198, 478, 248, INK)
     hline(furn, 457, 476, 218, INK_SOFT)
@@ -1716,10 +2011,49 @@ def make_hub_layers():
     outline_rect(furn, 132, 176, 142, 186, INK)
     vline(furn, 135, 172, 178, INK)
     vline(furn, 138, 173, 178, INK_SOFT)
+    # ===== v1.4 props: crates / baskets / scroll stacks (fill blanks, not corridor) =====
+    for cx0, cy0, cw0, ch0 in [
+        (18, 218, 16, 12), (18, 236, 14, 10),
+        (148, 232, 16, 12), (278, 210, 15, 11),
+        (440, 248, 18, 12), (462, 210, 14, 10),
+        (72, 248, 14, 10), (400, 228, 16, 11),
+    ]:
+        draw_hard_shadow(furn, cx0, cy0 + 2, cw0, ch0 - 2, ox=2, oy=2, col=NIGHT)
+        draw_crate(furn, cx0, cy0, cw0, ch0)
+    for bx0, by0, fill in [
+        (40, 196, JADE_B), (120, 200, LOESS), (300, 196, JADE),
+        (380, 248, CINN_B), (430, 230, JADE_B), (100, 248, TEAL_B),
+        (160, 236, LOESS), (290, 236, JADE),
+    ]:
+        draw_hard_shadow(furn, bx0, by0 + 3, 14, 7, ox=2, oy=2, col=NIGHT)
+        draw_basket(furn, bx0, by0, 14, 10, fill=fill)
+    draw_scroll_stack(furn, 88, 170, n=3)
+    draw_scroll_stack(furn, 140, 170, n=2)
+    draw_scroll_stack(furn, 330, 168, n=3)
+    draw_scroll_stack(furn, 420, 168, n=2)
+    draw_scroll_stack(furn, 60, 240, n=2)
+    draw_scroll_stack(furn, 400, 252, n=2)
+    # small hanging ornaments on furniture posts (掛飾)
+    for hx, hy, col in [(45, 160, GOLD), (295, 160, LOESS), (355, 170, GOLD), (435, 168, CINN_B)]:
+        vline(furn, hx, hy, hy + 8, INK_SOFT)
+        fill_rect(furn, hx - 2, hy + 8, hx + 3, hy + 14, col)
+        px(furn, hx, hy + 10, CREAM)
     layers["hub_furniture.png"] = furn
 
-    # ----- LANTERNS -----
+    # ----- LANTERNS + 旗串 (overhead density) -----
     lan = Image.new("RGBA", (W, H), TRANS)
+    # pennant strings across beam / under lanterns (市集旗串感)
+    draw_pennant_string(lan, 20, 74, 160, n=16, drop=9,
+                        colors=[CINN, JADE, GOLD, PAPER_L, TEAL, CINN_B])
+    draw_pennant_string(lan, 170, 68, 310, n=18, drop=8,
+                        colors=[JADE, CINN, LOESS, TEAL, PAPER, BLOOD])
+    draw_pennant_string(lan, 320, 72, 470, n=16, drop=9,
+                        colors=[CINN_B, TEAL, GOLD, PAPER_L, VIOLET, JADE])
+    # diagonal-ish secondary strings (stepped y)
+    draw_pennant_string(lan, 60, 90, 140, n=10, drop=7,
+                        colors=[PAPER_L, CINN, JADE, GOLD])
+    draw_pennant_string(lan, 340, 88, 430, n=10, drop=7,
+                        colors=[TEAL, CINN_B, PAPER, LOESS])
     lanterns = [
         (55, 82), (95, 76), (140, 72), (185, 70), (230, 68),
         (275, 70), (320, 72), (365, 76), (410, 80), (450, 84),
@@ -1727,11 +2061,14 @@ def make_hub_layers():
         (30, 100), (470, 100),
         # extras near landmarks
         (120, 88), (380, 86),
+        # v1.4 denser lanterns
+        (200, 84), (290, 86), (100, 70), (400, 70),
     ]
     for lx, ly in lanterns:
         draw_lantern(lan, lx, ly, hanging=True)
     # floor lamps near counter + hero seat
     for lx in (148, 250, 328, 360):
+        draw_hard_shadow(lan, lx - 1, 168, 6, 6, ox=2, oy=2, col=NIGHT)
         fill_rect(lan, lx, 150, lx + 4, 172, WOOD)
         draw_lantern(lan, lx - 2, 140, hanging=False)
     layers["hub_lanterns.png"] = lan
@@ -1741,6 +2078,7 @@ def make_hub_layers():
         composed.alpha_composite(layers[key])
     layers["hub_composed.png"] = composed
     return layers
+
 
 
 
@@ -1784,7 +2122,8 @@ def write_previews(sprites_only=False):
         big.save(PREVIEW / f"{cid}_x4.png")
         labels = {
             0: "idle", 2: "walk", 6: "serve", 7: "serve1", 8: "serve2",
-            9: "attack", 13: "hurt", 15: "parry", 16: "parry1",
+            9: "attack", 10: "attack1", 11: "attack2", 12: "attack3",
+            13: "hurt", 14: "hurt1", 15: "parry", 16: "parry1",
         }
         if cid == "xiaoer":
             labels[9] = "wipe0"
@@ -1811,7 +2150,7 @@ def write_scenes_only():
     """Regenerate Hub layers only — owned by 墨點場景. Does not touch sprites."""
     SCENES.mkdir(parents=True, exist_ok=True)
     PREVIEW.mkdir(parents=True, exist_ok=True)
-    report = ["# Ink-Pixel Inn Hub scenes report v1.3", ""]
+    report = ["# Ink-Pixel Inn Hub scenes report v1.4", ""]
     layers = make_hub_layers()
     for name, im in layers.items():
         assert im.size == (480, 270), f"{name} size {im.size}"
@@ -1829,7 +2168,7 @@ def write_scenes_only():
     report.append("PREVIEWS: hub_composed_x2.png hub_read.png refreshed")
     print("PREVIEWS: hub_composed_x2.png hub_read.png refreshed")
     (SCENES / "_gen_report.txt").write_text("\n".join(report) + "\n", encoding="utf-8")
-    print("DONE v1.3 scenes-only")
+    print("DONE v1.4 scenes-only")
 
 
 def main(scenes_only=False):
@@ -1838,7 +2177,7 @@ def main(scenes_only=False):
         return
     SPRITES.mkdir(parents=True, exist_ok=True)
     SCENES.mkdir(parents=True, exist_ok=True)
-    report = ["# Ink-Pixel Inn asset gen report v1.2+guest_walk", ""]
+    report = ["# Ink-Pixel Inn asset gen report v1.2.1 attack/hurt clarity", ""]
     for cid in ["qingyi", "tiezhang", "langren", "qinshi", "xiaoer"]:
         sheet = make_spritesheet(cid)
         spath = SPRITES / f"{cid}.png"
@@ -1873,7 +2212,7 @@ def main(scenes_only=False):
     gwalk.save(gwpath)
     opaque, oob, cols = audit(gwalk, "guest_walk")
     empty = []
-    for i in range(32):
+    for i in range(48):  # 6 guests × 8 frames
         col_opaque = 0
         for y in range(32):
             for x in range(i * 32, i * 32 + 32):

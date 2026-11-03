@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.5.6：Hub v1.3／guest_walk 入座／戰鬥招名）
+ * 俠客棧 — 墨點江湖舞台（v0.5.7：場景江湖事件／命中停頓／藏書熱點／坐客去重）
  * Hub 480×270：場景分層、小二／俠客 spritesheet；戰鬥 400×180：attack／hurt／parry 幀
  */
 (function (global) {
@@ -62,9 +62,21 @@
     sheets: {},
     bosses: {},
     layers: {},
+    fx: {},
     ready: false,
     failed: false
   };
+  const FX_SHEETS = {
+    slash: { frames: 6 },
+    spark: { frames: 5 },
+    parry_flash: { frames: 4 },
+    hit_ring: { frames: 3 }
+  };
+
+  /** 資產快取戳：跟 GAME.version 對齊，確保 v1.2.1 精靈表換檔後瀏覽器重拉 */
+  const ASSET_VER = (typeof global !== 'undefined' && global.WuxiaData && global.WuxiaData.GAME && global.WuxiaData.GAME.version)
+    ? global.WuxiaData.GAME.version
+    : '0.5.7';
 
   function loadImg(src) {
     return new Promise(function (resolve) {
@@ -72,7 +84,8 @@
       img.decoding = 'async';
       img.onload = function () { resolve(img); };
       img.onerror = function () { resolve(null); };
-      img.src = src;
+      const sep = src.indexOf('?') >= 0 ? '&' : '?';
+      img.src = src + sep + 'v=' + encodeURIComponent(ASSET_VER);
     });
   }
 
@@ -97,6 +110,11 @@
     LAYER_ORDER.concat(LAYER_TOP).forEach(function (name) {
       jobs.push(loadImg('assets/scenes/' + name + '.png').then(function (img) {
         if (img) Assets.layers[name] = img;
+      }));
+    });
+    Object.keys(FX_SHEETS).forEach(function (id) {
+      jobs.push(loadImg('assets/sprites/fx/' + id + '.png').then(function (img) {
+        if (img) Assets.fx[id] = img;
       }));
     });
     Promise.all(jobs).then(function () {
@@ -264,7 +282,7 @@
     ctx.globalAlpha = 1;
   }
 
-  // ——— 客棧 Hub 舞台（v0.5.6 · Hub v1.3 · 480×270） ———
+  // ——— 客棧 Hub 舞台（v0.5.7 · Hub v1.3 · 480×270） ———
   const InnStage = (function () {
     const W = 480;
     const H = 270;
@@ -302,8 +320,10 @@
     let ambientHandler = null;
     let lastNightFlag = null;
     let lastFootstepAt = 0;
-    let bubble = null; // { text, x, y, life }
+    let bubble = null; // { text, x, y, life } 主泡泡（兼容舊 API）
+    let bubbles = [];  // 多泡泡：場景事件氣氛
     let rumorText = '';
+    let sceneEvt = null; // { beats, i, t0, walkers }
     let xiaoer = { x: 220, y: 175, tx: 220, ty: 175, mode: 'idle', tick: 0, flip: false, actionTicks: 0, destAct: 'idle' };
     let guestFrame = 0;       // guest_sit 幀 0–5（入座後）
     let guestIndex = 0;       // guest_walk 0–3（對齊 sit 0–3）
@@ -311,13 +331,18 @@
     let guestFlip = false;
     let guestSeated = false;
     let seatTarget = { x: 228, y: 188 };
+    let seatOccupiedKey = null; // 進場佔用嘅座位 key，畫坐客時跳過
     const PHASE_MS = { enter: 1800, serve: 1800, pay: 1400, leave: 1600 };
+    const ALL_SEATS = [
+      { x: 54, y: 198, key: 'a' }, { x: 108, y: 206, key: 'b' }, { x: 168, y: 212, key: 'c' },
+      { x: 248, y: 214, key: 'd' }, { x: 318, y: 200, key: 'e' }, { x: 378, y: 208, key: 'f' }
+    ];
 
     // Hub v1.3 熱點對齊 assets/scenes/README.md（480×270）
     const HOTSPOTS = [
       { id: 'door',     label: '大門·出巡',   x: 6,   y: 82,  w: 48,  h: 68, open: 'combat' },
       { id: 'board',    label: '告示·江湖',   x: 108, y: 92,  w: 44,  h: 28, open: 'story' },
-      { id: 'books',    label: '書架·藏書',   x: 108, y: 120, w: 40,  h: 42, open: 'inn' },
+      { id: 'books',    label: '書架·藏書',   x: 108, y: 120, w: 40,  h: 42, open: 'library' },
       { id: 'counter',  label: '櫃檯·經營',   x: 153, y: 163, w: 184, h: 57, open: 'inn' },
       { id: 'map',      label: '地圖·據點',   x: 362, y: 91,  w: 46,  h: 53, open: 'outposts' },
       { id: 'heroes',   label: '俠客席·養成', x: 338, y: 178, w: 72,  h: 34, open: 'heroes' },
@@ -396,7 +421,89 @@
     function setAmbientChange(fn) { ambientHandler = typeof fn === 'function' ? fn : null; }
 
     function showBubble(text, x, y, life) {
-      bubble = { text: text, x: x == null ? 220 : x, y: y == null ? 120 : y, life: life == null ? 1 : life };
+      const b = { text: text, x: x == null ? 220 : x, y: y == null ? 120 : y, life: life == null ? 1 : life };
+      bubble = b;
+      bubbles.push(Object.assign({}, b));
+      if (bubbles.length > 5) bubbles.shift();
+    }
+
+    function pushBubble(text, x, y, life) {
+      bubbles.push({ text: text, x: x == null ? 220 : x, y: y == null ? 120 : y, life: life == null ? 1 : life });
+      if (bubbles.length > 6) bubbles.shift();
+    }
+
+    /** 場景化江湖事件：Hub 內多泡泡＋短暫行人演出（唔淨對話面板） */
+    function playSceneEvent(def) {
+      if (!def || !def.beats || !def.beats.length) return;
+      const walkers = (def.walkers || [
+        { id: 'langren', x: 40, y: 170, tx: 120, ty: 178 },
+        { id: 'qingyi', x: 160, y: 178, tx: 100, ty: 172 }
+      ]).map(function (w) {
+        return {
+          id: w.id || 'langren',
+          x: w.x, y: w.y,
+          tx: w.tx != null ? w.tx : w.x,
+          ty: w.ty != null ? w.ty : w.y,
+          flip: !!w.flip,
+          tick: 0
+        };
+      });
+      sceneEvt = {
+        id: def.id || 'scene',
+        beats: def.beats.slice(),
+        i: 0,
+        t0: performance.now(),
+        walkers: walkers,
+        done: false
+      };
+      if (def.caption) setCaption(def.caption);
+    }
+
+    function updateSceneEvent(now) {
+      if (!sceneEvt || sceneEvt.done) return;
+      const elapsed = now - sceneEvt.t0;
+      // 行人緩移
+      sceneEvt.walkers.forEach(function (w) {
+        const dx = w.tx - w.x;
+        const dy = w.ty - w.y;
+        if (Math.abs(dx) > 0.4 || Math.abs(dy) > 0.4) {
+          w.x += dx * 0.04;
+          w.y += dy * 0.04;
+          w.flip = dx < 0;
+          w.tick += 1;
+        } else {
+          w.tick += 1;
+        }
+      });
+      while (sceneEvt.i < sceneEvt.beats.length && elapsed >= sceneEvt.beats[sceneEvt.i].at) {
+        const beat = sceneEvt.beats[sceneEvt.i];
+        sceneEvt.i += 1;
+        if (beat.caption) setCaption(beat.caption);
+        if (beat.line) {
+          const wx = beat.walker != null && sceneEvt.walkers[beat.walker]
+            ? sceneEvt.walkers[beat.walker].x + 10
+            : (beat.x != null ? beat.x : 200);
+          const wy = beat.walker != null && sceneEvt.walkers[beat.walker]
+            ? sceneEvt.walkers[beat.walker].y - 16
+            : (beat.y != null ? beat.y : 120);
+          pushBubble(beat.line, wx, wy, beat.life != null ? beat.life : 1.15);
+        }
+        if (beat.move && sceneEvt.walkers[beat.move.i]) {
+          const w = sceneEvt.walkers[beat.move.i];
+          if (beat.move.tx != null) w.tx = beat.move.tx;
+          if (beat.move.ty != null) w.ty = beat.move.ty;
+        }
+        if (beat.end) {
+          sceneEvt.done = true;
+          setTimeout(function () {
+            if (sceneEvt && sceneEvt.done) sceneEvt = null;
+          }, 600);
+        }
+      }
+      if (sceneEvt.i >= sceneEvt.beats.length && !sceneEvt.done) {
+        sceneEvt.done = true;
+        setTimeout(function () { sceneEvt = null; }, 800);
+      }
     }
 
     function setRumor(text) {
@@ -526,6 +633,7 @@
       if (!queue.length) {
         phase = 'idle';
         doorOpen = 0;
+        seatOccupiedKey = null;
         setCaption(innTitle + ' · 點擊場景熱點 · 雅座可催單／小費');
         return;
       }
@@ -537,11 +645,17 @@
       guestIndex = Math.floor(Math.random() * 4);
       guestFrame = guestIndex; // 入座後切同色 sit（有杯）
       guestLocal = 0;
-      const seats = [
-        { x: 54, y: 198 }, { x: 108, y: 206 }, { x: 168, y: 212 },
-        { x: 248, y: 214 }, { x: 318, y: 200 }, { x: 378, y: 208 }
-      ];
-      seatTarget = seats[guestIndex % seats.length];
+      // 揀空位，避免同常駐坐客重疊
+      const taken = {};
+      seatedGuests.forEach(function (g) { if (g.key) taken[g.key] = true; });
+      const free = ALL_SEATS.filter(function (s) { return !taken[s.key]; });
+      const pick = free.length ? free[Math.floor(Math.random() * free.length)] : ALL_SEATS[guestIndex % ALL_SEATS.length];
+      seatTarget = { x: pick.x, y: pick.y };
+      seatOccupiedKey = pick.key;
+      // 若仍撞到（後備），暫時移開該格常駐客
+      seatedGuests = seatedGuests.filter(function (g) {
+        return !(Math.abs(g.x - pick.x) < 8 && Math.abs(g.y - pick.y) < 8);
+      });
       guestX = 28;
       guestY = 168;
       guestStride = 0;
@@ -564,15 +678,13 @@
     }
 
     function seedSeated() {
-      // 對齊 denser furniture；guest_sit v1.2 幀 0–5（teal／robe-red／ink-soft／violet／jade／wood-hat）
+      // 只放 2–3 位常駐坐客，留空位畀進場動畫，避免重疊
       seatedGuests = [
-        { x: 54, y: 198, robe: C.teal, frame: 0 },
-        { x: 108, y: 206, robe: C.robeRed, frame: 1 },
-        { x: 168, y: 212, robe: C.inkSoft, frame: 2 },
-        { x: 248, y: 214, robe: C.violet, frame: 3 },
-        { x: 318, y: 200, robe: C.jade, frame: 4 },
-        { x: 378, y: 208, robe: C.mist, frame: 5 }
+        { x: 54, y: 198, robe: C.teal, frame: 0, key: 'a' },
+        { x: 248, y: 214, robe: C.violet, frame: 3, key: 'd' },
+        { x: 378, y: 208, robe: C.mist, frame: 5, key: 'f' }
       ];
+      seatOccupiedKey = null;
     }
 
     function dayFactor(now) {
@@ -781,6 +893,11 @@
         bubble.life -= 0.008;
         if (bubble.life <= 0) bubble = null;
       }
+      bubbles = bubbles.filter(function (b) {
+        b.life -= 0.007;
+        return b.life > 0;
+      });
+      updateSceneEvent(now);
 
       maybeEmitAmbient(now);
       updateXiaoer(now);
@@ -890,8 +1007,10 @@
         ctx.globalAlpha = 1;
       }
 
-      // 坐客：guest_sit v1.2 幀 0–5（teal／robe-red／ink-soft／violet／jade／wood-hat）
+      // 坐客：guest_sit v1.2；進場佔用位唔畫，避免重疊
       seatedGuests.forEach(function (g, gi) {
+        if (seatOccupiedKey && g.key === seatOccupiedKey) return;
+        if (phase !== 'idle' && Math.abs(g.x - guestX) < 10 && Math.abs(g.y - guestY) < 10) return;
         const gsheet = Assets.sheets.guest_sit;
         if (gsheet) {
           const fi = (typeof g.frame === 'number') ? (g.frame % 6) : (gi % 6);
@@ -911,15 +1030,24 @@
         speed: xeAnim === 'wipe' ? 9 : undefined
       });
 
-      // 俠客閒逛
-      ambientHeroes.forEach(function (hid, i) {
-        const baseX = 55 + i * 36;
-        const walk = Math.sin((walkerPhase + i * 40) / 30) * 22;
-        const x = baseX + walk;
-        const y = 175 + (i % 2) * 8;
-        const flipping = Math.cos((walkerPhase + i * 40) / 30) < 0;
-        drawActor(hid, x, y, 'walk', walkerPhase + i * 12, { flip: flipping, scale: 1 });
-      });
+      // 俠客閒逛（場景事件進行中略收，避免同事件行人撞疊）
+      if (!sceneEvt) {
+        ambientHeroes.forEach(function (hid, i) {
+          const baseX = 55 + i * 36;
+          const walk = Math.sin((walkerPhase + i * 40) / 30) * 22;
+          const x = baseX + walk;
+          const y = 175 + (i % 2) * 8;
+          const flipping = Math.cos((walkerPhase + i * 40) / 30) < 0;
+          drawActor(hid, x, y, 'walk', walkerPhase + i * 12, { flip: flipping, scale: 1 });
+        });
+      }
+
+      // 場景事件行人
+      if (sceneEvt && sceneEvt.walkers) {
+        sceneEvt.walkers.forEach(function (w) {
+          drawActor(w.id, w.x, w.y, 'walk', w.tick, { flip: w.flip, scale: 1 });
+        });
+      }
 
       // 進場客人：guest_walk（absIndex=guestIndex*8+local）→ 入座後 guest_sit 同色加杯
       if (phase !== 'idle') {
@@ -971,7 +1099,10 @@
         ctx.globalAlpha = 1;
       }
 
-      if (bubble) drawBubble(ctx, bubble.text, bubble.x, bubble.y, bubble.life);
+      bubbles.forEach(function (b) {
+        drawBubble(ctx, b.text, b.x, b.y, b.life);
+      });
+      if (bubble && !bubbles.length) drawBubble(ctx, bubble.text, bubble.x, bubble.y, bubble.life);
 
       drawHotspotHints();
     }
@@ -979,8 +1110,9 @@
     return {
       mount, destroy, isMounted, playGuest, enqueueGuest,
       setHotspotHandler, setTipHandler, setAmbientHeroes, setInnTitle,
-      setAmbientChange, isNight, setRumor, greetXiaoer, showBubble,
-      HOTSPOTS, getPhase: function () { return phase; }
+      setAmbientChange, isNight, setRumor, greetXiaoer, showBubble, playSceneEvent,
+      HOTSPOTS, getPhase: function () { return phase; },
+      isScenePlaying: function () { return !!(sceneEvt && !sceneEvt.done); }
     };
   })();
 
@@ -998,6 +1130,8 @@
     let shake = 0;
     let anims = {};
     let tick = 0;
+    let hitStop = 0;       // 命中停頓幀（凍結動畫推進）
+    let screenFlash = 0;   // 全屏閃白
 
     function weaponFor(id) {
       if (id === 'qingyi') return 'sword';
@@ -1157,40 +1291,85 @@
             y0: atk.y + 6,
             x1: tgt.x + 6,
             y1: tgt.y + 6,
-            life: 22, max: 22,
+            life: 28, max: 28,
             color: evt.kind === 'skill' ? C.cinnabarBright : C.cream
           });
+          spawnBladeFx(atk, tgt, evt.kind === 'skill');
+        } else if (evt.kind === 'parry' || evt.kind === 'miss') {
+          // 揮空／招架亦見刀弧
+          spawnBladeFx(atk, tgt, false);
         }
       }
 
       if (evt.kind === 'miss' && tgt) {
         anims[tgt.id] = { kind: 'dodge', t: 0, dur: 40, dir: tgt.side === 'ally' ? -1 : 1 };
         fx.push({ kind: 'text', text: '閃', x: tgt.x + 2, y: tgt.y - 6, life: 30, max: 30, color: C.sky });
+        hitStop = Math.max(hitStop, 4);
         return;
       }
 
       if (evt.kind === 'parry' && tgt) {
-        anims[tgt.id] = { kind: 'parry', t: 0, dur: 48, dir: tgt.side === 'ally' ? -1 : 1 };
-        tgt.flash = 12;
-        fx.push({ kind: 'text', text: '架', x: tgt.x + 2, y: tgt.y - 6, life: 30, max: 30, color: C.gold });
-        fx.push({ kind: 'slash', x: tgt.x, y: tgt.y + 2, life: 16, max: 16, color: C.gold });
-        shake = Math.max(shake, 1.5);
+        anims[tgt.id] = { kind: 'parry', t: 0, dur: 52, dir: tgt.side === 'ally' ? -1 : 1 };
+        tgt.flash = 16;
+        if (atk) atk.flash = Math.max(atk.flash || 0, 8);
+        fx.push({ kind: 'text', text: '架', x: tgt.x + 2, y: tgt.y - 6, life: 34, max: 34, color: C.gold });
+        fx.push({ kind: 'slash', x: tgt.x, y: tgt.y + 2, life: 20, max: 20, color: C.gold });
+        // 招架火花軌跡：攻防之間＋外彈
+        if (atk) {
+          const mx = (atk.x + tgt.x) / 2 + 4;
+          const my = (atk.y + tgt.y) / 2 + 4;
+          fx.push({
+            kind: 'trail',
+            x0: atk.x + 8, y0: atk.y + 6,
+            x1: tgt.x + 4, y1: tgt.y + 4,
+            life: 26, max: 26, color: C.gold
+          });
+          fx.push({
+            kind: 'trail',
+            x0: mx, y0: my,
+            x1: mx + (tgt.side === 'ally' ? -18 : 18), y1: my - 14,
+            life: 20, max: 20, color: C.cream
+          });
+          fx.push({ kind: 'burst', x: mx, y: my, life: 16, max: 16, color: C.gold });
+          if (!pushFxSheet('parry_flash', mx - 8, my - 8, { dur: 14, scale: 1.1 })) {
+            fx.push({ kind: 'sparks', x: mx, y: my, n: 9, life: 20, max: 20, color: C.gold });
+            fx.push({
+              kind: 'arc', x: mx, y: my, dir: atk.side === 'ally' ? 1 : -1,
+              r: 16, start: -0.6, end: 0.6, life: 14, max: 14,
+              color: C.gold, tipColor: C.cream
+            });
+          }
+        }
+        screenFlash = Math.max(screenFlash, 5);
+        hitStop = Math.max(hitStop, 10);
+        shake = Math.max(shake, 2.2);
         return;
       }
 
       if ((evt.kind === 'hit' || evt.kind === 'skill') && tgt) {
         const dmg = evt.damage || 0;
-        anims[tgt.id] = { kind: 'hit', t: 0, dur: 56, dir: tgt.side === 'ally' ? -1 : 1, heavy: evt.kind === 'skill' };
-        tgt.flash = 18;
+        const heavy = evt.kind === 'skill';
+        anims[tgt.id] = { kind: 'hit', t: 0, dur: heavy ? 64 : 56, dir: tgt.side === 'ally' ? -1 : 1, heavy: heavy };
+        tgt.flash = heavy ? 26 : 20;
         fx.push({ kind: 'text', text: '-' + dmg, x: tgt.x + 2, y: tgt.y - 4, life: 52, max: 52, color: C.cinnabarBright });
         fx.push({ kind: 'slash', x: tgt.x + 4, y: tgt.y + 4, life: 18, max: 18, color: C.cream });
-        shake = Math.max(shake, evt.kind === 'skill' ? 5.5 : 3.2);
+        fx.push({ kind: 'burst', x: tgt.x + 6, y: tgt.y + 8, life: 12, max: 12, color: C.cream });
+        // spark／hit_ring 已由 spawnBladeFx 處理；無 sheet 時補 canvas
+        if (!Assets.fx.spark) {
+          fx.push({ kind: 'sparks', x: tgt.x + 8, y: tgt.y + 10, n: heavy ? 8 : 5, life: heavy ? 18 : 12, max: heavy ? 18 : 12, color: C.cinnabarBright });
+        }
+        screenFlash = Math.max(screenFlash, heavy ? 9 : 6);
+        hitStop = Math.max(hitStop, heavy ? 12 : 8);
+        shake = Math.max(shake, heavy ? 6.2 : 3.8);
       }
 
       if (evt.kind === 'ko' && tgt) {
         fx.push({ kind: 'text', text: '倒', x: tgt.x + 2, y: tgt.y - 8, life: 44, max: 44, color: C.blood });
-        shake = Math.max(shake, 6);
-        anims[tgt.id] = { kind: 'hit', t: 0, dur: 44, dir: tgt.side === 'ally' ? -1 : 1, heavy: true };
+        shake = Math.max(shake, 7);
+        screenFlash = Math.max(screenFlash, 10);
+        hitStop = Math.max(hitStop, 14);
+        anims[tgt.id] = { kind: 'hit', t: 0, dur: 48, dir: tgt.side === 'ally' ? -1 : 1, heavy: true };
+        tgt.flash = 28;
       }
     }
 
@@ -1296,11 +1475,16 @@
         drew = drawSheetFrame(ctx, sheet, fi, dx - 4, dy - 4, {
           scale: 1.15,
           flip: flip,
-          alpha: flash ? 0.85 : (u.dead ? 0.35 : 1)
+          alpha: flash ? 0.95 : (u.dead ? 0.35 : 1)
         });
+        if (drew && flash) {
+          ctx.globalAlpha = 0.55;
+          drawRect(ctx, dx - 2, dy - 2, 28, 30, C.cream);
+          ctx.globalAlpha = 1;
+        }
       } else if (bossImg) {
         ctx.save();
-        if (flash) ctx.globalAlpha = 0.85;
+        if (flash) ctx.globalAlpha = 0.95;
         if (flip) {
           ctx.translate(dx + 28, dy - 2);
           ctx.scale(-1, 1);
@@ -1337,14 +1521,120 @@
       const a = f.life / f.max;
       const steps = 6;
       for (let i = 0; i < steps; i++) {
-        const t = i / (steps - 1);
-        const x = f.x0 + (f.x1 - f.x0) * t;
-        const y = f.y0 + (f.y1 - f.y0) * t;
-        ctx.globalAlpha = a * (0.3 + 0.7 * t);
-        const sz = 2 + Math.round(3 * t);
+        const tt = i / (steps - 1);
+        const x = f.x0 + (f.x1 - f.x0) * tt;
+        const y = f.y0 + (f.y1 - f.y0) * tt;
+        ctx.globalAlpha = a * (0.3 + 0.7 * tt);
+        const sz = 2 + Math.round(3 * tt);
         drawRect(ctx, x, y, sz, Math.max(2, sz - 1), f.color || C.cream);
       }
       ctx.globalAlpha = 1;
+    }
+
+    /** 斬擊弧線／刀光（canvas 像素塊近似弧，硃紅／宣紙白） */
+    function drawArc(f) {
+      const a = f.life / f.max;
+      const dir = f.dir || 1;
+      const cx = f.x;
+      const cy = f.y;
+      const r = f.r || 22;
+      const start = f.start != null ? f.start : (-0.9 * dir);
+      const end = f.end != null ? f.end : (0.55 * dir);
+      const steps = 10;
+      for (let i = 0; i < steps; i++) {
+        const tt = i / (steps - 1);
+        const ang = start + (end - start) * tt;
+        const x = cx + Math.cos(ang) * r * dir;
+        const y = cy + Math.sin(ang) * r * 0.55;
+        ctx.globalAlpha = a * (0.25 + 0.75 * tt);
+        const col = (i >= steps - 3) ? (f.tipColor || C.cream) : (f.color || C.cinnabarBright);
+        const sz = i >= steps - 2 ? 4 : (2 + Math.round(tt * 2));
+        drawRect(ctx, x, y, sz, Math.max(2, sz - 1), col);
+        if (i >= steps - 4) {
+          drawRect(ctx, x - 1, y + 1, 2, 2, C.cream);
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    /** 招架／命中火花粒子 */
+    function drawSparks(f) {
+      const a = f.life / f.max;
+      const n = f.n || 6;
+      for (let i = 0; i < n; i++) {
+        const ang = (i / n) * Math.PI * 2 + (1 - a) * 0.8;
+        const dist = (1 - a) * (10 + (i % 3) * 4);
+        const x = f.x + Math.cos(ang) * dist;
+        const y = f.y + Math.sin(ang) * dist * 0.7;
+        ctx.globalAlpha = a * (0.5 + 0.5 * ((i % 2)));
+        drawRect(ctx, x, y, 2 + (i % 2), 2, (i % 2) ? C.cream : (f.color || C.cinnabarBright));
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function pushFxSheet(id, x, y, opts) {
+      const o = opts || {};
+      const meta = FX_SHEETS[id];
+      const img = Assets.fx[id];
+      if (!img || !meta) return false;
+      const frames = meta.frames;
+      const dur = o.dur != null ? o.dur : Math.max(10, frames * 3);
+      fx.push({
+        kind: 'fxsheet',
+        id: id,
+        x: x, y: y,
+        frames: frames,
+        t: 0,
+        dur: dur,
+        life: dur,
+        max: dur,
+        flip: !!o.flip,
+        scale: o.scale || 1
+      });
+      return true;
+    }
+
+    function spawnBladeFx(atk, tgt, heavy) {
+      if (!atk) return;
+      const dir = atk.side === 'ally' ? 1 : -1;
+      const ax = atk.x + (dir > 0 ? 10 : -2);
+      const ay = atk.y + 2;
+      // 優先用 slash.png 精靈；冇檔先 canvas 弧
+      const usedSlash = pushFxSheet('slash', ax, ay, {
+        flip: dir < 0,
+        dur: heavy ? 22 : 16,
+        scale: heavy ? 1.15 : 1
+      });
+      if (!usedSlash) {
+        fx.push({
+          kind: 'arc',
+          x: atk.x + (dir > 0 ? 12 : 0), y: atk.y + 8,
+          dir: dir,
+          r: heavy ? 28 : 22,
+          start: -1.05 * dir,
+          end: 0.7 * dir,
+          life: heavy ? 26 : 18,
+          max: heavy ? 26 : 18,
+          color: heavy ? C.cinnabarBright : C.cinnabar,
+          tipColor: C.cream
+        });
+      }
+      if (tgt) {
+        const hx = tgt.x + 4;
+        const hy = tgt.y + 4;
+        const usedSpark = pushFxSheet('spark', hx, hy, { dur: heavy ? 16 : 12 });
+        if (!usedSpark) {
+          fx.push({
+            kind: 'sparks',
+            x: tgt.x + 8, y: tgt.y + 10,
+            n: heavy ? 8 : 5,
+            life: heavy ? 18 : 12,
+            max: heavy ? 18 : 12,
+            color: C.cinnabarBright
+          });
+        }
+        pushFxSheet('hit_ring', hx - 2, hy - 2, { dur: 12 });
+      }
     }
 
     function loop() {
@@ -1352,23 +1642,30 @@
       raf = requestAnimationFrame(loop);
       tick += 1;
 
+      const frozen = hitStop > 0;
+      if (hitStop > 0) hitStop -= 1;
+      if (screenFlash > 0) screenFlash -= 1;
+
       Object.keys(anims).forEach((id) => {
-        anims[id].t += 1;
+        if (!frozen) anims[id].t += 1;
         if (anims[id].t >= anims[id].dur) delete anims[id];
       });
       units.forEach((u) => {
-        if (u.flash > 0) u.flash -= 1;
+        if (!frozen && u.flash > 0) u.flash -= 1;
         if (!anims[u.id]) {
           u.x = u.ox;
           u.y = u.oy;
         }
       });
       fx = fx.filter((f) => {
-        f.life -= 1;
-        if (f.kind === 'text') f.y -= 0.32;
+        if (!frozen) {
+          f.life -= 1;
+          if (f.kind === 'fxsheet') f.t = (f.t || 0) + 1;
+          if (f.kind === 'text') f.y -= 0.32;
+        }
         return f.life > 0;
       });
-      if (shake > 0) shake = Math.max(0, shake - 0.16);
+      if (shake > 0) shake = Math.max(0, shake - (frozen ? 0.04 : 0.16));
       if (wrapEl) {
         const amp = Math.min(8, shake * 1.4);
         const sx = shake > 0 ? (Math.round(shake * 2) % 2 === 0 ? amp : -amp) : 0;
@@ -1383,8 +1680,40 @@
 
       fx.forEach((f) => {
         const a = f.life / f.max;
+        if (f.kind === 'fxsheet') {
+          const img = Assets.fx[f.id];
+          if (!img) return;
+          const frames = f.frames || 1;
+          const fi = Math.min(frames - 1, Math.floor((f.t || 0) / Math.max(1, f.dur / frames)));
+          const dx = f.x;
+          const dy = f.y;
+          const sc = f.scale || 1;
+          const dw = 32 * sc;
+          const dh = 32 * sc;
+          ctx.save();
+          ctx.imageSmoothingEnabled = false;
+          ctx.globalAlpha = clamp(a * 1.1, 0, 1);
+          if (f.flip) {
+            ctx.translate(dx + dw, dy);
+            ctx.scale(-1, 1);
+            ctx.drawImage(img, fi * 32, 0, 32, 32, 0, 0, dw, dh);
+          } else {
+            ctx.drawImage(img, fi * 32, 0, 32, 32, dx, dy, dw, dh);
+          }
+          ctx.restore();
+          ctx.globalAlpha = 1;
+          return;
+        }
         if (f.kind === 'trail') {
           drawTrail(f);
+          return;
+        }
+        if (f.kind === 'arc') {
+          drawArc(f);
+          return;
+        }
+        if (f.kind === 'sparks') {
+          drawSparks(f);
           return;
         }
         ctx.globalAlpha = clamp(a, 0, 1);
@@ -1394,12 +1723,21 @@
           drawRect(ctx, f.x - 5, f.y - 5, 12, 12, f.color || C.gold);
           drawRect(ctx, f.x - 2, f.y - 2, 6, 6, C.cream);
         } else if (f.kind === 'slash') {
-          drawRect(ctx, f.x, f.y, 14, 2, f.color || C.cream);
-          drawRect(ctx, f.x + 3, f.y - 4, 2, 10, f.color || C.cream);
-          drawRect(ctx, f.x - 2, f.y + 3, 10, 2, f.color || C.mist);
+          // 十字刃光＋斜切（墨點硬邊）
+          drawRect(ctx, f.x - 2, f.y + 4, 18, 2, f.color || C.cream);
+          drawRect(ctx, f.x + 6, f.y - 4, 2, 16, f.color || C.cinnabarBright);
+          drawRect(ctx, f.x, f.y, 12, 2, C.cinnabarBright);
+          drawRect(ctx, f.x + 2, f.y + 6, 10, 2, C.cream);
         }
         ctx.globalAlpha = 1;
       });
+
+      // 命中全屏閃白（短、硬邊像素感）
+      if (screenFlash > 0) {
+        ctx.globalAlpha = Math.min(0.55, screenFlash / 10);
+        drawRect(ctx, 0, 0, W, H, C.cream);
+        ctx.globalAlpha = 1;
+      }
     }
 
     function resetIdle() {
@@ -1407,6 +1745,8 @@
       fx = [];
       anims = {};
       shake = 0;
+      hitStop = 0;
+      screenFlash = 0;
       if (wrapEl) wrapEl.style.transform = '';
     }
 
