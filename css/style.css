@@ -2052,6 +2052,9 @@ body.combat-open .hub-shell {
 .codex-duo-bond { font-weight: 600; color: #f0e6d0; }
 .codex-duo-arrow { color: #8a7a60; }
 .codex-duo-combo { color: #c9a227; }
+.codex-duo-row.in-party { border-color: rgba(201,162,39,.55); box-shadow: inset 0 0 0 1px rgba(201,162,39,.2); }
+.codex-duo-pair { margin-left: 2px; }
+.codex-combo-ready-list { margin-bottom: 4px; }
 .recruit-reqs { margin: 6px 0; }
 .recruit-prog { margin: 4px 0; font-size: 0.85rem; }
 .recruit-prog.ok span { color: #8ecf8e; }

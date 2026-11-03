@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v2.7.0：廂房夜半夢語＋合擊新手提示）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v2.8.0：日誌「而家可合擊」快捷摘要）
  */
 (function () {
   'use strict';
@@ -4034,16 +4034,55 @@
     }).length;
     const bondById = {};
     duoList.forEach(function (d) { if (d && d.id) bondById[d.id] = d; });
+    const partyIds = state.party || [];
+    function heroLabel(hid) {
+      const t = HERO_TEMPLATES.find(function (x) { return x.id === hid; });
+      return (t && t.name) ? t.name : hid;
+    }
+    function heroesRecruited(heroes) {
+      return (heroes || []).every(function (hid) {
+        const h = state.heroes[hid];
+        return !!(h && h.recruited);
+      });
+    }
+    function heroesInParty(heroes) {
+      return (heroes || []).every(function (hid) { return partyIds.indexOf(hid) >= 0; });
+    }
+    const readyCombos = comboList.filter(function (c) {
+      return c && c.duoId && duoDone.indexOf(c.duoId) >= 0 && heroesRecruited(c.heroes);
+    });
+    const readyNow = readyCombos.filter(function (c) { return heroesInParty(c.heroes); });
+    const readyHtml = readyCombos.length
+      ? ('<div class="codex-duo-list codex-combo-ready-list">' + readyCombos.map(function (c) {
+          const pair = (c.heroes || []).map(heroLabel).join('＋');
+          const inParty = heroesInParty(c.heroes);
+          const tag = inParty
+            ? '<span class="pill jade">本隊就緒</span>'
+            : '<span class="pill cinnabar">可編入</span>';
+          return '<div class="codex-duo-row unlocked' + (inParty ? ' in-party' : '') + '">' +
+            '<span class="codex-duo-combo">合擊「' + (c.name || '合擊') + '」</span>' +
+            '<span class="codex-duo-pair muted small">' + pair + '</span>' +
+            tag +
+            '</div>';
+        }).join('') + '</div>' +
+        (readyNow.length
+          ? '<p class="muted small">本隊現可施放：' + readyNow.map(function (c) { return '「' + (c.name || '合擊') + '」'; }).join('、') + '（一場一次）</p>'
+          : '<p class="muted small">到「俠客」把雙方編入出戰，出巡即可合擊。</p>'))
+      : '<p class="muted empty-soft">尚未有「已解鎖＋雙方已招募」嘅合擊——完成雙人羈絆並請齊俠客後，可編組合會列喺度。</p>';
     const comboRows = comboList.map(function (c) {
       if (!c) return '';
       const bond = bondById[c.duoId] || null;
       const bondTitle = (bond && bond.title) || c.duoId || '雙人羈絆';
       const comboName = c.name || '合擊';
       const unlocked = !!(c.duoId && duoDone.indexOf(c.duoId) >= 0);
-      const status = unlocked
-        ? '<span class="pill jade">已解鎖</span>'
-        : '<span class="pill">未解鎖</span>';
-      return '<div class="codex-duo-row' + (unlocked ? ' unlocked' : '') + '">' +
+      const canForm = unlocked && heroesRecruited(c.heroes);
+      const inParty = canForm && heroesInParty(c.heroes);
+      let status;
+      if (inParty) status = '<span class="pill jade">本隊就緒</span>';
+      else if (canForm) status = '<span class="pill cinnabar">可編入</span>';
+      else if (unlocked) status = '<span class="pill jade">已解鎖</span>';
+      else status = '<span class="pill">未解鎖</span>';
+      return '<div class="codex-duo-row' + (unlocked ? ' unlocked' : '') + (inParty ? ' in-party' : '') + '">' +
         '<span class="codex-duo-bond">' + bondTitle + '</span>' +
         '<span class="codex-duo-arrow">→</span>' +
         '<span class="codex-duo-combo">合擊「' + comboName + '」</span>' +
@@ -4075,6 +4114,10 @@
       '    <div class="codex-cell"><span class="label">成就</span><b>' + achN + '/' + achTotal + '</b></div>',
       '    <div class="codex-cell"><span class="label">劇情章</span><b>' + storyN + '/' + storyTotal + '</b></div>',
       '    <div class="codex-cell"><span class="label">雙人合擊</span><b>' + duoUnlockedN + '/' + (comboList.length || 6) + '</b></div>',
+      '  </div>',
+      '  <div class="codex-block codex-combo-ready"><h4>而家可合擊</h4>',
+      '    <p class="muted small">已解鎖且雙方已招募、可編隊開嘅組合（快捷摘要）· 就緒 ' + readyNow.length + '/' + readyCombos.length + '</p>',
+      readyHtml,
       '  </div>',
       '  <div class="codex-block"><h4>合擊／羈絆圖鑑</h4>',
       '    <p class="muted small">六組雙人羈絆解鎖狀態與對應合擊名</p>',
@@ -4344,7 +4387,7 @@
       try { WuxiaAudio.preload(); } catch (e) { /* ignore */ }
     }
 
-    const verLabel = (GAME && GAME.version) ? String(GAME.version) : '2.7.0';
+    const verLabel = (GAME && GAME.version) ? String(GAME.version) : '2.8.0';
     const footVer = $('footer-version');
     if (footVer) footVer.textContent = 'v' + verLabel;
     try {
