@@ -1892,3 +1892,16 @@ body.combat-open .hub-shell {
   flex-direction: column;
   gap: 8px;
 }
+
+
+/* —— v1.2.0 雅座茶寮／時辰偏好 —— */
+.facility-row:has([data-build="teahouse"]) .facility-info b {
+  color: #2f5d45;
+}
+.facility-row:has([data-build="teahouse"]) .facility-info .muted:last-child {
+  color: #3d6b4f;
+}
+.phase-prefer-hit {
+  color: #8b5a2b;
+  font-weight: 600;
+}

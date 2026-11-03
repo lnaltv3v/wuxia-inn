@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v1.1.0
+ * v1.2.0
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '1.1.0',
+    version: '1.2.0',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -30,12 +30,26 @@
   ];
 
   const GUESTS = [
-    { id: 'wanderer', name: '過路客', weight: 40, payMin: 2, payMax: 5, kind: 'meal' },
-    { id: 'merchant', name: '行商', weight: 25, payMin: 5, payMax: 12, kind: 'stay' },
-    { id: 'scholar', name: '書生', weight: 15, payMin: 4, payMax: 8, kind: 'meal' },
-    { id: 'knight', name: '遊俠', weight: 12, payMin: 8, payMax: 18, kind: 'stay' },
-    { id: 'noble', name: '富紳', weight: 8, payMin: 15, payMax: 35, kind: 'stay' }
+    // preferPhase：對上當日時辰則小費／付銀更爽；錯時略淡（連日夜）
+    { id: 'wanderer', name: '過路客', weight: 40, payMin: 2, payMax: 5, kind: 'meal', preferPhase: 'day', preferLabel: '喜白日歇腳' },
+    { id: 'merchant', name: '行商', weight: 25, payMin: 5, payMax: 12, kind: 'stay', preferPhase: 'day', preferLabel: '喜白日談生意' },
+    { id: 'scholar', name: '書生', weight: 15, payMin: 4, payMax: 8, kind: 'meal', preferPhase: 'dawn', preferLabel: '喜破曉清靜' },
+    { id: 'knight', name: '遊俠', weight: 12, payMin: 8, payMax: 18, kind: 'stay', preferPhase: 'night', preferLabel: '喜夜路投棧' },
+    { id: 'noble', name: '富紳', weight: 8, payMin: 15, payMax: 35, kind: 'stay', preferPhase: 'dusk', preferLabel: '喜黃昏酒宴' }
   ];
+
+  /** 客人時辰偏好倍率（match 加成／mismatch 略減） */
+  function guestPhaseMul(guest, phase) {
+    if (!guest || !guest.preferPhase) return 1;
+    const ph = phase || 'day';
+    if (guest.preferPhase === ph) return 1.28;
+    // 鄰近時辰略寬容
+    const near = {
+      dawn: ['day'], day: ['dawn', 'dusk'], dusk: ['day', 'night'], night: ['dusk', 'dawn']
+    };
+    if ((near[ph] || []).indexOf(guest.preferPhase) >= 0) return 1.08;
+    return 0.88;
+  }
 
   /** 今日江湖傳聞（Hub 氣氛／日誌輕量內容，不改存檔結構） */
   const RUMORS = [
@@ -72,22 +86,51 @@
     '俠客席的刀劍擦過了，趁手得很。',
     '告示又換新紙，江湖事一日三變。',
     '地圖上的紅點——那是去分舵的路。',
-    '有客官鬧脾氣？叫小二來勸勸便是。'
+    '有客官鬧脾氣？叫小二來勸勸便是。',
+    '破曉客少，正好擦燈籠。',
+    '白日人聲嘈雜，小的耳朵都熱啦。',
+    '黃昏酒香一飄，富紳就愛這個點。',
+    '夜深了，遊俠腳步卻更密。',
+    '雅座茶寮一開，小費眼神都不一樣。',
+    '客官若趕路，小的給您打包乾糧。',
+    '雨打屋簷——正好聽書生唸詩。',
+    '誰把刀掛歪了？小的扶正先。',
+    '櫃上算盤響，掌櫃又賺啦？',
+    '門口有野貓，別踩到牠尾巴。',
+    '客官愛清茶還是濃茶？小的都備著。',
+    '時辰對了，賞銀自己會響——您聽！',
+    '刀客坐下先卸刀，規矩如此。',
+    '掌櫃說：雅座一開，面子跟銀子一塊來。'
   ];
+
+  /** 時辰專屬招呼（偶發） */
+  const XIAOER_PHASE_LINES = {
+    dawn: ['天剛亮，茶溫著等您。', '晨客稀少，雅座隨便坐。', '書生最愛這辰——清靜。', '破曉抹完桌，才算開市。'],
+    day: ['午市將至，熱菜出鍋！', '行商一到，銀兩就響。', '白日好做生意，客官裏面請。', '熱茶續上，談生意才順。'],
+    dusk: ['日落酒溫，富紳常來。', '黃昏燈未點，先聞酒香。', '要酒要菜，小的一聲招呼。', '燈一點，雅座就滿。'],
+    night: ['夜路辛苦，熱湯壓驚。', '遊俠腳步——小的聽得出來。', '燈籠亮起，夜客賞銀最豪。', '更深了，還有客？裏面請。']
+  };
 
   /**
    * 接客小事件（執行期抽選；只動銀兩／日誌／對白，唔改 migrate 結構）
    * kind: tip | difficult | meet
    */
   const GUEST_EVENTS = [
-    { id: 'tip_kind', kind: 'tip', weight: 30, text: '客人滿意服務，額外賞銀。', tipMin: 2, tipMax: 6 },
-    { id: 'tip_tea', kind: 'tip', weight: 20, text: '為一碗熱茶多付了賞錢。', tipMin: 1, tipMax: 4 },
-    { id: 'hard_bargain', kind: 'difficult', weight: 18, text: '刁難客嫌貴，理論半晌才勉為付款。', cutMin: 1, cutMax: 4 },
-    { id: 'hard_salt', kind: 'difficult', weight: 12, text: '刁難客嚷鹽多了，小費免談。', cutMin: 0, cutMax: 2 },
-    { id: 'meet_qingyi', kind: 'meet', weight: 10, text: '偶遇遊俠點頭：「貴棧刀光不錯。」', heroHint: 'qingyi' },
-    { id: 'meet_doc', kind: 'meet', weight: 8, text: '醫女打扮的過客低聲：「傷藥可曾備足？」', heroHint: 'tiezhang' },
-    { id: 'meet_qin', kind: 'meet', weight: 7, text: '有人聽見琴音，笑道：「此間有佛心。」', heroHint: 'qinshi' },
-    { id: 'meet_blade', kind: 'meet', weight: 5, text: '刀客臨去丟下一句：「黑風未絕，小心。」', heroHint: 'langren' }
+    { id: 'tip_kind', kind: 'tip', weight: 28, text: '客人滿意服務，額外賞銀。', tipMin: 2, tipMax: 6 },
+    { id: 'tip_tea', kind: 'tip', weight: 18, text: '為一碗熱茶多付了賞錢。', tipMin: 1, tipMax: 4 },
+    { id: 'tip_phase', kind: 'tip', weight: 14, text: '正合時辰偏好，賞得爽快。', tipMin: 3, tipMax: 8, preferBoost: true },
+    { id: 'hard_bargain', kind: 'difficult', weight: 16, text: '刁難客嫌貴，理論半晌才勉為付款。', cutMin: 1, cutMax: 4 },
+    { id: 'hard_salt', kind: 'difficult', weight: 10, text: '刁難客嚷鹽多了，小費免談。', cutMin: 0, cutMax: 2 },
+    { id: 'hard_rush', kind: 'difficult', weight: 8, text: '趕路客罵上菜慢，少給了錢。', cutMin: 1, cutMax: 3 },
+    { id: 'meet_qingyi', kind: 'meet', weight: 9, text: '偶遇遊俠點頭：「貴棧刀光不錯。」', heroHint: 'qingyi' },
+    { id: 'meet_doc', kind: 'meet', weight: 7, text: '醫女打扮的過客低聲：「傷藥可曾備足？」', heroHint: 'tiezhang' },
+    { id: 'meet_qin', kind: 'meet', weight: 6, text: '有人聽見琴音，笑道：「此間有佛心。」', heroHint: 'qinshi' },
+    { id: 'meet_blade', kind: 'meet', weight: 5, text: '刀客臨去丟下一句：「黑風未絕，小心。」', heroHint: 'langren' },
+    { id: 'meet_cat', kind: 'meet', weight: 6, text: '小二跟門口野貓對視三秒，客人大笑。', heroHint: null },
+    { id: 'meet_ledger', kind: 'meet', weight: 5, text: '行商盯著算盤：「這棧的帳，乾脆。」', heroHint: null },
+    { id: 'tip_teahouse', kind: 'tip', weight: 12, text: '雅座茶香對味，客官多賞了幾兩。', tipMin: 2, tipMax: 7, preferBoost: true },
+    { id: 'meet_teahouse', kind: 'meet', weight: 5, text: '茶寮客輕歎：「這茶寮一開，才像個江湖棧。」', heroHint: null },
+    { id: 'hard_phase', kind: 'difficult', weight: 7, text: '客官嫌時辰不對，語氣僵硬，少付了錢。', cutMin: 1, cutMax: 3 }
   ];
 
   /**
@@ -120,6 +163,19 @@
         { at: 0, caption: '茶香裡飄來江湖話', line: '聽說黑風又動。', walker: 1, life: 1.2 },
         { at: 900, line: '莫慌，本棧有俠客。', walker: 0, life: 1.15 },
         { at: 1800, line: '琴音可定心神。', walker: 0, life: 1.0, end: true }
+      ]
+    },
+    {
+      id: 'teahouse_toast',
+      caption: '雅座茶寮舉杯閒談…',
+      walkers: [
+        { id: 'qinshi', x: 560, y: 368, tx: 500, ty: 372 },
+        { id: 'xiaoer', x: 420, y: 340, tx: 460, ty: 352 }
+      ],
+      beats: [
+        { at: 0, caption: '茶寮一角，杯蓋輕響', line: '這泡正好。', walker: 0, life: 1.15 },
+        { at: 850, line: '客官慢用，小的續水。', walker: 1, life: 1.1 },
+        { at: 1700, line: '時辰對了，茶也甜。', walker: 0, life: 1.0, end: true }
       ]
     },
     {
@@ -419,6 +475,16 @@
       costs: [150, 320, 650],
       repNeed: [15, 50, 120],
       effectLabel: (lv) => lv ? `回血 +${lv * 2}%/秒 · 戰後療 ${lv * 8}%` : '未建'
+    },
+    {
+      id: 'teahouse',
+      name: '雅座茶寮',
+      emoji: '🍵',
+      desc: '專伺雅座：明顯拉高小費／時辰偏好賞銀（同酒窖增收手感唔同——偏賞唔偏底薪）。',
+      maxLevel: 3,
+      costs: [100, 240, 480],
+      repNeed: [5, 35, 90],
+      effectLabel: (lv) => lv ? `小費／賞銀 +${lv * 14}% · 偏好客再 +${lv * 4}%` : '未建'
     }
   ];
 
@@ -1114,6 +1180,8 @@
     GAME,
     INN_LEVELS,
     GUESTS,
+    guestPhaseMul,
+    XIAOER_PHASE_LINES,
     RUMORS,
     XIAOER_LINES,
     GUEST_EVENTS,

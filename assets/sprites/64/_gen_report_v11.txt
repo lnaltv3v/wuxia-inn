@@ -16,7 +16,7 @@ frames:
   07 windup1: visible=1568
   08 windup2: visible=1467
   09 strike0: visible=1636
-  10 strike1: visible=1599
+  10 strike1: visible=1695
   11 strike2: visible=1632
   12 strike3: visible=1532
   13 hurt0: visible=1588
@@ -31,26 +31,41 @@ size: (1152, 64)
 oob: 0
 palette_used (17): #1A1510, #2A2218, #3D3226, #5A4060, #5A4A32, #5C4030, #8B2942, #8B6914, #A61B1B, #C09070, #C42B2B, #C9A227, #D4BC8A, #E8C4A0, #E8D5A8, #F4E6C4, #FFF8EE
 frames:
-  00 idle0: visible=1623
-  01 idle1: visible=1594
-  02 walk0: visible=1568
-  03 walk1: visible=1607
-  04 walk2: visible=1539
-  05 walk3: visible=1569
-  06 windup0: visible=1550
-  07 windup1: visible=1422
-  08 windup2: visible=1319
-  09 strike0: visible=1571
-  10 strike1: visible=1606
-  11 strike2: visible=1575
-  12 strike3: visible=1552
-  13 hurt0: visible=1435
+  00 idle0: visible=1628
+  01 idle1: visible=1597
+  02 walk0: visible=1570
+  03 walk1: visible=1609
+  04 walk2: visible=1541
+  05 walk3: visible=1571
+  06 windup0: visible=1658
+  07 windup1: visible=1493
+  08 windup2: visible=1359
+  09 strike0: visible=1671
+  10 strike1: visible=1691
+  11 strike2: visible=1651
+  12 strike3: visible=1557
+  13 hurt0: visible=1436
   14 hurt1: visible=1315
-  15 parry0: visible=1522
-  16 parry1: visible=1564
-  17 parry2: visible=1364
+  15 parry0: visible=1547
+  16 parry1: visible=1594
+  17 parry2: visible=1470
 
 untouched_ok: qingyi md5=977296aec036a4ab018495d9ea97d5d7
 untouched_ok: langren md5=3d03e01ea2db13abd2e966dca1ec7512
 untouched_ok: xiaoer md5=5948ba8a86da96a5e5ddc127f5597b71
 TOTAL_OOB=0
+
+## design
+- tiezhang: open palm + jade shock glow (no sword); double-bun; hip medicine pouch JADE_B
+- qinshi: fuchen (wood handle + paper-hair tuft); violet upper + paper-light lower; forehead violet mark
+
+## pose diffs (idle vs)
+- tiezhang: windup=1948 parry=1505 strike=1406; strike bbox maxx=63
+- qinshi: windup=1989 parry=1568 strike=1498; strike bbox maxx=63
+- ref qingyi r2: windup~1842 parry~1478
+
+## weaknesses
+- qinshi whisk at 64px still tends to read as soft arc/swoosh more than classic horsehair fuchen
+- faces stay minimal (same as r2)
+- windup hem can crowd shoe line; pouch can overlap rear coat flare
+- no separate 指訣 alternate — strike is whisk sweep only for qinshi

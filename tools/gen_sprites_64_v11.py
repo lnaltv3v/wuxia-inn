@@ -373,24 +373,25 @@ def tiezhang_draw(img, pose):
             open_palm(img, cx + 14, ty - 2, SKIN, JADE_B)
             rect(img, cx - 14, ty + 16, cx - 8, ty + 26, ROBE_R)
         elif phase == 1:
-            # === HIT FRAME — full arm thrust + shock palm ===
+            # === HIT FRAME — full arm thrust + shock palm (reach near x=63) ===
             rect(img, cx - 14, ty + 8, cx - 4, ty + 18, ROBE_R)
             sleeve_folds(img, cx - 14, cx - 4, ty + 9, ty + 17, BLOOD, CINN_B)
             hand(img, cx - 14, ty + 16, SKIN)
-            rect(img, cx + 6, ty + 0, cx + 24, ty + 10, ROBE_R)
-            sleeve_folds(img, cx + 6, cx + 24, ty + 1, ty + 9, BLOOD, CINN_B)
-            sleeve_cuff(img, cx + 16, cx + 24, ty + 8, ROBE_R)
-            tz_palm_glow(img, cx + 22, ty + 2, big=True)
+            rect(img, cx + 6, ty + 0, cx + 28, ty + 10, ROBE_R)
+            sleeve_folds(img, cx + 6, cx + 28, ty + 1, ty + 9, BLOOD, CINN_B)
+            sleeve_cuff(img, cx + 20, cx + 28, ty + 8, ROBE_R)
+            tz_palm_glow(img, cx + 28, ty + 2, big=True)
             # forward coat stretch
-            rect(img, cx + 12, ty + 14, cx + 20, ty + 24, ROBE_R)
-            robe_folds(img, cx + 12, cx + 20, ty + 15, ty + 23, BLOOD, CINN_B)
-            # palm-shock arc trail
-            for i in range(0, 18, 3):
-                px(img, cx + 28 + i // 2, ty + 1 - i // 6, JADE_B)
-                px(img, cx + 29 + i // 2, ty + 3 + i // 8, CREAM)
-                px(img, cx + 27 + i // 2, ty + 5, JADE)
-            for i, (dx, dy) in enumerate([(-2, 2), (-4, 0), (-6, 3), (-3, -2)]):
-                px(img, cx + 4 + dx, ty + 4 + dy, JADE_B if i % 2 == 0 else CREAM)
+            rect(img, cx + 12, ty + 14, cx + 22, ty + 24, ROBE_R)
+            robe_folds(img, cx + 12, cx + 22, ty + 15, ty + 23, BLOOD, CINN_B)
+            # dense palm-shock ring + arc
+            for i in range(0, 22, 2):
+                px(img, cx + 36 + i // 2, ty + 0 - i // 8, JADE_B)
+                px(img, cx + 37 + i // 2, ty + 2 + i // 10, CREAM)
+                px(img, cx + 35 + i // 2, ty + 4, JADE)
+                px(img, cx + 36 + i // 2, ty + 6, JADE_B)
+            for i, (dx, dy) in enumerate([(-2, 2), (-4, 0), (-6, 3), (-3, -2), (0, -4), (2, 3)]):
+                px(img, cx + 6 + dx, ty + 4 + dy, JADE_B if i % 2 == 0 else CREAM)
         elif phase == 2:
             rect(img, cx - 10, ty + 10, cx - 2, ty + 20, ROBE_R)
             hand(img, cx - 10, ty + 18, SKIN)
@@ -492,77 +493,88 @@ def qs_head(img, cx, cy):
 
 
 def qs_whisk_vert(img, hx, hy, tip_up=True):
-    """Fuchen — wood handle + long paper/cream hair tuft."""
-    # handle
+    """Fuchen — wood handle + dense paper/cream hair tuft."""
     rect(img, hx, hy, hx + 3, hy + 16, WOOD)
     vline(img, hx + 1, hy + 1, hy + 15, WOOD_L)
-    # ring / binding
     rect(img, hx - 1, hy - 2, hx + 4, hy + 2, GOLD)
     outline_rect(img, hx - 1, hy - 2, hx + 4, hy + 2, INK)
     px(img, hx + 1, hy - 1, CREAM)
     if tip_up:
-        # hair mass up
-        rect(img, hx - 3, hy - 22, hx + 6, hy - 2, PAPER_L)
-        rect(img, hx - 4, hy - 18, hx + 7, hy - 6, PAPER)
-        # strands
-        for i, ox in enumerate((-3, -1, 1, 3, 5, -2, 2, 4)):
-            px(img, hx + ox, hy - 22 - (i % 3), PAPER_L)
-            px(img, hx + ox, hy - 20 - (i % 2), CREAM if i % 2 == 0 else PAPER_D)
-        px(img, hx + 1, hy - 24, CREAM)
-        px(img, hx - 2, hy - 23, VIOLET)  # violet thread
+        rect(img, hx - 5, hy - 24, hx + 8, hy - 2, PAPER_L)
+        rect(img, hx - 4, hy - 20, hx + 7, hy - 6, PAPER)
+        rect(img, hx - 2, hy - 16, hx + 5, hy - 8, PAPER_D)
+        for i, ox in enumerate((-4, -2, 0, 2, 4, 6, -3, 1, 3, 5)):
+            px(img, hx + ox, hy - 24 - (i % 3), PAPER_L)
+            px(img, hx + ox, hy - 22 - (i % 2), CREAM if i % 2 == 0 else PAPER_D)
+        px(img, hx + 1, hy - 26, CREAM)
+        px(img, hx - 3, hy - 25, VIOLET)
+        px(img, hx + 5, hy - 25, VIOLET)
     else:
-        # hair hanging down
-        rect(img, hx - 3, hy + 14, hx + 6, hy + 34, PAPER_L)
-        rect(img, hx - 4, hy + 16, hx + 7, hy + 30, PAPER)
-        for i, ox in enumerate((-3, -1, 1, 3, 5)):
-            px(img, hx + ox, hy + 32 + (i % 2), PAPER_L)
-            px(img, hx + ox + 1, hy + 30, CREAM)
-        px(img, hx + 2, hy + 33, VIOLET)
+        rect(img, hx - 4, hy + 14, hx + 7, hy + 36, PAPER_L)
+        rect(img, hx - 3, hy + 16, hx + 6, hy + 32, PAPER)
+        rect(img, hx - 1, hy + 18, hx + 4, hy + 28, PAPER_D)
+        for i, ox in enumerate((-4, -2, 0, 2, 4, 5, -3, 1)):
+            px(img, hx + ox, hy + 34 + (i % 2), PAPER_L)
+            px(img, hx + ox + 1, hy + 32, CREAM)
+        px(img, hx + 2, hy + 35, VIOLET)
+        px(img, hx - 2, hy + 33, VIOLET)
 
 
 def qs_whisk_back(img, hx, hy, lean=0):
-    """Windup: whisk cocked high-back, hair streaming up-left."""
+    """Windup: whisk cocked high-back, dense hair streaming up-left."""
     rect(img, hx, hy, hx + 4, hy + 8, WOOD)
     vline(img, hx + 1, hy + 1, hy + 7, WOOD_L)
     rect(img, hx - 2, hy - 2, hx + 6, hy + 2, GOLD)
     outline_rect(img, hx - 2, hy - 2, hx + 6, hy + 2, INK)
-    for i in range(20):
+    # solid hair plume block first
+    rect(img, hx - 14 - lean * 2, hy - 26, hx + 4, hy - 2, PAPER_L)
+    rect(img, hx - 12 - lean * 2, hy - 22, hx + 2, hy - 4, PAPER)
+    for i in range(22):
         x = hx - (i // 2) - lean * 2
         y = hy - 4 - i
-        rect(img, x - 1, y, x + 5, y + 2, PAPER_L)
+        rect(img, x - 2, y, x + 6, y + 2, PAPER_L)
         px(img, x, y, PAPER_D)
         if i % 2 == 0:
             px(img, x + 2, y, CREAM)
         if i % 3 == 0:
-            px(img, x - 2, y + 1, PAPER)
-    px(img, hx - 10 - lean * 2, hy - 24, CREAM)
-    px(img, hx - 8 - lean * 2, hy - 26, VIOLET)
-    px(img, hx - 12 - lean * 2, hy - 22, PAPER_L)
+            px(img, x - 3, y + 1, PAPER)
+            px(img, x + 4, y, VIOLET)
+    px(img, hx - 12 - lean * 2, hy - 26, CREAM)
+    px(img, hx - 10 - lean * 2, hy - 28, VIOLET)
+    px(img, hx - 14 - lean * 2, hy - 24, PAPER_L)
 
 
 def qs_whisk_slash(img, hx, hy, length=22, dy=0, flash=False):
-    """Horizontal whisk sweep — hair trails as soft-looking hard pixels."""
+    """Horizontal whisk sweep — dense paper-hair mass + strand tips."""
     rect(img, hx - 3, hy, hx + 2, hy + 5, WOOD)
     vline(img, hx - 2, hy + 1, hy + 4, WOOD_L)
     rect(img, hx + 1, hy - 2, hx + 5, hy + 6, GOLD)
     outline_rect(img, hx + 1, hy - 2, hx + 5, hy + 6, INK)
-    # hair sweep body
-    rect(img, hx + 5, hy - 1 + dy, hx + 5 + length, hy + 5 + dy, PAPER_L)
-    hline(img, hx + 5, hx + 5 + length, hy - 1 + dy, PAPER_D)
-    hline(img, hx + 5, hx + 5 + length, hy + 4 + dy, PAPER)
-    # strand tips / arc
+    # thick hair body (3 bands)
+    rect(img, hx + 5, hy - 3 + dy, hx + 5 + length, hy + 7 + dy, PAPER_L)
+    rect(img, hx + 5, hy - 1 + dy, hx + 5 + length - 2, hy + 5 + dy, PAPER)
+    rect(img, hx + 7, hy + 1 + dy, hx + 5 + length - 4, hy + 3 + dy, PAPER_D)
+    hline(img, hx + 5, hx + 5 + length, hy - 3 + dy, PAPER_D)
+    hline(img, hx + 5, hx + 5 + length, hy + 6 + dy, PAPER)
+    # strand tips / fan at tip
     for i in range(0, length, 2):
-        px(img, hx + 6 + i, hy - 3 + dy - (i // 8), CREAM)
-        px(img, hx + 7 + i, hy + 6 + dy + (i // 10), PAPER_L)
-        if i % 4 == 0:
+        px(img, hx + 6 + i, hy - 5 + dy - (i // 10), CREAM)
+        px(img, hx + 7 + i, hy + 8 + dy + (i // 12), PAPER_L)
+        px(img, hx + 6 + i, hy - 4 + dy, PAPER_L)
+        if i % 3 == 0:
             px(img, hx + 6 + i, hy + 2 + dy, VIOLET)
+            px(img, hx + 8 + i, hy + 0 + dy, CREAM)
     tip = hx + 4 + length
-    px(img, tip, hy + 1 + dy, CREAM)
-    px(img, tip + 1, hy + 2 + dy, PAPER_L)
-    px(img, tip, hy - 1 + dy, CREAM)
+    # fan tip silhouette
+    rect(img, tip - 2, hy - 4 + dy, tip + 3, hy + 8 + dy, PAPER_L)
+    px(img, tip + 2, hy + 1 + dy, CREAM)
+    px(img, tip + 3, hy + 2 + dy, PAPER_L)
+    px(img, tip + 2, hy - 2 + dy, CREAM)
+    px(img, tip + 1, hy + 6 + dy, PAPER_D)
     if flash:
-        for dx, dy2, c in [(-1, -3, CREAM), (1, -2, GOLD), (2, 1, CREAM),
-                           (0, 5, VIOLET), (-2, -4, PAPER_L), (3, 0, CREAM)]:
+        for dx, dy2, c in [(-1, -5, CREAM), (1, -4, GOLD), (3, 0, CREAM),
+                           (2, 5, VIOLET), (-2, -6, PAPER_L), (4, 1, CREAM),
+                           (3, 3, GOLD), (0, 8, PAPER_L)]:
             px(img, tip + dx, hy + dy + dy2, c)
 
 

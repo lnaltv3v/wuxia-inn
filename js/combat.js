@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 自動即時走位戰鬥（v1.1.0：衝鋒／拉距 AI）
+ * 俠客棧 — 自動即時走位戰鬥（v1.2.0：招架反打窗口）
  * 戰場 960×540；狀態機：idle→approach→windup→strike→recover（hurt／parry／dodge）
  * 幀語意 v0.9；舞台鏡頭／VFX 加厚見 stages；僅 strike 判定幀傷害；近戰須接觸；速度 0.5–2×
  */
@@ -160,7 +160,11 @@
       hitDone: false,
       telegraph: false,
       chargeT: 0,
-      chargeCd: Math.floor(Math.random() * 20)
+      chargeCd: Math.floor(Math.random() * 20),
+      counterWindow: 0,
+      counterReady: false,
+      _counterStrike: false,
+      comboHits: 0
     };
     return u;
   }
@@ -387,7 +391,12 @@
         target.invuln = Math.max(target.invuln, FIELD.iFrameParry);
         target.pending = null;
         target.telegraph = false;
-        log(target.emoji + target.name + ' 提勁招架 ' + attacker.name + ' 的招！', 'info');
+        // 招架成功：短暫反打窗口（唔改狀態機結構，只開綠燈）
+        target.counterWindow = 3;
+        target.counterReady = true;
+        target.atkCd = 0;
+        target.comboHits = 0;
+        log(target.emoji + target.name + ' 提勁招架 ' + attacker.name + ' 的招！反打可期！', 'info');
         emitAction({
           kind: 'parry',
           attackerId: attacker.id,
@@ -395,6 +404,7 @@
           skillName: skillName,
           side: attacker.side,
           damage: 0,
+          counter: true,
           ax: attacker.x, ay: attacker.y, tx: target.x, ty: target.y
         });
       } else {
@@ -454,6 +464,10 @@
       target.pending = null;
       target.telegraph = false;
       target.hitDone = false;
+      target.comboHits = 0;
+      target.counterReady = false;
+      target.counterWindow = 0;
+      target._counterStrike = false;
     }
 
     function resolveStrikeHit(attacker, target, pending, clash) {
@@ -465,26 +479,40 @@
         return { defended: true, clash: !!clash };
       }
 
-      const dmg = calcDamage(attacker, target, skillMul);
+      let hitMul = skillMul;
+      let isCounter = !!attacker._counterStrike;
+      if (isCounter) {
+        hitMul = skillMul * 1.4;
+        attacker._counterStrike = false;
+      }
+      let dmg = calcDamage(attacker, target, hitMul);
       applyDamage(target, dmg);
-      if (skillName && skillMul > 1) {
+      attacker.comboHits = (attacker.comboHits || 0) + 1;
+      if (isCounter) {
+        log(attacker.emoji + attacker.name + ' 招架反打 → ' + target.name + '，傷害 ' + dmg + '！', 'skill');
+      } else if (skillName && skillMul > 1) {
         log(attacker.emoji + attacker.name + '「' + skillName + '」→ ' + target.name + '，造成 ' + dmg + '！', 'skill');
       } else {
         log(attacker.emoji + attacker.name + ' 攻向 ' + target.name + '，傷害 ' + dmg, attacker.side);
+      }
+      if (!isCounter && attacker.comboHits >= 2 && attacker.comboHits % 2 === 0) {
+        log(attacker.emoji + attacker.name + ' 連擊 ×' + attacker.comboHits, 'info');
       }
 
       const contactDist = dist(attacker, target);
       const wasContact = !pending.ranged && contactDist <= FIELD.contactRange + FEEL.contactSlack;
       emitAction({
-        kind: usedSkill ? 'skill' : 'hit',
+        kind: isCounter ? 'counter' : (usedSkill ? 'skill' : 'hit'),
         attackerId: attacker.id,
         targetId: target.id,
         damage: dmg,
-        skillName: skillName,
+        skillName: isCounter ? '反打' : skillName,
         side: attacker.side,
         ranged: !!pending.ranged,
         contact: wasContact || !pending.ranged,
         clash: !!clash,
+        counter: isCounter,
+        combo: attacker.comboHits || 1,
         phase: 'strike',
         ax: attacker.x, ay: attacker.y, tx: target.x, ty: target.y
       });
@@ -509,6 +537,11 @@
     function beginWindup(attacker, target, opts) {
       const o = opts || {};
       const ranged = !!o.ranged;
+      if (attacker.counterReady || attacker.counterWindow > 0) {
+        attacker._counterStrike = true;
+        attacker.counterReady = false;
+        attacker.counterWindow = 0;
+      }
       // 近戰：進入讀招前盡量貼身
       if (!ranged) {
         const toward = target.x >= attacker.x ? 1 : -1;
@@ -985,9 +1018,13 @@
 
       // 5) CD
       alive.forEach(function (u) {
+        if (u.counterWindow > 0) {
+          u.counterWindow -= 1;
+          if (u.atkCd > 0) u.atkCd = 0;
+          if (u.counterWindow <= 0 && !u._counterStrike) u.counterReady = false;
+        }
         if (u.atkCd > 0 && canControlMove(u)) {
           u.atkCd -= 1;
-          // 衝鋒近身：額外縮短攻擊間隔一點
           if (u.ai === 'charge' && u.engage && u.atkCd > 0 && Math.random() < 0.35) u.atkCd -= 1;
         }
       });

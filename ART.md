@@ -1,6 +1,6 @@
 # 俠客棧美術規範 — 墨點江湖（Ink-Pixel Inn）
 
-> 版本：v1.1.0 · 獨有風格體系，**禁止**混用《大俠立志傳》高清像素立繪、照片級插畫、或不同解析度素材。
+> 版本：v1.2.0 · 獨有風格體系，**禁止**混用《大俠立志傳》高清像素立繪、照片級插畫、或不同解析度素材。
 
 ## 風格名
 **墨點江湖**（英文：**Ink-Pixel Inn**）
@@ -79,7 +79,8 @@
 
 ## 精靈表幀語意（v0.9 · 接線自 v0.8.1）
 
-> **v0.9 精修交付**：`qingyi`／`langren` 已推倒重畫；**r2** 加大姿勢差／判定幀可讀（見 `assets/sprites/64/README.md`、`_gen_report_v09.txt`）。其餘角待修。遊戲載入 `assets/sprites/64/?v=` + GAME.version。
+> **v0.9 精修交付**：`qingyi`／`langren` 已推倒重畫；**r2** 加大姿勢差／判定幀可讀（見 `assets/sprites/64/README.md`、`_gen_report_v09.txt`）。
+> **v1.2.0**：`tiezhang`／`qinshi` 正式精修覆寫（`gen_sprites_64_v11.py`、`_gen_report_v11`、compare 預覽）；**唔動** qingyi／langren。遊戲載入 `assets/sprites/64/?v=` + GAME.version。
 
 18 幀橫表（64×64／幀，1152×64）：
 

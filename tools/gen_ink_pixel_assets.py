@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate Ink-Pixel Inn assets: Ink-Pixel palette-locked hard-edge sprites/scenes.
 
-Sprites 32×32; Hub scenes native 960×540 (v2.0, hard edge, palette-locked, no AA).
+Sprites 32×32; Hub scenes native 960×540 (v2.1 生活感, hard edge, palette-locked, no AA).
 Sprites owned by 墨點美術; Hub scenes by 墨點場景.
 Native 64×64 sheets: tools/gen_sprites_64.py → assets/sprites/64/ (do not NN-upscale 32).
 Use --scenes-only to regenerate Hub assets/scenes/ + hub previews without touching sprites.
@@ -1673,25 +1673,44 @@ def draw_lantern(img, lx, ly, hanging=True, night=False):
     fill_rect(img, lx + 1, ly + 1, lx + 8, ly + 11, CINN_B)
     fill_rect(img, lx, ly, lx + 9, ly + 2, GOLD)
     fill_rect(img, lx, ly + 10, lx + 9, ly + 12, GOLD)
-    # flame
+    # day flame — small cream core (readable but quieter than night)
     px(img, lx + 4, ly + 5, CREAM)
     px(img, lx + 3, ly + 6, PAPER_L)
     px(img, lx + 5, ly + 6, LOESS)
     if night:
-        # larger flame core + extra cream / cinnabar bright cells
-        px(img, lx + 4, ly + 4, CREAM)
+        # v2.1 stronger night: bigger cream / cinnabar core + more hard light spots
+        fill_rect(img, lx + 2, ly + 3, lx + 7, ly + 9, CINN_B)
+        fill_rect(img, lx + 3, ly + 4, lx + 6, ly + 8, CREAM)
+        px(img, lx + 4, ly + 3, PAPER_L)
+        px(img, lx + 4, ly + 5, CREAM)
         px(img, lx + 3, ly + 5, CREAM)
         px(img, lx + 5, ly + 5, CREAM)
         px(img, lx + 4, ly + 6, PAPER_L)
+        px(img, lx + 2, ly + 5, CINN_B)
+        px(img, lx + 6, ly + 5, CINN_B)
         px(img, lx + 2, ly + 6, CINN_B)
         px(img, lx + 6, ly + 6, CINN_B)
+        px(img, lx + 2, ly + 7, GOLD)
+        px(img, lx + 6, ly + 7, GOLD)
         px(img, lx + 4, ly + 7, LOESS)
-        # hard-block night "glow" halo (opaque night ink / wood, NOT soft alpha)
-        for ox, oy in [(-2, 4), (-1, 3), (9, 4), (10, 3), (3, -1), (5, -1),
-                       (-2, 8), (9, 8), (1, 13), (7, 13)]:
+        px(img, lx + 4, ly + 8, GOLD)
+        # hard-block night "glow" spots (opaque palette cells, NOT soft alpha)
+        for ox, oy in [(-3, 3), (-2, 4), (-1, 2), (-1, 5), (9, 2), (9, 5), (10, 3), (10, 4),
+                       (2, -2), (3, -1), (4, -2), (5, -1), (6, -2),
+                       (-3, 7), (-2, 8), (-1, 9), (9, 7), (10, 8), (9, 9),
+                       (0, 13), (1, 12), (2, 13), (3, 14), (4, 13), (5, 14), (6, 13), (7, 12), (8, 13),
+                       (-2, 6), (10, 6)]:
             px(img, lx + ox, ly + oy, NIGHT)
-        for ox, oy in [(-1, 4), (9, 4), (4, -1), (2, 13), (6, 13)]:
+        for ox, oy in [(-1, 3), (-1, 4), (9, 3), (9, 4), (4, -1), (3, 13), (5, 13),
+                       (1, 13), (7, 13), (2, 14), (6, 14)]:
             px(img, lx + ox, ly + oy, INK_SOFT)
+        for ox, oy in [(0, 4), (8, 4), (4, 12), (3, 11), (5, 11)]:
+            px(img, lx + ox, ly + oy, WOOD)
+        # extra cream / gold sparkles as hard light spots near lantern
+        for ox, oy in [(1, 3), (7, 3), (0, 7), (8, 7), (4, 1)]:
+            px(img, lx + ox, ly + oy, GOLD)
+        for ox, oy in [(3, 2), (5, 2)]:
+            px(img, lx + ox, ly + oy, LOESS)
     # tassels longer
     vline(img, lx + 2, ly + 12, ly + 18, GOLD)
     vline(img, lx + 6, ly + 12, ly + 18, GOLD)
@@ -1699,9 +1718,81 @@ def draw_lantern(img, lx, ly, hanging=True, night=False):
     px(img, lx + 6, ly + 18, LOESS)
 
 
+def draw_rag(img, x, y, w=10, h=4, cloth=MIST):
+    """Folded wiping cloth — hard edge lifestyle prop."""
+    fill_rect(img, x, y, x + w, y + h, cloth)
+    outline_rect(img, x, y, x + w, y + h, INK_SOFT)
+    hline(img, x + 1, x + w - 1, y + 1, PAPER_D if cloth != PAPER_D else FRAME)
+    px(img, x + w // 2, y + h - 1, INK_SOFT)
+
+
+def draw_towel(img, x, y, w=8, h=12, cloth=PAPER_L):
+    """Hanging towel on peg / stool edge."""
+    px(img, x + w // 2, y - 1, INK)
+    fill_rect(img, x, y, x + w, y + h, cloth)
+    outline_rect(img, x, y, x + w, y + h, INK_SOFT)
+    vline(img, x + 2, y + 2, y + h - 2, FRAME if cloth != FRAME else MIST)
+    vline(img, x + w - 3, y + 2, y + h - 2, PAPER_D if cloth == PAPER_L else INK_SOFT)
+    px(img, x + 1, y + h - 1, cloth)
+    px(img, x + w - 2, y + h - 1, cloth)
+
+
+def draw_tea_tray(img, x, y, w=16, h=6):
+    """Small tea tray with cups — counter / table lifestyle."""
+    draw_hard_shadow(img, x + 1, y + 2, w - 2, h - 1, ox=2, oy=1, col=NIGHT)
+    fill_rect(img, x, y, x + w, y + h, WOOD_L)
+    outline_rect(img, x, y, x + w, y + h, INK)
+    hline(img, x + 1, x + w - 1, y + 1, WOOD)
+    for i, cx0 in enumerate((x + 2, x + 7, x + 12)):
+        if cx0 + 3 >= x + w:
+            break
+        fill_rect(img, cx0, y + 2, cx0 + 3, y + h - 1, CREAM if i != 1 else PAPER_L)
+        outline_rect(img, cx0, y + 2, cx0 + 3, y + h - 1, INK_SOFT)
+
+
+def draw_wall_ornament(img, x, y, kind=0):
+    """Small wall decor: plaque / charm / paper scrap."""
+    if kind == 0:
+        # wood plaque + cinnabar seal
+        fill_rect(img, x, y, x + 12, y + 10, FRAME)
+        fill_rect(img, x + 1, y + 1, x + 11, y + 9, WOOD_L)
+        outline_rect(img, x, y, x + 12, y + 10, INK)
+        fill_rect(img, x + 4, y + 3, x + 8, y + 7, CINN)
+        px(img, x + 5, y + 4, CINN_B)
+        px(img, x + 6, y + 5, GOLD)
+    elif kind == 1:
+        # hanging charm
+        vline(img, x + 3, y - 4, y, INK)
+        fill_rect(img, x, y, x + 7, y + 9, JADE)
+        fill_rect(img, x + 1, y + 1, x + 6, y + 8, JADE_B)
+        outline_rect(img, x, y, x + 7, y + 9, INK)
+        px(img, x + 3, y + 3, GOLD)
+        px(img, x + 3, y + 6, CREAM)
+    else:
+        # small notice paper scrap at corner
+        fill_rect(img, x, y, x + 9, y + 11, PAPER)
+        outline_rect(img, x, y, x + 9, y + 11, INK_SOFT)
+        fill_rect(img, x, y, x + 9, y + 2, WOOD_L)
+        for sy in range(y + 3, y + 10, 2):
+            hline(img, x + 2, x + 7, sy, INK_SOFT)
+        px(img, x + 6, y + 4, CINN)
+
+
+def draw_hanging_broom(img, x, y, h=22):
+    """Wall / corner hanging broom — lifestyle, not blocking corridor."""
+    vline(img, x + 1, y, y + h - 6, WOOD_L)
+    vline(img, x + 2, y, y + h - 6, WOOD)
+    px(img, x + 1, y - 1, INK)
+    fill_rect(img, x - 2, y + h - 6, x + 6, y + h, FRAME)
+    fill_rect(img, x - 1, y + h - 5, x + 5, y + h - 1, WOOD_L)
+    for ox in range(-1, 5):
+        px(img, x + ox, y + h - 1, INK_SOFT)
+
+
 def make_hub_layers():
-    """Hub v2.0 — native 960×540 (draw logical 480×270 then NEAREST ×2).
-    Throng ~halved; hotspot breathing room; corridor mid clear (logical x 195–275 → 390–550).
+    """Hub v2.1 生活感 — native 960×540 (draw logical 480×270 then NEAREST ×2).
+    Optional hub_props layer; stronger night lanterns; throng still restrained;
+    hotspot breathing room; corridor mid clear (logical x 195–275 → 390–550).
     """
     # Draw at logical base, then integer-scale to native output size.
     BW, BH = 480, 270
@@ -2073,6 +2164,82 @@ def make_hub_layers():
         px(furn, hx, hy + 10, CREAM)
     layers_base["hub_furniture.png"] = furn
 
+    # ----- PROPS (v2.1 optional lifestyle layer — mid; keep corridor + hotspots clear) -----
+    props = Image.new("RGBA", (BW, BH), TRANS)
+    # wall ornaments / paper scraps — away from notice(108)/map(362)/door
+    for ox, oy, kind in [
+        (160, 100, 0), (220, 104, 1), (300, 102, 2),
+        (240, 112, 0), (420, 108, 1), (84, 112, 2),
+        (336, 108, 2),
+    ]:
+        draw_wall_ornament(props, ox, oy, kind=kind)
+    # hanging brooms / towels on wall pegs (not corridor 195–275)
+    draw_hanging_broom(props, 62, 148, 24)
+    draw_hanging_broom(props, 438, 150, 22)
+    draw_towel(props, 74, 150, 7, 14, cloth=PAPER_L)
+    draw_towel(props, 448, 152, 7, 13, cloth=MIST)
+    draw_towel(props, 168, 148, 8, 12, cloth=PAPER_D)
+    # wine jars / small pots tucked at wall feet & table gaps (no corridor)
+    for jx, jy, col in [
+        (12, 220, JADE), (14, 238, CINN),
+        (448, 210, TEAL), (452, 250, VIOLET),
+        (88, 178, JADE_B), (402, 178, CINN_B),
+        (42, 168, TEAL_B),
+    ]:
+        draw_hard_shadow(props, jx, jy + 4, 10, 8, ox=2, oy=2, col=NIGHT)
+        draw_floor_jar(props, jx, jy, col)
+    for qx, qy, col in [
+        (78, 200, FRAME), (128, 248, WOOD), (300, 248, FRAME),
+        (418, 248, WOOD), (36, 250, FRAME),
+    ]:
+        draw_hard_shadow(props, qx, qy + 3, 7, 6, ox=2, oy=1, col=NIGHT)
+        draw_small_pot(props, qx, qy, col=col)
+    # rags / towels on stools & table edges (readable wipe lifestyle)
+    for rx, ry, cloth in [
+        (34, 188, MIST), (92, 188, PAPER_D), (286, 190, MIST),
+        (286, 248, PAPER_L), (424, 198, PAPER_D), (48, 258, MIST),
+        (430, 252, PAPER_L),
+    ]:
+        draw_rag(props, rx, ry, 10, 4, cloth=cloth)
+    for tx, ty, cloth in [
+        (38, 198, PAPER_L), (312, 244, MIST), (408, 254, PAPER_D),
+        (96, 248, PAPER_L),
+    ]:
+        draw_towel(props, tx, ty, 7, 10, cloth=cloth)
+    # tea trays on guest tables (not on counter — counter already dense)
+    draw_tea_tray(props, 48, 172, 16, 6)
+    draw_tea_tray(props, 298, 172, 16, 6)
+    draw_tea_tray(props, 292, 248, 14, 6)
+    draw_tea_tray(props, 58, 246, 14, 5)
+    # small notice scraps near board / bookshelf corners (hotspot edges, not covering)
+    draw_wall_ornament(props, 100, 88, kind=2)
+    draw_wall_ornament(props, 150, 90, kind=2)
+    draw_wall_ornament(props, 352, 90, kind=2)
+    # counter-adjacent lifestyle: rag + tea tray overhang (still outside corridor)
+    draw_rag(props, 150, 164, 12, 4, cloth=MIST)
+    draw_rag(props, 318, 164, 10, 4, cloth=PAPER_D)
+    draw_tea_tray(props, 178, 158, 16, 6)
+    # safety: clear corridor mid band logical x 195–275, y 160–268
+    for y in range(160, 269):
+        for x in range(195, 276):
+            r, g, b, a = props.getpixel((x, y))
+            if a:
+                props.putpixel((x, y), TRANS)
+    # light clear around major hotspots (door / notice / map / seat) — keep breathing
+    for (x0, y0, x1, y1) in [
+        (8, 96, 54, 148),      # door face already on wall; no props over
+        (108, 92, 152, 140),   # notice board core
+        (362, 94, 408, 144),   # map rack core
+        (338, 178, 410, 214),  # hero seat carpet + breathing (→676–820,356–428)
+    ]:
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                if 0 <= x < BW and 0 <= y < BH:
+                    r, g, b, a = props.getpixel((x, y))
+                    if a:
+                        props.putpixel((x, y), TRANS)
+    layers_base["hub_props.png"] = props
+
     # ----- LANTERNS + 旗串 (keep, not packed) -----
     lan = Image.new("RGBA", (BW, BH), TRANS)
     draw_pennant_string(lan, 20, 74, 160, n=12, drop=9,
@@ -2143,11 +2310,18 @@ def make_hub_layers():
     draw_produce_basket(fg, 330, 255, 16, 11, fills=[LOESS, JADE_B, CINN_B])
     fill_rect(fg, 0, 240, 6, 270, WOOD)
     fill_rect(fg, 0, 255, 10, 268, FRAME)
+    # v2.1: front-edge lifestyle (towel / rag) — folded into fg instead of separate props_fg
+    draw_rag(fg, 24, 256, 12, 4, cloth=MIST)
+    draw_towel(fg, 58, 248, 7, 12, cloth=PAPER_L)
+    draw_rag(fg, 392, 256, 11, 4, cloth=PAPER_D)
+    draw_towel(fg, 448, 248, 7, 11, cloth=MIST)
+    draw_tea_tray(fg, 18, 248, 14, 5)
     layers_base["hub_fg.png"] = fg
 
     composed = Image.new("RGBA", (BW, BH), NIGHT)
+    # z-order: wall→floor→furniture→counter→props→lanterns→fg  (角色插喺 props 同 lanterns 之間)
     for key in ["hub_wall.png", "hub_floor.png", "hub_furniture.png", "hub_counter.png",
-                "hub_lanterns.png", "hub_fg.png"]:
+                "hub_props.png", "hub_lanterns.png", "hub_fg.png"]:
         composed.alpha_composite(layers_base[key])
     layers_base["hub_composed.png"] = composed
 
@@ -2540,10 +2714,10 @@ def write_previews(sprites_only=False):
 
 
 def write_scenes_only():
-    """Regenerate Hub layers only — owned by 墨點場景. Does not touch sprites."""
+    """Regenerate Hub layers only — owned by 墨點場景. Does not touch sprites / battle_*."""
     SCENES.mkdir(parents=True, exist_ok=True)
     PREVIEW.mkdir(parents=True, exist_ok=True)
-    report = ["# Ink-Pixel Inn Hub scenes report v2.0 (960×540)", ""]
+    report = ["# Ink-Pixel Inn Hub scenes report v2.1 生活感 (960×540)", ""]
     layers = make_hub_layers()
     for name, im in layers.items():
         assert im.size == (960, 540), f"{name} size {im.size}"
@@ -2559,22 +2733,30 @@ def write_scenes_only():
     # readable preview: native 960 + optional ×2 for inspect
     hub.save(PREVIEW / "hub_composed_x2.png")  # already 960; keep filename for pipeline
     hub.resize((hub.width * 2, hub.height * 2), Image.NEAREST).save(PREVIEW / "hub_read.png")
-    report.append("PREVIEWS: hub_composed_x2.png (=960 native) hub_read.png (1920×1080) refreshed")
+    # night composed preview for day/night contrast check
+    night = Image.new("RGBA", (960, 540), NIGHT)
+    for key in ["hub_wall.png", "hub_floor.png", "hub_furniture.png", "hub_counter.png",
+                "hub_props.png", "hub_lanterns_night.png", "hub_fg.png"]:
+        night.alpha_composite(layers[key])
+    night.save(PREVIEW / "hub_composed_night.png")
+    report.append("PREVIEWS: hub_composed_x2.png (=960 native) hub_read.png (1920×1080) hub_composed_night.png refreshed")
     report.append("")
     report.append("## z-order（由底到頂）")
-    report.append("wall → floor → furniture → counter → （角色）→ lanterns → fg")
-    report.append("夜間：lanterns 換成 hub_lanterns_night.png")
+    report.append("wall → floor → furniture → counter → props → （角色）→ lanterns → fg")
+    report.append("夜間：lanterns 換成 hub_lanterns_night.png（焰心／硬光斑更亮，日夜一眼可辨）")
+    report.append("可選層：hub_props.png（酒罈／抹布／牆飾／掛帚／茶托）；fg 含前緣毛巾／抹布")
     report.append("")
     report.append("## 熱點錨點（960×540 = 邏輯×2）")
     report.append("大門 12–108,164–300｜告示 216–304,184–280｜書架 216–296,224–324")
     report.append("櫃檯 306–674,326–440｜地圖 724–816,182–288｜俠客席 676–820,356–424")
-    report.append("走廊中軸 390–550,320–500（暢通，無 throng）")
+    report.append("走廊中軸 390–550,320–500（暢通；props 層已清帶）")
     report.append("")
     report.append("## 重生")
     report.append("python3 tools/gen_ink_pixel_assets.py --scenes-only")
-    print("PREVIEWS: hub_composed_x2.png hub_read.png refreshed")
+    report.append("（一併出 hub_props.png／加強夜燈；唔動 sprites／battle_*）")
+    print("PREVIEWS: hub_composed_x2.png hub_read.png hub_composed_night.png refreshed")
     (SCENES / "_gen_report.txt").write_text("\n".join(report) + "\n", encoding="utf-8")
-    print("DONE v2.0 scenes-only")
+    print("DONE v2.1 scenes-only")
 
 
 

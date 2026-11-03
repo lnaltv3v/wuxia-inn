@@ -1,12 +1,12 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v1.1.0：出巡預覽／場景事件／羈絆）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v1.2.0：客人偏好／茶寮／招架反打）
  */
 (function () {
   'use strict';
 
   const {
     GAME, INN_LEVELS, GUESTS, RUMORS, XIAOER_LINES, GUEST_EVENTS, SCENE_EVENTS, HERO_TEMPLATES, ENEMY_WAVES, TRAIN,
-    MARTIAL_ARTS, BOND_EVENTS, LIBRARY, formatWavePreview, waveRiskStars,
+    MARTIAL_ARTS, BOND_EVENTS, LIBRARY, formatWavePreview, waveRiskStars, guestPhaseMul, XIAOER_PHASE_LINES,
     OUTPOSTS, FACILITIES, QUEST_TEMPLATES,
     STORY_CHAPTERS, BOSS_ENCOUNTERS, ACHIEVEMENTS,
     weightedPick, randInt, heroStatsAtLevel,
@@ -268,6 +268,32 @@
   /** 酒窖：收入額外倍率 */
   function cellarIncomeMul() {
     return 1 + facilityLevel('cellar') * 0.08;
+  }
+
+  /** 雅座茶寮：小費／賞銀倍率（同酒窖手感分離） */
+  function teahouseTipMul() {
+    return 1 + facilityLevel('teahouse') * 0.14;
+  }
+
+  /** 茶寮對「對上偏好」再加一層 */
+  function teahousePreferBonus() {
+    return 1 + facilityLevel('teahouse') * 0.04;
+  }
+
+  function currentDayPhase() {
+    if (globalThis.WuxiaStages && WuxiaStages.Inn && typeof WuxiaStages.Inn.dayPhaseName === 'function') {
+      try { return WuxiaStages.Inn.dayPhaseName() || 'day'; } catch (e) { return 'day'; }
+    }
+    return 'day';
+  }
+
+  function guestPayMul(guest) {
+    const phase = currentDayPhase();
+    let mul = 1;
+    if (typeof guestPhaseMul === 'function') mul *= guestPhaseMul(guest, phase);
+    mul *= teahouseTipMul();
+    if (guest && guest.preferPhase === phase) mul *= teahousePreferBonus();
+    return mul;
   }
 
   /** 練武場：費用折扣、收益加成 */
@@ -666,7 +692,9 @@
       const chance = Math.min(0.85, 0.35 + inn.guestCap * 0.05);
       if (Math.random() <= chance) {
         const guest = weightedPick(GUESTS);
-        const tipMul = (count <= 3) ? ambientTipMul() : 1;
+        const ambient = (count <= 3) ? ambientTipMul() : 1;
+        const prefMul = (count <= 3) ? guestPayMul(guest) : teahouseTipMul();
+        const tipMul = ambient * prefMul;
         let pay = Math.round(randInt(guest.payMin, guest.payMax) * incomeMul * tipMul);
         let eventNote = null;
         if (count <= 3) {
@@ -678,7 +706,10 @@
         state.guestsServed += 1;
         if (i === count - 1 || count <= 3) {
           const verb = guest.kind === 'stay' ? '住店一夜' : '點了一桌酒菜';
-          pushLog(`${guest.name}${verb}，收入 ${pay} 兩。`, 'earn');
+          const phase = currentDayPhase();
+          const prefHit = guest.preferPhase === phase;
+          const tag = prefHit ? '（時辰對味）' : '';
+          pushLog(`${guest.name}${verb}${tag}，收入 ${pay} 兩。`, 'earn');
           if (eventNote) pushLog(eventNote, 'system');
         }
         // 舞台演出：僅即時 tick（非大段離線結算）才逐一播放
@@ -762,7 +793,11 @@
     let pay = basePay;
     let note = ev.text;
     if (ev.kind === 'tip') {
-      const tip = Math.max(1, Math.round(randInt(ev.tipMin || 1, ev.tipMax || 3) * mul));
+      let tipScale = mul;
+      if (ev.preferBoost && guest && guest.preferPhase === currentDayPhase()) {
+        tipScale *= 1.25 * teahousePreferBonus();
+      }
+      const tip = Math.max(1, Math.round(randInt(ev.tipMin || 1, ev.tipMax || 3) * tipScale));
       pay += tip;
       note = guest.name + '——' + ev.text + '（＋' + tip + ' 兩）';
     } else if (ev.kind === 'difficult') {
@@ -894,10 +929,22 @@
       pushLog('【江湖傳聞】' + rumor, 'system');
       const hint = document.getElementById('hub-hint');
       if (hint && !battle) hint.textContent = '傳聞：' + rumor;
-    } else if (!busy && now - lastGreetAt > 22000 && Math.random() < 0.42) {
+    } else if (!busy && now - lastGreetAt > 18000 && Math.random() < 0.48) {
       lastGreetAt = now;
-      const line = XIAOER_GREETS[Math.floor(Math.random() * XIAOER_GREETS.length)];
+      let line = null;
+      const ph = currentDayPhase();
+      const phasePool = (typeof XIAOER_PHASE_LINES !== 'undefined' && XIAOER_PHASE_LINES && XIAOER_PHASE_LINES[ph])
+        ? XIAOER_PHASE_LINES[ph] : null;
+      if (phasePool && phasePool.length && Math.random() < 0.55) {
+        line = phasePool[Math.floor(Math.random() * phasePool.length)];
+      } else {
+        line = XIAOER_GREETS[Math.floor(Math.random() * XIAOER_GREETS.length)];
+      }
       if (WuxiaStages.Inn.greetXiaoer) WuxiaStages.Inn.greetXiaoer(line);
+      // 偶發短事件：小二自言自語上日誌
+      if (Math.random() < 0.22) {
+        pushLog('【小二】' + line, 'system');
+      }
     }
   }
 
@@ -2161,11 +2208,15 @@
     }
     if (WuxiaStages.Inn.setTipHandler) {
       WuxiaStages.Inn.setTipHandler((amt) => {
-        const n = Math.max(0, Math.round(amt || 0));
+        let n = Math.max(0, Math.round(amt || 0));
         if (!n) return;
+        // 舞台已乘日夜；此處再乘茶寮（唔重複乘 ambient）
+        n = Math.max(1, Math.round(n * teahouseTipMul()));
         state.silver += n;
+        state.totalEarned += n;
         audioPlay('coin');
-        pushLog('雅座賞銀 +' + n + ' 兩。', 'earn');
+        const tea = facilityLevel('teahouse');
+        pushLog('雅座賞銀 +' + n + ' 兩' + (tea ? '（茶寮 Lv.' + tea + '）' : '') + '。', 'earn');
         updateTopbar();
       });
     }
@@ -2299,7 +2350,7 @@
       <div class="card ink-card panel-block">
         <header class="panel-sec">
           <h2>${pxIcon('🏯')} ${inn.name}</h2>
-          <p class="muted panel-lead">升級、設施、藏書——接客喺場景自動演。</p>
+          <p class="muted panel-lead">升級、設施、藏書——接客喺場景自動演。雅座茶寮偏小費／時辰偏好，酒窖偏底薪。</p>
         </header>
         <div class="stat-grid">
           <div><span class="label">收入倍率</span><b id="inn-stat-mul">×${(inn.incomeMul * cellarIncomeMul()).toFixed(2)}</b></div>

@@ -1,23 +1,26 @@
-# Ink-Pixel Inn Hub scenes report v2.0 (960×540)
+# Ink-Pixel Inn Hub scenes report v2.1 生活感 (960×540)
 
 SCENE hub_floor.png: size=(960, 540) opaque=234616 oob=0 oob_cols={} bytes=13721
 SCENE hub_wall.png: size=(960, 540) opaque=288000 oob=0 oob_cols={} bytes=7126
 SCENE hub_counter.png: size=(960, 540) opaque=47256 oob=0 oob_cols={} bytes=4070
 SCENE hub_furniture.png: size=(960, 540) opaque=107644 oob=0 oob_cols={} bytes=13744
+SCENE hub_props.png: size=(960, 540) opaque=16136 oob=0 oob_cols={} bytes=6043
 SCENE hub_lanterns.png: size=(960, 540) opaque=20376 oob=0 oob_cols={} bytes=5146
-SCENE hub_lanterns_night.png: size=(960, 540) opaque=21284 oob=0 oob_cols={} bytes=6282
-SCENE hub_fg.png: size=(960, 540) opaque=16936 oob=0 oob_cols={} bytes=4060
-SCENE hub_composed.png: size=(960, 540) opaque=518400 oob=0 oob_cols={} bytes=30583
-PREVIEWS: hub_composed_x2.png (=960 native) hub_read.png (1920×1080) refreshed
+SCENE hub_lanterns_night.png: size=(960, 540) opaque=23288 oob=0 oob_cols={} bytes=7390
+SCENE hub_fg.png: size=(960, 540) opaque=17624 oob=0 oob_cols={} bytes=4430
+SCENE hub_composed.png: size=(960, 540) opaque=518400 oob=0 oob_cols={} bytes=33010
+PREVIEWS: hub_composed_x2.png (=960 native) hub_read.png (1920×1080) hub_composed_night.png refreshed
 
 ## z-order（由底到頂）
-wall → floor → furniture → counter → （角色）→ lanterns → fg
-夜間：lanterns 換成 hub_lanterns_night.png
+wall → floor → furniture → counter → props → （角色）→ lanterns → fg
+夜間：lanterns 換成 hub_lanterns_night.png（焰心／硬光斑更亮，日夜一眼可辨）
+可選層：hub_props.png（酒罈／抹布／牆飾／掛帚／茶托）；fg 含前緣毛巾／抹布
 
 ## 熱點錨點（960×540 = 邏輯×2）
 大門 12–108,164–300｜告示 216–304,184–280｜書架 216–296,224–324
 櫃檯 306–674,326–440｜地圖 724–816,182–288｜俠客席 676–820,356–424
-走廊中軸 390–550,320–500（暢通，無 throng）
+走廊中軸 390–550,320–500（暢通；props 層已清帶）
 
 ## 重生
 python3 tools/gen_ink_pixel_assets.py --scenes-only
+（一併出 hub_props.png／加強夜燈；唔動 sprites／battle_*）

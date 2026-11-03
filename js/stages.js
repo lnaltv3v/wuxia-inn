@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v1.0.0：介面場景化——熱點回饋／門廊引導／Esc·點空關面板／960×540）
+ * 俠客棧 — 墨點江湖舞台（v1.2.0：招架反打／時辰偏好／Hub v2.1 props／960×540）
  * Hub 面板開仍呼吸；熱點墨框／硃標；戰鬥 shake 下調；招名飄字；戰場分層
  */
 (function (global) {
@@ -58,8 +58,8 @@
   };
 
   const SHEET_IDS = ['qingyi', 'tiezhang', 'langren', 'qinshi', 'xiaoer'];
-  const LAYER_ORDER = ['hub_wall', 'hub_floor', 'hub_furniture', 'hub_counter'];
-  // z: … → 角色 → lanterns → fg（夜用 hub_lanterns_night）
+  const LAYER_ORDER = ['hub_wall', 'hub_floor', 'hub_furniture', 'hub_counter', 'hub_props'];
+  // z: wall→floor→furniture→counter→props → 角色 → lanterns → fg（夜用 hub_lanterns_night；Hub v2.1）
   const LAYER_TOP = ['hub_lanterns'];
   const LAYER_FG = ['hub_fg'];
   const LAYER_NIGHT = ['hub_lanterns_night'];
@@ -82,7 +82,7 @@
     clash: { frames: 6 }
   };
 
-  /** 資產快取戳：跟 GAME.version 對齊，確保 v1.2.1 精靈表換檔後瀏覽器重拉 */
+  /** 資產快取戳：跟 GAME.version 對齊，確保 v1.2.0 精靈／場景換檔後瀏覽器重拉 */
   const ASSET_VER = (typeof global !== 'undefined' && global.WuxiaData && global.WuxiaData.GAME && global.WuxiaData.GAME.version)
     ? global.WuxiaData.GAME.version
     : '0.8.3';
@@ -359,6 +359,8 @@
     let guestName = '過路客';
     let payAmt = 0;
     let guestKind = 'meal';
+    let guestPrefer = null;
+    let guestPreferLabel = '';
     let queue = [];
     let coinY = 0;
     let coinAlpha = 0;
@@ -826,6 +828,8 @@
       guestName = job.guest.name || '過路客';
       guestKind = job.guest.kind || 'meal';
       payAmt = job.pay || 0;
+      guestPrefer = job.guest.preferPhase || null;
+      guestPreferLabel = job.guest.preferLabel || '';
       // guest_walk：guestIndex 0–5＝teal／robe-red／ink-soft／violet／jade／wood-hat（對齊 guest_sit）
       guestIndex = Math.floor(Math.random() * 6);
       guestFrame = guestIndex; // 入座後切同色 sit（有杯）
@@ -1270,7 +1274,9 @@
           coinY = 0;
           floatLabel = { text: '+' + payAmt + '兩', x: 500, y: 260, life: 1 };
           playHubSfx('pay');
-          setCaption(guestName + ' 付銀 ' + payAmt + ' 兩');
+          setCaption(guestName + ' 付銀 ' + payAmt + ' 兩' +
+            (guestPrefer && dayPhaseName() === guestPrefer ? ' · 時辰對味' :
+              (guestPreferLabel ? ' · ' + guestPreferLabel : '')));
         }
       } else if (phase === 'pay') {
         const dur = PHASE_MS.pay;
@@ -1765,7 +1771,7 @@
         return;
       }
 
-      if (atk && (evt.kind === 'hit' || evt.kind === 'skill' || evt.kind === 'miss' || evt.kind === 'parry')) {
+      if (atk && (evt.kind === 'hit' || evt.kind === 'skill' || evt.kind === 'counter' || evt.kind === 'miss' || evt.kind === 'parry')) {
         const dir = atk.side === 'ally' ? 1 : -1;
         const alreadyLunging = anims[atk.id] && anims[atk.id].kind === 'lunge';
         // v0.8：strike 事件已開 lunge；命中事件只補目標／VFX，避免重播亂揮
@@ -1778,12 +1784,13 @@
           anims[atk.id] = { kind: 'lunge', t: 0, dur: lungeDur, dir: dir, ranged: !!evt.ranged, reach: reach };
         }
         if (evt.skillName && !alreadyLunging) {
-          fx.push({ kind: 'burst', x: atk.x + 12, y: atk.y + 8, life: 24, max: 24, color: evt.kind === 'skill' ? C.cinnabarBright : C.gold });
-          fx.push({ kind: 'text', text: '「' + evt.skillName + '」', x: atk.x - 24, y: atk.y - 40, life: 58, max: 58, color: C.gold });
+          const isCtr = evt.kind === 'counter';
+          fx.push({ kind: 'burst', x: atk.x + 12, y: atk.y + 8, life: 24, max: 24, color: (evt.kind === 'skill' || isCtr) ? C.cinnabarBright : C.gold });
+          fx.push({ kind: 'text', text: isCtr ? '「反！」' : ('「' + evt.skillName + '」'), x: atk.x - 24, y: atk.y - 40, life: 58, max: 58, color: isCtr ? C.cinnabarBright : C.gold });
         }
         const bossBoost = (atk.heroId && String(atk.heroId).indexOf('boss') >= 0)
           || (tgt && tgt.heroId && String(tgt.heroId).indexOf('boss') >= 0);
-        if (tgt && (evt.kind === 'hit' || evt.kind === 'skill')) {
+        if (tgt && (evt.kind === 'hit' || evt.kind === 'skill' || evt.kind === 'counter')) {
           fx.push({
             kind: 'trail',
             x0: atk.x + (dir > 0 ? 28 : -4),
@@ -1791,16 +1798,19 @@
             x1: tgt.x + 12,
             y1: tgt.y + 12,
             life: 28, max: 28,
-            color: evt.kind === 'skill' ? C.cinnabarBright : C.cream
+            color: (evt.kind === 'skill' || evt.kind === 'counter') ? C.cinnabarBright : C.cream
           });
-          if (!alreadyLunging || evt.clash) spawnBladeFx(atk, tgt, evt.kind === 'skill', bossBoost);
+          if (!alreadyLunging || evt.clash) spawnBladeFx(atk, tgt, (evt.kind === 'skill' || evt.kind === 'counter'), bossBoost);
           else {
             // 判定幀補一層火花／hit_ring
-            pushFxSheet('spark', tgt.x, tgt.y, { dur: scaleDur(14), scale: evt.kind === 'skill' ? 1.35 : 1.15 });
+            pushFxSheet('spark', tgt.x, tgt.y, { dur: scaleDur(14), scale: (evt.kind === 'skill' || evt.kind === 'counter') ? 1.35 : 1.15 });
             pushFxSheet('hit_ring', tgt.x - 4, tgt.y - 4, { dur: scaleDur(12), scale: 1.2 });
           }
         } else if (evt.kind === 'parry') {
           spawnBladeFx(atk, tgt, false, bossBoost);
+          if (tgt) {
+            fx.push({ kind: 'text', text: evt.counter ? '反打！' : '架！', x: tgt.x - 4, y: tgt.y - 36, life: 40, max: 40, color: C.gold, strong: true });
+          }
         } else if (evt.kind === 'miss' && !evt.whiff) {
           spawnBladeFx(atk, tgt, false, bossBoost);
         }
@@ -1879,9 +1889,9 @@
         return;
       }
 
-      if ((evt.kind === 'hit' || evt.kind === 'skill') && tgt) {
+      if ((evt.kind === 'hit' || evt.kind === 'skill' || evt.kind === 'counter') && tgt) {
         const dmg = evt.damage || 0;
-        const heavy = evt.kind === 'skill';
+        const heavy = evt.kind === 'skill' || evt.kind === 'counter';
         const meleeContact = !evt.ranged && (evt.contact || true);
         anims[tgt.id] = {
           kind: 'hit', t: 0, dur: scaleDur(heavy ? 64 : 56),
@@ -1890,6 +1900,11 @@
         };
         tgt.flash = heavy ? 26 : 20;
         fx.push({ kind: 'text', text: '-' + dmg, x: tgt.x + 4, y: tgt.y - 24, life: scaleDur(56), max: scaleDur(56), color: C.cinnabarBright });
+        if (evt.kind === 'counter') {
+          fx.push({ kind: 'text', text: '反打', x: tgt.x - 8, y: tgt.y - 48, life: scaleDur(44), max: scaleDur(44), color: C.gold, strong: true });
+        } else if ((evt.combo || 0) >= 2) {
+          fx.push({ kind: 'text', text: '連×' + evt.combo, x: tgt.x - 6, y: tgt.y - 46, life: scaleDur(40), max: scaleDur(40), color: C.gold });
+        }
         fx.push({ kind: 'slash', x: tgt.x + 8, y: tgt.y + 8, life: scaleDur(18), max: scaleDur(18), color: C.cream });
         fx.push({ kind: 'burst', x: tgt.x + 12, y: tgt.y + 16, life: scaleDur(14), max: scaleDur(14), color: C.cream });
         // 近身：spark／hit_ring 分層（錯開）
