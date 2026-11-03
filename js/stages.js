@@ -1,6 +1,6 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.8.1：windup 幀對齊 v0.9／Hub・戰鬥 960×540）
- * Hub 960×540；戰鬥 FSM；幀：idle0-1／walk2-5／windup6-8／strike9-12／hurt13-14／parry15-17
+ * 俠客棧 — 墨點江湖舞台（v0.8.2：戰鬥鏡頭／VFX 加厚／Hub・戰鬥 960×540）
+ * Hub 960×540；FSM＋v0.9 幀；鏡頭 shake 分層＋整數 zoom pulse；場內血條／狀態可讀
  */
 (function (global) {
   'use strict';
@@ -83,7 +83,7 @@
   /** 資產快取戳：跟 GAME.version 對齊，確保 v1.2.1 精靈表換檔後瀏覽器重拉 */
   const ASSET_VER = (typeof global !== 'undefined' && global.WuxiaData && global.WuxiaData.GAME && global.WuxiaData.GAME.version)
     ? global.WuxiaData.GAME.version
-    : '0.8.1';
+    : '0.8.2';
 
   function loadImg(src) {
     return new Promise(function (resolve) {
@@ -1313,6 +1313,8 @@
     let units = [];
     let fx = [];
     let shake = 0;
+    let shakeFine = 0;     // 細震層（高頻、短）
+    let zoomPulse = 0;     // 整數像素縮放脈衝（>0 時略放大，保持 pixelated）
     let anims = {};
     let tick = 0;
     let hitStop = 0;       // 命中停頓幀（凍結動畫推進）
@@ -1333,6 +1335,31 @@
     }
     function scaleStop(n) {
       return Math.max(3, Math.round(n / speedMul));
+    }
+
+    /** v0.8.2 鏡頭：細震→中震分層；可選整數 zoom pulse（唔用非整數縮放） */
+    function bumpCamera(tier) {
+      // tier: 'light' | 'mid' | 'heavy' | 'ko' | 'clash'
+      if (tier === 'light') {
+        shakeFine = Math.max(shakeFine, 2.2);
+        shake = Math.max(shake, 2.8);
+      } else if (tier === 'mid') {
+        shakeFine = Math.max(shakeFine, 3.5);
+        shake = Math.max(shake, 5.5);
+        zoomPulse = Math.max(zoomPulse, 6);
+      } else if (tier === 'heavy') {
+        shakeFine = Math.max(shakeFine, 4.5);
+        shake = Math.max(shake, 8.0);
+        zoomPulse = Math.max(zoomPulse, 9);
+      } else if (tier === 'clash') {
+        shakeFine = Math.max(shakeFine, 5.0);
+        shake = Math.max(shake, 7.2);
+        zoomPulse = Math.max(zoomPulse, 8);
+      } else if (tier === 'ko') {
+        shakeFine = Math.max(shakeFine, 5.5);
+        shake = Math.max(shake, 10.0);
+        zoomPulse = Math.max(zoomPulse, 12);
+      }
     }
 
     function weaponFor(id) {
@@ -1559,7 +1586,7 @@
         fx.push({ kind: 'text', text: '撞刃', x: mx - 16, y: my - 28, life: scaleDur(38), max: scaleDur(38), color: C.gold });
         screenFlash = Math.max(screenFlash, 9);
         hitStop = Math.max(hitStop, scaleStop(16));
-        shake = Math.max(shake, 6.2);
+        bumpCamera('clash');
         if (atk) atk.flash = Math.max(atk.flash || 0, 14);
         if (tgt) tgt.flash = Math.max(tgt.flash || 0, 14);
         return;
@@ -1616,15 +1643,37 @@
             pushFxSheet('spark', tgt.x, tgt.y, { dur: scaleDur(14), scale: evt.kind === 'skill' ? 1.35 : 1.15 });
             pushFxSheet('hit_ring', tgt.x - 4, tgt.y - 4, { dur: scaleDur(12), scale: 1.2 });
           }
-        } else if (evt.kind === 'parry' || evt.kind === 'miss') {
+        } else if (evt.kind === 'parry') {
+          spawnBladeFx(atk, tgt, false, bossBoost);
+        } else if (evt.kind === 'miss' && !evt.whiff) {
           spawnBladeFx(atk, tgt, false, bossBoost);
         }
       }
 
-      if (evt.kind === 'miss' && tgt) {
-        anims[tgt.id] = { kind: 'dodge', t: 0, dur: scaleDur(52), dir: tgt.side === 'ally' ? -1 : 1 };
-        fx.push({ kind: 'text', text: '閃', x: tgt.x + 4, y: tgt.y - 12, life: scaleDur(30), max: scaleDur(30), color: C.sky });
-        hitStop = Math.max(hitStop, scaleStop(5));
+      if (evt.kind === 'miss') {
+        if (evt.whiff && atk) {
+          // 揮空：弱刀風（短弧、低 alpha 感）
+          const dir = atk.side === 'ally' ? 1 : -1;
+          fx.push({
+            kind: 'arc', x: atk.x + (dir > 0 ? 28 : -8), y: atk.y + 16, dir: dir,
+            r: 36, start: -0.85 * dir, end: 0.55 * dir,
+            life: scaleDur(14), max: scaleDur(14),
+            color: C.mist, tipColor: C.cream, weak: true
+          });
+          pushFxSheet('slash', atk.x + (dir > 0 ? 20 : -24), atk.y, {
+            flip: dir < 0, dur: scaleDur(12), scale: 0.75
+          });
+          fx.push({ kind: 'text', text: '空', x: atk.x + 8, y: atk.y - 20, life: scaleDur(28), max: scaleDur(28), color: C.mist });
+          bumpCamera('light');
+          hitStop = Math.max(hitStop, scaleStop(4));
+          return;
+        }
+        if (tgt) {
+          anims[tgt.id] = { kind: 'dodge', t: 0, dur: scaleDur(52), dir: tgt.side === 'ally' ? -1 : 1 };
+          fx.push({ kind: 'text', text: '閃', x: tgt.x + 4, y: tgt.y - 12, life: scaleDur(30), max: scaleDur(30), color: C.sky });
+          hitStop = Math.max(hitStop, scaleStop(5));
+          bumpCamera('light');
+        }
         return;
       }
 
@@ -1670,7 +1719,7 @@
         }
         screenFlash = Math.max(screenFlash, 7);
         hitStop = Math.max(hitStop, scaleStop(16));
-        shake = Math.max(shake, 4.0);
+        bumpCamera('mid');
         return;
       }
 
@@ -1684,30 +1733,39 @@
           knock: meleeContact ? (heavy ? 28 : 20) : (heavy ? 16 : 10)
         };
         tgt.flash = heavy ? 26 : 20;
-        fx.push({ kind: 'text', text: '-' + dmg, x: tgt.x + 4, y: tgt.y - 8, life: scaleDur(52), max: scaleDur(52), color: C.cinnabarBright });
+        fx.push({ kind: 'text', text: '-' + dmg, x: tgt.x + 4, y: tgt.y - 24, life: scaleDur(56), max: scaleDur(56), color: C.cinnabarBright });
         fx.push({ kind: 'slash', x: tgt.x + 8, y: tgt.y + 8, life: scaleDur(18), max: scaleDur(18), color: C.cream });
-        fx.push({ kind: 'burst', x: tgt.x + 12, y: tgt.y + 16, life: scaleDur(12), max: scaleDur(12), color: C.cream });
-        // 近身接觸點：clash one-shot（可同 spark 錯 1 tick）
+        fx.push({ kind: 'burst', x: tgt.x + 12, y: tgt.y + 16, life: scaleDur(14), max: scaleDur(14), color: C.cream });
+        // 近身：spark／hit_ring 分層（錯開）
         if (meleeContact && atk) {
           const mx = (atk.x + tgt.x) / 2 - 8;
           const my = (atk.y + tgt.y) / 2 - 10;
-          pushFxSheet('clash', mx, my, { dur: scaleDur(heavy ? 20 : 16), scale: heavy ? 1.45 : 1.28 });
-          fx.push({ kind: 'fxdelay', wait: 1, id: 'spark', x: mx + 4, y: my + 4, dur: scaleDur(14), scale: heavy ? 1.3 : 1.15 });
-          fx.push({ kind: 'fxdelay', wait: 0, id: 'hit_ring', x: mx + 2, y: my + 2, dur: scaleDur(12), scale: 1.2 });
+          const dir = atk.side === 'ally' ? 1 : -1;
+          pushFxSheet('clash', mx, my, { dur: scaleDur(heavy ? 20 : 16), scale: heavy ? 1.5 : 1.32 });
+          pushFxSheet('hit_ring', mx + 2, my + 2, { dur: scaleDur(heavy ? 16 : 12), scale: heavy ? 1.4 : 1.22 });
+          fx.push({ kind: 'fxdelay', wait: 1, id: 'spark', x: mx + 4, y: my + 4, dur: scaleDur(14), scale: heavy ? 1.35 : 1.2 });
+          fx.push({ kind: 'fxdelay', wait: 2, id: 'spark', x: mx - dir * 10, y: my - 6, dur: scaleDur(12), scale: 1.05 });
+          fx.push({ kind: 'fxdelay', wait: 1, id: 'hit_ring', x: mx - 6, y: my - 4, dur: scaleDur(10), scale: 0.95 });
+          fx.push({
+            kind: 'arc', x: mx, y: my, dir: dir,
+            r: heavy ? 48 : 38, start: -1.05 * dir, end: 0.85 * dir,
+            life: scaleDur(heavy ? 22 : 16), max: scaleDur(heavy ? 22 : 16),
+            color: heavy ? C.cinnabarBright : C.cream, tipColor: C.gold
+          });
         }
-        if (!Assets.fx.spark) {
-          fx.push({ kind: 'sparks', x: tgt.x + 8, y: tgt.y + 10, n: heavy ? 8 : 5, life: scaleDur(heavy ? 18 : 12), max: scaleDur(heavy ? 18 : 12), color: C.cinnabarBright });
-        }
+        fx.push({ kind: 'sparks', x: tgt.x + 8, y: tgt.y + 10, n: heavy ? 14 : 9, life: scaleDur(heavy ? 22 : 14), max: scaleDur(heavy ? 22 : 14), color: C.cinnabarBright });
         screenFlash = Math.max(screenFlash, heavy ? 10 : 7);
         hitStop = Math.max(hitStop, scaleStop(heavy ? 18 : 13));
-        shake = Math.max(shake, heavy ? 7.5 : 5.0);
+        bumpCamera(heavy ? 'heavy' : 'mid');
       }
 
       if (evt.kind === 'ko' && tgt) {
-        fx.push({ kind: 'text', text: '倒', x: tgt.x + 2, y: tgt.y - 8, life: scaleDur(44), max: scaleDur(44), color: C.blood });
-        shake = Math.max(shake, 7);
-        screenFlash = Math.max(screenFlash, 10);
-        hitStop = Math.max(hitStop, scaleStop(18));
+        fx.push({ kind: 'text', text: '倒', x: tgt.x + 2, y: tgt.y - 20, life: scaleDur(48), max: scaleDur(48), color: C.blood });
+        pushFxSheet('hit_ring', tgt.x - 8, tgt.y, { dur: scaleDur(18), scale: 1.55 });
+        fx.push({ kind: 'sparks', x: tgt.x + 8, y: tgt.y + 12, n: 16, life: scaleDur(26), max: scaleDur(26), color: C.blood });
+        screenFlash = Math.max(screenFlash, 12);
+        hitStop = Math.max(hitStop, scaleStop(20));
+        bumpCamera('ko');
         anims[tgt.id] = { kind: 'hit', t: 0, dur: scaleDur(48), dir: tgt.side === 'ally' ? -1 : 1, heavy: true, knock: 32 };
         tgt.flash = 28;
       }
@@ -1931,25 +1989,62 @@
         drew = true;
       }
       if (!drew) {
+        // 通用敵／缺表：加厚色塊剪影（唔冒充精修）＋腳底影
+        const isMob = u.side === 'enemy' && (!u.heroId || u.heroId === 'enemy');
+        drawRect(ctx, dx + 8, dy + 108, 48, 8, C.ink);
+        ctx.globalAlpha = 0.35;
+        drawRect(ctx, dx + 4, dy + 112, 56, 6, C.night);
+        ctx.globalAlpha = u.dead ? 0.35 : 1;
         drawFigure(ctx, dx, dy, pal, {
           weapon: weaponFor(u.heroId),
           arm: arm,
           flash: flash,
           pose: pose,
-          scale: 4
+          scale: isMob ? 5 : 4,
+          bulky: isMob
         });
+        if (isMob) {
+          // 寬肩／帽簷／腰帶：提升可讀剪影
+          drawRect(ctx, dx - 2, dy + 20, 56, 10, pal.robe);
+          drawRect(ctx, dx + 6, dy + 8, 40, 8, pal.hair || C.ink);
+          drawRect(ctx, dx + 10, dy + 48, 36, 6, pal.accent || C.cinnabar);
+          drawRect(ctx, dx + 48, dy + 28, 18, 6, pal.accent || C.cinnabarBright);
+        }
       }
       ctx.globalAlpha = 1;
 
-      const bw = 72;
+      // 場內 HUD：厚血條＋外框＋狀態晶片（唔用大塊 HTML）
+      const bw = 80;
+      const bh = 10;
+      const barX = dx - 10;
+      const barY = dy - 28;
       const pct = u.maxHp > 0 ? clamp(u.hp / u.maxHp, 0, 1) : 0;
-      drawRect(ctx, dx - 8, dy - 20, bw, 8, C.night);
-      drawRect(ctx, dx - 8, dy - 20, Math.round(bw * pct), 8, u.side === 'ally' ? C.jadeBright : C.cinnabarBright);
-      drawRect(ctx, dx - 8, dy - 20, bw, 2, C.ink);
+      drawRect(ctx, barX - 2, barY - 2, bw + 4, bh + 4, C.ink);
+      drawRect(ctx, barX, barY, bw, bh, C.night);
+      drawRect(ctx, barX, barY, Math.max(0, Math.round(bw * pct)), bh, u.side === 'ally' ? C.jadeBright : C.cinnabarBright);
+      if (pct > 0 && pct < 1) drawRect(ctx, barX + Math.round(bw * pct) - 2, barY, 2, bh, C.cream);
       if (u.shield > 0) {
-        drawRect(ctx, dx - 8, dy - 26, Math.min(bw, 8 + Math.round(u.shield / u.maxHp * bw)), 3, C.sky);
+        drawRect(ctx, barX, barY - 6, Math.min(bw, 10 + Math.round(u.shield / u.maxHp * bw)), 4, C.sky);
       }
-      drawPixelText(ctx, u.name.slice(0, 4), dx - 4, dy + 112, C.cream);
+      // 狀態：W 讀招／S 出招／H 受傷／P 架／D 閃／! 接觸
+      const st = u.combatState || u.intent || '';
+      let chip = null;
+      let chipCol = C.gold;
+      if (st === 'windup' || u.telegraph) { chip = 'W'; chipCol = C.gold; }
+      else if (st === 'strike') { chip = 'S'; chipCol = C.cinnabarBright; }
+      else if (st === 'hurt') { chip = 'H'; chipCol = C.blood; }
+      else if (st === 'parry') { chip = 'P'; chipCol = C.gold; }
+      else if (st === 'dodge') { chip = 'D'; chipCol = C.sky; }
+      else if (u.contact) { chip = '!'; chipCol = C.cream; }
+      if (chip) {
+        drawRect(ctx, barX + bw + 4, barY - 2, 14, 14, C.ink);
+        drawRect(ctx, barX + bw + 6, barY, 10, 10, chipCol);
+        drawPixelText(ctx, chip, barX + bw + 7, barY + 1, C.ink);
+      }
+      drawPixelText(ctx, u.name.slice(0, 4), dx - 4, dy + 118, C.cream);
+      if (u.maxHp > 0) {
+        drawPixelText(ctx, String(Math.max(0, Math.round(u.hp))), barX, barY - 12, u.side === 'ally' ? C.jadeBright : C.cinnabarBright);
+      }
     }
 
     function drawTrail(f) {
@@ -1975,15 +2070,16 @@
       const r = f.r || 22;
       const start = f.start != null ? f.start : (-0.9 * dir);
       const end = f.end != null ? f.end : (0.55 * dir);
-      const steps = 10;
+      const steps = f.weak ? 8 : 14;
       for (let i = 0; i < steps; i++) {
         const tt = i / (steps - 1);
         const ang = start + (end - start) * tt;
         const x = cx + Math.cos(ang) * r * dir;
         const y = cy + Math.sin(ang) * r * 0.55;
-        ctx.globalAlpha = a * (0.25 + 0.75 * tt);
+        const baseA = f.weak ? 0.18 : 0.28;
+        ctx.globalAlpha = a * (baseA + (f.weak ? 0.45 : 0.72) * tt);
         const col = (i >= steps - 3) ? (f.tipColor || C.cream) : (f.color || C.cinnabarBright);
-        const sz = i >= steps - 2 ? 4 : (2 + Math.round(tt * 2));
+        const sz = f.weak ? (i >= steps - 2 ? 3 : 2) : (i >= steps - 2 ? 5 : (2 + Math.round(tt * 3)));
         drawRect(ctx, x, y, sz, Math.max(2, sz - 1), col);
         if (i >= steps - 4) {
           drawRect(ctx, x - 1, y + 1, 2, 2, C.cream);
@@ -2034,84 +2130,81 @@
       const dir = atk.side === 'ally' ? 1 : -1;
       const boss = !!bossBoost || (atk.heroId && String(atk.heroId).indexOf('boss') >= 0)
         || (tgt && tgt.heroId && String(tgt.heroId).indexOf('boss') >= 0);
-      const ax = atk.x + (dir > 0 ? 16 : -8);
-      const ay = atk.y;
-      const sMul = boss ? 1.35 : 1;
-      // 多段刀光：起手 → 中弧 →（重擊／Boss）刃尖
-      const usedSlash = pushFxSheet('slash', ax, ay, {
+      const ax = atk.x + (dir > 0 ? 20 : -12);
+      const ay = atk.y + 8;
+      const sMul = boss ? 1.4 : 1;
+      // 跟面向：多段 slash 沿揮砍方向拉開弧長
+      const usedSlash = pushFxSheet('slash', ax, ay - 8, {
         flip: dir < 0,
-        dur: heavy ? 18 : 12,
-        scale: (heavy ? 1.2 : 1.05) * sMul
+        dur: heavy ? 20 : 14,
+        scale: (heavy ? 1.35 : 1.15) * sMul
       });
-      pushFxSheet('slash', ax + dir * 10, ay - 4, {
+      pushFxSheet('slash', ax + dir * 18, ay - 2, {
         flip: dir < 0,
-        dur: heavy ? 24 : 18,
-        scale: (heavy ? 1.45 : 1.22) * sMul
+        dur: heavy ? 26 : 18,
+        scale: (heavy ? 1.55 : 1.32) * sMul
+      });
+      pushFxSheet('slash', ax + dir * 34, ay + 6, {
+        flip: dir < 0,
+        dur: heavy ? 18 : 14,
+        scale: (heavy ? 1.28 : 1.1) * sMul
       });
       if (heavy || boss) {
-        pushFxSheet('slash', ax + dir * 36, ay + 4, {
+        pushFxSheet('slash', ax + dir * 48, ay - 10, {
           flip: dir < 0,
           dur: 16,
-          scale: (boss ? 1.55 : 1.18) * sMul
+          scale: (boss ? 1.65 : 1.35) * sMul
         });
       }
-      if (boss) {
-        pushFxSheet('slash', ax + dir * 12, ay - 20, {
-          flip: dir < 0,
-          dur: 20,
-          scale: 1.6
-        });
-      }
-      if (!usedSlash) {
-        fx.push({
-          kind: 'arc',
-          x: atk.x + (dir > 0 ? 12 : 0), y: atk.y + 8,
-          dir: dir,
-          r: (heavy ? 30 : 24) * (boss ? 1.25 : 1),
-          start: -1.1 * dir,
-          end: 0.75 * dir,
-          life: heavy ? 26 : 18,
-          max: heavy ? 26 : 18,
-          color: heavy ? C.cinnabarBright : C.cinnabar,
-          tipColor: C.cream
-        });
-        fx.push({
-          kind: 'arc',
-          x: atk.x + (dir > 0 ? 16 : -2), y: atk.y + 4,
-          dir: dir,
-          r: (heavy ? 22 : 16) * (boss ? 1.2 : 1),
-          start: -0.6 * dir,
-          end: 0.9 * dir,
-          life: heavy ? 20 : 14,
-          max: heavy ? 20 : 14,
-          color: C.cream,
-          tipColor: C.gold
-        });
-      }
+      // 永遠補 canvas 弧（同 sheet 疊加，弧更長跟面向）
+      fx.push({
+        kind: 'arc',
+        x: atk.x + (dir > 0 ? 24 : -4), y: atk.y + 18,
+        dir: dir,
+        r: (heavy ? 52 : 40) * (boss ? 1.2 : 1),
+        start: -1.25 * dir,
+        end: 0.95 * dir,
+        life: heavy ? 28 : 20,
+        max: heavy ? 28 : 20,
+        color: heavy ? C.cinnabarBright : C.cinnabar,
+        tipColor: C.cream
+      });
+      fx.push({
+        kind: 'arc',
+        x: atk.x + (dir > 0 ? 30 : -8), y: atk.y + 10,
+        dir: dir,
+        r: (heavy ? 36 : 28) * (boss ? 1.15 : 1),
+        start: -0.7 * dir,
+        end: 1.05 * dir,
+        life: heavy ? 22 : 16,
+        max: heavy ? 22 : 16,
+        color: C.cream,
+        tipColor: C.gold
+      });
+      if (!usedSlash) { /* sheet 缺失時弧已足夠 */ }
       if (tgt) {
-        const hx = tgt.x + 2;
-        const hy = tgt.y + 2;
-        const sparkN = boss ? (heavy ? 4 : 3) : 2;
-        pushFxSheet('spark', hx, hy, { dur: heavy ? 18 : 14, scale: (heavy ? 1.4 : 1.18) * sMul });
-        pushFxSheet('spark', hx - dir * 5, hy - 5, { dur: heavy ? 14 : 10, scale: 1.0 * sMul });
+        const hx = tgt.x + 4;
+        const hy = tgt.y + 8;
+        pushFxSheet('spark', hx, hy, { dur: heavy ? 18 : 14, scale: (heavy ? 1.45 : 1.22) * sMul });
+        pushFxSheet('spark', hx - dir * 8, hy - 6, { dur: heavy ? 14 : 10, scale: 1.1 * sMul });
+        pushFxSheet('hit_ring', hx - 6, hy - 6, { dur: heavy ? 16 : 12, scale: (heavy ? 1.4 : 1.18) * sMul });
+        fx.push({ kind: 'fxdelay', wait: 1, id: 'spark', x: hx + dir * 6, y: hy - 10, dur: scaleDur(12), scale: 1.15 * sMul });
+        fx.push({ kind: 'fxdelay', wait: 1, id: 'hit_ring', x: hx - 2, y: hy + 2, dur: scaleDur(10), scale: 1.05 * sMul });
         if (boss) {
-          pushFxSheet('spark', hx + dir * 6, hy - 8, { dur: 16, scale: 1.5 });
-          pushFxSheet('spark', hx - 2, hy + 4, { dur: 12, scale: 1.25 });
+          pushFxSheet('spark', hx + dir * 8, hy - 12, { dur: 16, scale: 1.55 });
         }
-        pushFxSheet('hit_ring', hx - 4, hy - 4, { dur: heavy ? 16 : 12, scale: (heavy ? 1.35 : 1.12) * sMul });
         fx.push({
           kind: 'sparks',
-          x: tgt.x + 8, y: tgt.y + 10,
-          n: (heavy ? 12 : 7) + (boss ? 6 : 0),
-          life: heavy ? 22 : 14,
-          max: heavy ? 22 : 14,
+          x: tgt.x + 10, y: tgt.y + 14,
+          n: (heavy ? 14 : 9) + (boss ? 6 : 0),
+          life: heavy ? 24 : 16,
+          max: heavy ? 24 : 16,
           color: C.cinnabarBright
         });
         const mx = (atk.x + tgt.x) / 2 + 2;
-        const my = (atk.y + tgt.y) / 2 + 4;
-        pushFxSheet('spark', mx - 8, my - 8, { dur: 12, scale: 1.12 * sMul });
-        if (boss) pushFxSheet('spark', mx + 4, my - 6, { dur: 14, scale: 1.3 });
-        fx.push({ kind: 'burst', x: mx, y: my, life: heavy ? 14 : 10, max: heavy ? 14 : 10, color: C.cream });
+        const my = (atk.y + tgt.y) / 2 + 6;
+        pushFxSheet('spark', mx - 8, my - 8, { dur: 12, scale: 1.18 * sMul });
+        fx.push({ kind: 'burst', x: mx, y: my, life: heavy ? 16 : 12, max: heavy ? 16 : 12, color: C.cream });
       }
     }
 
@@ -2158,15 +2251,32 @@
         }
         return f.life > 0;
       });
-      if (shake > 0) shake = Math.max(0, shake - (frozen ? 0.04 : 0.16));
+      if (shake > 0) shake = Math.max(0, shake - (frozen ? 0.05 : 0.18));
+      if (shakeFine > 0) shakeFine = Math.max(0, shakeFine - (frozen ? 0.08 : 0.28));
+      if (zoomPulse > 0) zoomPulse = Math.max(0, zoomPulse - (frozen ? 0.15 : 0.45));
       if (wrapEl) {
-        const amp = Math.min(14, shake * 1.6);
-        const sx = shake > 0 ? (Math.round(shake * 2) % 2 === 0 ? amp : -amp) : 0;
-        const sy = shake > 0 ? (Math.round(shake * 3) % 2 === 0 ? amp * 0.5 : -amp * 0.5) : 0;
+        // 中震：wrap 位移；細震：更高頻、更短
+        const amp = Math.min(16, shake * 1.7);
+        const fine = Math.min(5, shakeFine * 1.1);
+        const sx = (shake > 0 ? ((Math.round(shake * 2) % 2 === 0) ? amp : -amp) : 0)
+          + (shakeFine > 0 ? ((tick % 2 === 0) ? fine : -fine) : 0);
+        const sy = (shake > 0 ? ((Math.round(shake * 3) % 2 === 0) ? amp * 0.55 : -amp * 0.55) : 0)
+          + (shakeFine > 0 ? ((tick % 3 === 0) ? fine * 0.6 : -fine * 0.4) : 0);
         wrapEl.style.transform = 'translate(' + Math.round(sx) + 'px,' + Math.round(sy) + 'px)';
       }
 
       ctx.clearRect(0, 0, W, H);
+      // 整數像素 zoom pulse：以場心為準，放大 0／2／4 px 等效（scale 用整數偏移裁切感）
+      const zPix = zoomPulse > 0 ? Math.min(8, Math.round(zoomPulse / 2) * 2) : 0;
+      if (zPix > 0) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        const zx = Math.round(zPix / 2);
+        const zy = Math.round(zPix / 2);
+        // 以中心放大：先平移再近似放大（用 drawImage 自身 canvas 太重；改為座標縮放整數）
+        ctx.translate(-zx, -zy);
+        // 無平滑：放大係透過多畫邊距錯覺；真正 scale 用整數 1+（zPix/W）近似唔穩，改用 clip 外擴
+      }
       drawBg();
       const sorted = units.slice().sort((a, b) => a.y - b.y);
       sorted.forEach(drawMeleeRing);
@@ -2233,6 +2343,17 @@
         drawRect(ctx, 0, 0, W, H, C.cream);
         ctx.globalAlpha = 1;
       }
+      // zoom pulse：用整數像素外框／中心十字暗示「拉近」，避免非整數 CSS scale 糊邊
+      if (zPix > 0) {
+        const inset = zPix;
+        ctx.globalAlpha = Math.min(0.45, zPix / 10);
+        drawRect(ctx, inset, inset, W - inset * 2, 2, C.cream);
+        drawRect(ctx, inset, H - inset - 2, W - inset * 2, 2, C.cream);
+        drawRect(ctx, inset, inset, 2, H - inset * 2, C.cream);
+        drawRect(ctx, W - inset - 2, inset, 2, H - inset * 2, C.cream);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
     }
 
     function resetIdle() {
@@ -2240,6 +2361,8 @@
       fx = [];
       anims = {};
       shake = 0;
+      shakeFine = 0;
+      zoomPulse = 0;
       hitStop = 0;
       screenFlash = 0;
       if (wrapEl) wrapEl.style.transform = '';

@@ -86,6 +86,13 @@
 
 手感常數見 `WuxiaCombat.FEEL`（`windupTicks`／`strikeTicks`／`recoverTicks`／`hurtTicks`／`hitStop*`）。
 
+### 鏡頭／VFX（v0.8.2）
+- **Shake 分層**：`shakeFine`（高頻細震）＋`shake`（中震位移）；hit／clash／KO 用 `bumpCamera(tier)`
+- **Zoom pulse**：短整數像素外框「拉近」暗示，保持 `pixelated`，避免非整數 CSS scale 糊邊
+- **Slash**：跟面向多段弧＋sheet；**whiff** 弱刀風（短弧／「空」）
+- **場內 HUD**：厚血條＋HP 數字＋狀態晶片（W／S／H／P／D／!）；速度鈕仍在 overlay HTML
+- 通用敵缺表時加厚色塊剪影（唔冒充精修成品）
+
 ## 劇情章節（v0.4）
 | 章節 | 解鎖條件 | 閱覽獎勵 | Boss |
 |------|----------|----------|------|
@@ -249,6 +256,7 @@
 - [x] **v0.7.1** 戰鬥舞台升至 **960×540**（原生）；行路 maxSpeed／accel 加快；距離參數按場重調
 - [x] **v0.8.0** 戰鬥狀態機手感（windup／判定幀／hit-stop／clash）
 - [x] **v0.8.1** windup 幀對齊 v0.9（6–8／strike9–12；telegraph 加強）
+- [x] **v0.8.2** 戰鬥鏡頭分層 shake＋zoom pulse；slash／spark 加厚；場內血條／狀態晶片
 - [x] `renderCombat` 保留 Canvas；Hub／Combat mount 防重複拆建；狀態機註明  
 - [x] DESIGN／footer／`GAME.version` → 0.5.1  
 
