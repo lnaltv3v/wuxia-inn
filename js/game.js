@@ -1676,6 +1676,17 @@
     el.textContent = meta.short;
     el.title = meta.title;
     el.setAttribute('aria-label', '時辰：' + meta.title);
+    // 同場景燈／天色一致：body 掛相同時辰，CSS 跟 lantern 色
+    if (document.body.dataset.dayphase !== phase) {
+      document.body.dataset.dayphase = phase;
+    }
+    let night = false;
+    if (globalThis.WuxiaStages && WuxiaStages.Inn && typeof WuxiaStages.Inn.isNight === 'function') {
+      try { night = !!WuxiaStages.Inn.isNight(); } catch (e) { night = phase === 'night'; }
+    } else {
+      night = phase === 'night';
+    }
+    el.classList.toggle('dayphase-lit', night || phase === 'dusk');
   }
 
   function updateTopbar() {
@@ -1713,6 +1724,16 @@
     WuxiaStages.Inn.setSelectedHotspot(id);
   }
 
+  function syncQuickbarActive(name) {
+    const map = { inn: 'inn', library: 'inn', heroes: 'heroes', combat: 'combat', outposts: 'outposts', story: 'story', log: null };
+    const open = name ? (map[name] || name) : null;
+    document.querySelectorAll('.hub-qbtn').forEach((btn) => {
+      const on = !!(open && btn.dataset.open === open);
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+
   const SHEET_TITLES = {
     inn: '經營 · 設施／藏書',
     outposts: '據點 · 任務板',
@@ -1743,6 +1764,7 @@
     document.body.classList.remove('sheet-open');
     closeMenu();
     syncHubSelectedHotspot(null);
+    syncQuickbarActive(null);
     ensureHubStage();
   }
 
@@ -1771,6 +1793,7 @@
     closeMenu();
     ensureHubStage(); // 面板開住 Hub 繼續 mount／呼吸
     syncHubSelectedHotspot(name === 'inn' ? 'inn' : name);
+    syncQuickbarActive(name === 'library' ? 'inn' : name);
     if (name === 'inn') renderInn();
     if (name === 'outposts') renderOutposts();
     if (name === 'heroes') renderHeroes();
@@ -1834,6 +1857,7 @@
     document.body.classList.add('combat-open');
     document.body.classList.remove('sheet-open');
     syncHubSelectedHotspot('combat');
+    syncQuickbarActive('combat');
     document.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.tab === 'combat');
     });
@@ -1860,6 +1884,7 @@
         if (btn.dataset.tab === 'combat') btn.classList.remove('active');
       });
       syncHubSelectedHotspot(null);
+      syncQuickbarActive(null);
       ensureHubStage();
       if (!battle) {
         lastHubBgm = null;
@@ -2090,7 +2115,10 @@
     ensureHubStage();
     const hint = document.getElementById('hub-hint');
     if (hint && !battle && !hint.classList.contains('hub-hint-hot')) {
-      hint.textContent = inn.name + ' · 已接客 ' + state.guestsServed + ' · 移近熱點睇提示';
+      const cur = hint.textContent || '';
+      if (cur.indexOf('傳聞：') !== 0) {
+        hint.textContent = inn.name + ' · 已接客 ' + state.guestsServed + ' · 點場景／Esc 可關面板';
+      }
     }
   }
 
@@ -2115,6 +2143,7 @@
         if (openId === 'library') {
           openSheet('inn');
           syncHubSelectedHotspot('library');
+          syncQuickbarActive('inn');
           setTimeout(function () {
             const el = document.getElementById('library-section');
             if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2143,7 +2172,19 @@
           audioSetBgm(id);
         }
         pushLog(isNight ? '夜幕低垂，棧內點起紅燈——夜客賞銀較豐。' : '天色漸亮，客棧恢復白日生意。', 'system');
+        syncDayPhaseChip();
         updateTopbar();
+      });
+    }
+    if (WuxiaStages.Inn.setEmptyClickHandler) {
+      WuxiaStages.Inn.setEmptyClickHandler(function () {
+        if (battle) return;
+        if (document.body.classList.contains('sheet-open') || (activeTab && activeTab !== 'hub' && activeTab !== 'combat')) {
+          setTab('hub');
+          return;
+        }
+        const menu = $('hub-menu');
+        if (menu && !menu.classList.contains('hidden')) closeMenu();
       });
     }
     if (WuxiaStages.Inn.setHintHandler) {
@@ -2224,7 +2265,7 @@
           ${selRt.passiveSkillId ? `<button class="btn tiny" id="btn-clear-passive">卸下被動</button>` : ''}
         </div>
         <div class="manual-list">${manuals}</div>
-        <p class="tip">💡 出巡勝利約三成機率掉落秘籍抄本；已擁有則改習僅收手續費。未擁有可高價購買。</p>
+        <p class="muted panel-note">出巡勝約三成掉抄本；已有則改習收手續費。</p>
       `;
     }
 
@@ -2249,9 +2290,11 @@
     }).join('');
 
     el.innerHTML = `
-      <div class="card ink-card">
-        <h2>${pxIcon('🏯')} ${inn.name}</h2>
-        <p class="muted">主畫面已是客棧內部場景。此處管理升級、設施與藏書閣；接客演出在場景中自動播放。</p>
+      <div class="card ink-card panel-block">
+        <header class="panel-sec">
+          <h2>${pxIcon('🏯')} ${inn.name}</h2>
+          <p class="muted panel-lead">升級、設施、藏書——接客喺場景自動演。</p>
+        </header>
         <div class="stat-grid">
           <div><span class="label">收入倍率</span><b id="inn-stat-mul">×${(inn.incomeMul * cellarIncomeMul()).toFixed(2)}</b></div>
           <div><span class="label">客容量</span><b>${inn.guestCap}</b></div>
@@ -2260,25 +2303,25 @@
         </div>
         ${next ? `
           <div class="upgrade-box">
-            <p>下一級「${next.name}」需：聲望 <b>${next.repNeed}</b>、銀兩 <b>${next.silverNeed}</b></p>
+            <p>下一級「${next.name}」：聲望 <b>${next.repNeed}</b> · 銀兩 <b>${next.silverNeed}</b></p>
             <button class="btn primary" id="btn-upgrade">升級客棧</button>
           </div>` : `<p class="muted">已達目前最高等級。</p>`}
       </div>
-      <div class="card">
-        <h3>${pxIcon('🏗️')} 本棧設施</h3>
-        <p class="muted">酒窖增收、練武場降費增益、醫館加快回血與戰後療傷。</p>
+      <section class="card panel-block">
+        <header class="panel-sec"><h3>${pxIcon('🏗️')} 本棧設施</h3></header>
         <div class="facility-list">${facHtml}</div>
-      </div>
-      <div class="card" id="library-section">
-        <h3>${pxIcon('📚')} 藏書閣／練功</h3>
-        <p class="muted">已收藏秘籍 ${state.unlockedManuals.length}/${MARTIAL_ARTS.length}</p>
+      </section>
+      <section class="card panel-block" id="library-section">
+        <header class="panel-sec">
+          <h3>${pxIcon('📚')} 藏書閣</h3>
+          <span class="pill">秘籍 ${state.unlockedManuals.length}/${MARTIAL_ARTS.length}</span>
+        </header>
         ${libHtml}
-      </div>
-      <div class="card">
-        <h3>今日流水</h3>
-        <p>已接待客人 <b id="inn-stat-guests">${state.guestsServed}</b> 位 · 勝仗 <b id="inn-stat-wins">${state.battlesWon}</b> 場 · 委託 <b id="inn-stat-quests">${state.questsDone}</b> 件</p>
-        <p class="tip">💡 返回客棧場景可見接客動畫。放置中每秒可能有客人上門；離線最長 ${GAME.offlineCapHours} 小時。</p>
-      </div>
+      </section>
+      <section class="card panel-block panel-block-quiet">
+        <header class="panel-sec"><h3>今日流水</h3></header>
+        <p class="panel-flow">客人 <b id="inn-stat-guests">${state.guestsServed}</b> · 勝仗 <b id="inn-stat-wins">${state.battlesWon}</b> · 委託 <b id="inn-stat-quests">${state.questsDone}</b></p>
+      </section>
     `;
     const btn = $('btn-upgrade');
     if (btn) btn.onclick = tryUpgradeInn;
@@ -2351,7 +2394,7 @@
           </label>
           <button class="btn tiny primary" id="btn-set-garrison">確認駐守</button>
         </div>
-        <p class="tip">💡 駐守中的俠客不能出戰或接委託；等級越高，據點進帳越高。</p>
+        <p class="muted panel-note">駐守中唔得出戰／接委託；等級越高進帳越多。</p>
       `;
     }
 
@@ -2407,16 +2450,16 @@
       : '<p class="muted">任務板已空，可刷新或等待明日自動刷新。</p>';
 
     el.innerHTML = `
-      <div class="card ink-card">
-        <h2>${pxIcon('🗺️')} 據點地圖</h2>
-        <p class="muted">開設分舵、派駐俠客，穩定增收與聲望。</p>
+      <div class="card ink-card panel-block">
+        <header class="panel-sec"><h2>${pxIcon('🗺️')} 據點地圖</h2>
+        <p class="muted panel-lead">開設分舵、派駐俠客增收。</p></header>
         <div class="outpost-map">${mapHtml}</div>
         <div class="outpost-detail card-inner">${detailHtml}</div>
         <div class="facility-summary">本棧設施：${facSummary}</div>
       </div>
-      <div class="card">
-        <h3>${pxIcon('📋')} 聲望任務板</h3>
-        <p class="muted">每日自動刷新；亦可花 ${GAME.questRefreshCost} 兩立即刷新。委託為<strong>計時結算</strong>：派出後倒數結束自動發獎。</p>
+      <div class="card panel-block">
+        <header class="panel-sec"><h3>${pxIcon('📋')} 聲望任務板</h3>
+        <p class="muted panel-lead">每日自動刷新；花 ${GAME.questRefreshCost} 兩可即刷。計時結束自動發獎。</p></header>
         <div class="btn-row">
           <button class="btn tiny" id="btn-refresh-quests">刷新任務板（${GAME.questRefreshCost} 兩）</button>
         </div>
@@ -2468,9 +2511,9 @@
       toastHtml = `<div class="card bond-toast"><h3>💬 ${bondToast.title}</h3><p>${bondToast.text}</p></div>`;
     }
 
-    let html = `${toastHtml}<div class="card"><h2>${pxIcon('⚔️')} 俠客名冊</h2>
-      <p class="muted">欄位 ${Object.values(state.heroes).filter((h) => h.recruited).length}/${inn.heroSlots} · 出戰最多 ${GAME.maxParty} 人
-        ${mods.gainBonus ? ` · 練武場：訓練費 ×${mods.costMul.toFixed(2)}、修為 +${mods.gainBonus}` : ''}</p>
+    let html = `${toastHtml}<div class="card panel-block ink-card"><header class="panel-sec"><h2>${pxIcon('⚔️')} 俠客名冊</h2>
+      <p class="muted panel-lead">欄位 ${Object.values(state.heroes).filter((h) => h.recruited).length}/${inn.heroSlots} · 出戰 ${GAME.maxParty} 人內
+        ${mods.gainBonus ? ` · 練武場費×${mods.costMul.toFixed(2)}／修為+${mods.gainBonus}` : ''}</p></header>
       <div class="party-bar">出戰：${state.party.length ? state.party.map((id) => {
         const r = heroRuntime(id);
         return r ? `<span class="tag">${pxIcon(r.emoji)}${r.name}</span>` : '';
@@ -2613,24 +2656,26 @@
     }).join('');
 
     el.innerHTML = `
-      <div class="card battle-card stage-first">
-        <h3>${pxIcon('🗡️')} 戰場舞台</h3>
-        <p class="muted tiny-tip">960×540｜靠近→讀招→判定；近戰須接觸；招名跟狀態飄字。速度 0.5×–2×（記住偏好）。</p>
+      <div class="card battle-card stage-first panel-block">
+        <header class="panel-sec">
+          <h3>${pxIcon('🗡️')} 戰場</h3>
+          <span class="muted panel-lead">血條／招名喺場內 · 速度喺頂欄</span>
+        </header>
         <div id="combat-stage-host" class="stage-host combat-stage-host" aria-label="戰鬥舞台"></div>
-        <div id="battle-field" class="battle-field battle-field-compact">${battle ? prevField : '<p class="muted">尚未交鋒——選敵開打後舞台會動起來</p>'}</div>
-        <div id="combat-log" class="combat-log combat-log-compact">${prevLog}</div>
+        <div id="battle-field" class="battle-field battle-field-compact ${battle ? 'battle-field-hidden' : ''}" ${battle ? 'hidden' : ''}>${battle ? '' : '<p class="muted">選敵開打——血條同狀態喺舞台入面</p>'}</div>
+        <div id="combat-log" class="combat-log combat-log-compact ${battle ? 'combat-log-slim' : ''}">${prevLog}</div>
       </div>
-      <div class="card">
-        <h2>${pxIcon('🗡️')} 出巡剿匪</h2>
-        <p class="muted">全自動即時戰鬥。羈絆同隊加成：${state.party.length >= 2 ? `「${bondInfo.tier.name}」攻擊 ×${bondInfo.mul.toFixed(2)}` : '需至少 2 人'}</p>
+      <div class="card panel-block combat-pick ${battle ? 'combat-pick-busy' : ''}">
+        <header class="panel-sec">
+          <h2>${pxIcon('🗡️')} 出巡</h2>
+          <p class="muted panel-lead">羈絆：${state.party.length >= 2 ? `「${bondInfo.tier.name}」×${bondInfo.mul.toFixed(2)}` : '需 ≥2 人同隊'}</p>
+        </header>
         <div class="party-bar">隊伍：${partyHtml}</div>
+        ${battle ? '<div class="btn-row"><button class="btn danger" id="btn-flee">鳴金收兵</button></div>' : `
         <h4 class="subhead">普通敵軍</h4>
         <div class="wave-list" id="wave-list"></div>
         <h4 class="subhead">具名 Boss</h4>
-        <div class="wave-list boss-list">${bossCards}</div>
-        <div class="btn-row">
-          ${battle ? '<button class="btn danger" id="btn-flee">鳴金收兵</button>' : ''}
-        </div>
+        <div class="wave-list boss-list">${bossCards}</div>`}
       </div>
     `;
     const newHost = $('combat-stage-host');
@@ -2638,15 +2683,17 @@
       newHost.appendChild(preservedStage);
     }
     const list = $('wave-list');
-    waves.forEach((w) => {
-      const locked = state.innLevel < w.minInnLevel;
-      const btn = document.createElement('button');
-      btn.className = 'btn wave-btn' + (locked ? ' locked' : '');
-      btn.disabled = !!battle || locked;
-      btn.innerHTML = `<b>${w.name}</b><span>獎勵 ${w.rewardSilver[0]}–${w.rewardSilver[1]} 兩 · 聲望 ${w.rewardRep[0]}–${w.rewardRep[1]}${locked ? ` · 需客棧 Lv.${w.minInnLevel}` : ''}</span>`;
-      btn.onclick = () => startPatrol(w.id);
-      list.appendChild(btn);
-    });
+    if (list) {
+      waves.forEach((w) => {
+        const locked = state.innLevel < w.minInnLevel;
+        const btn = document.createElement('button');
+        btn.className = 'btn wave-btn' + (locked ? ' locked' : '');
+        btn.disabled = !!battle || locked;
+        btn.innerHTML = `<b>${w.name}</b><span>獎勵 ${w.rewardSilver[0]}–${w.rewardSilver[1]} 兩 · 聲望 ${w.rewardRep[0]}–${w.rewardRep[1]}${locked ? ` · 需客棧 Lv.${w.minInnLevel}` : ''}</span>`;
+        btn.onclick = () => startPatrol(w.id);
+        list.appendChild(btn);
+      });
+    }
     el.querySelectorAll('[data-boss]').forEach((b) => {
       b.onclick = () => startBossFight(b.dataset.boss);
     });
@@ -2665,6 +2712,15 @@
     }
     const field = $('battle-field');
     if (!field) return;
+    // v1.0：交鋒中血條喺 Canvas，HTML 欄收起減表單感
+    if (battle) {
+      field.hidden = true;
+      field.classList.add('battle-field-hidden');
+      field.innerHTML = '';
+      return;
+    }
+    field.hidden = false;
+    field.classList.remove('battle-field-hidden');
     const allies = units.filter((u) => u.side === 'ally');
     const enemies = units.filter((u) => u.side === 'enemy');
     const row = (list, cls) => list.map((u) => {
@@ -2748,14 +2804,17 @@
     }).join('');
 
     el.innerHTML = `
-      <div class="card ink-card">
-        <h2>${pxIcon('📖')} 劇情章節</h2>
-        <p class="muted">以勝仗、聲望、客棧等級推進。閱覽後可解鎖具名 Boss；像素風對話面板如下。</p>
+      <div class="card ink-card panel-block">
+        <header class="panel-sec">
+          <h2>${pxIcon('📖')} 劇情章節</h2>
+          <p class="muted panel-lead">勝仗／聲望／客棧推進；閱後解鎖 Boss。</p>
+        </header>
         <div class="story-list">${chapters}</div>
       </div>
-      <div class="card">
-        <h3>${pxIcon('🏅')} 成就（${state.achievements.length}/${ACHIEVEMENTS.length}）</h3>
-        <p class="muted">達成時會跳出 toast，並寫入江湖日誌。</p>
+      <div class="card panel-block">
+        <header class="panel-sec">
+          <h3>${pxIcon('🏅')} 成就 ${state.achievements.length}/${ACHIEVEMENTS.length}</h3>
+        </header>
         <div class="achieve-list">${achHtml}</div>
       </div>
     `;
@@ -2767,8 +2826,11 @@
   function renderLog() {
     const el = $('panel-log');
     if (!el) return;
-    el.innerHTML = `<div class="card"><h2>${pxIcon('📜')} 江湖日誌</h2>
-      <p class="muted">成就 ${state.achievements.length}/${ACHIEVEMENTS.length} · 章節 ${state.storyRead.length}/${STORY_CHAPTERS.length} · Boss ${state.bossesDefeated.length}/${BOSS_ENCOUNTERS.length}</p>
+    el.innerHTML = `<div class="card panel-block">
+      <header class="panel-sec">
+        <h2>${pxIcon('📜')} 江湖日誌</h2>
+        <p class="muted panel-lead">成就 ${state.achievements.length}/${ACHIEVEMENTS.length} · 章 ${state.storyRead.length}/${STORY_CHAPTERS.length} · Boss ${state.bossesDefeated.length}/${BOSS_ENCOUNTERS.length}</p>
+      </header>
       <div class="log-list">${state.log.map((e) =>
         `<div class="log-line ${e.kind}"><span class="t">${e.t}</span>${e.msg}</div>`
       ).join('') || '<p class="muted">尚無記錄</p>'}</div>
@@ -2843,6 +2905,27 @@
     if (btnClose) btnClose.addEventListener('click', () => setTab('hub'));
     const bd = $('sheet-backdrop');
     if (bd) bd.addEventListener('click', () => setTab('hub'));
+
+    // Esc／點場景空白：關浮層（戰鬥中 Esc 唔強退）
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Escape') return;
+      const menu = $('hub-menu');
+      if (menu && !menu.classList.contains('hidden')) {
+        closeMenu();
+        ev.preventDefault();
+        return;
+      }
+      if (battle) return;
+      if (document.body.classList.contains('combat-open')) {
+        closeCombatOverlay(true);
+        ev.preventDefault();
+        return;
+      }
+      if (document.body.classList.contains('sheet-open') || (activeTab && activeTab !== 'hub')) {
+        setTab('hub');
+        ev.preventDefault();
+      }
+    });
 
     const btnCombatBack = $('btn-combat-back');
     if (btnCombatBack) {

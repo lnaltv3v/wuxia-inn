@@ -1627,3 +1627,212 @@ body.sheet-open .hub-quickbar {
     background: rgba(26, 21, 16, 0.22) !important;
   }
 }
+
+
+/* —— v0.9.2 浮層分區／日夜 chip 同燈／可讀性 —— */
+.panel-block {
+  margin-bottom: 10px;
+  padding: 10px 12px !important;
+}
+.panel-sec {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--frame);
+}
+.panel-sec h2,
+.panel-sec h3 {
+  margin: 0;
+  flex: 1 1 auto;
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+.panel-lead {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+.panel-note {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.panel-flow {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+.panel-block-quiet {
+  background: rgba(244, 230, 196, 0.4) !important;
+}
+.sheet-float .sheet-body .panel {
+  background: rgba(244, 230, 196, 0.72) !important;
+  border: 2px solid var(--ink-soft) !important;
+  color: var(--ink);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+.sheet-float .sheet-body .card {
+  background: rgba(255, 248, 238, 0.55);
+  border: 2px solid var(--frame);
+  box-shadow: none;
+  margin-bottom: 8px;
+}
+.sheet-float .sheet-body .muted {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+.sheet-float .sheet-body .tip {
+  font-size: 0.78rem;
+  padding: 6px 8px;
+  margin: 6px 0 0;
+  background: rgba(212, 188, 138, 0.35);
+}
+.sheet-float .facility-row,
+.sheet-float .manual-row,
+.sheet-float .quest-row,
+.sheet-float .hero-card {
+  border-color: var(--ink-soft);
+  background: rgba(255, 248, 238, 0.65);
+}
+.sheet-float .stat-grid > div {
+  background: rgba(255, 248, 238, 0.75);
+}
+.sheet-float .sheet-head .btn {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+/* 日夜 chip：同場景燈籠／天色 */
+.dayphase-chip {
+  transition: background 0.2s steps(3, end), color 0.2s steps(3, end), box-shadow 0.2s steps(3, end);
+}
+.dayphase-chip[data-phase="dawn"] {
+  background: #5A4A32 !important;
+  color: #FFF8EE !important;
+  box-shadow: inset 0 0 0 1px #C9A227;
+}
+.dayphase-chip[data-phase="day"] {
+  background: #2A6A6A !important;
+  color: #FFF8EE !important;
+  box-shadow: none;
+}
+.dayphase-chip[data-phase="dusk"] {
+  background: #8B2942 !important;
+  color: #FFF8EE !important;
+  box-shadow: inset 0 0 0 1px #C9A227, 0 0 0 1px rgba(201, 162, 39, 0.35);
+}
+.dayphase-chip[data-phase="night"] {
+  background: #1A1510 !important;
+  color: #C9A227 !important;
+  box-shadow: inset 0 0 0 1px #C9A227, 0 0 0 2px rgba(196, 43, 43, 0.45);
+}
+.dayphase-chip.dayphase-lit {
+  /* 夜／昏：呼應燈籠硃金 */
+  animation: dayphase-glow 1.6s steps(2, end) infinite;
+}
+@keyframes dayphase-glow {
+  0%, 100% { filter: none; }
+  50% { filter: brightness(1.08); }
+}
+body[data-dayphase="night"] .hub-hint-chip {
+  border-left-color: var(--cinnabar-bright, #C42B2B);
+}
+body[data-dayphase="dusk"] .hub-hint-chip {
+  border-left-color: var(--gold, #C9A227);
+}
+body[data-dayphase="dawn"] .hub-hint-chip {
+  border-left-color: var(--frame, #5A4A32);
+}
+
+
+/* —— v1.0.0 介面場景化收官：快捷 active／戰鬥場內優先／減表單感 —— */
+.hub-quickbar-chips .hub-qbtn.is-active {
+  background: var(--night) !important;
+  color: var(--cream) !important;
+  border-color: var(--gold) !important;
+  box-shadow: 2px 2px 0 var(--cinnabar), inset 0 0 0 1px var(--gold);
+}
+.hub-quickbar-chips .hub-qbtn.is-active .hub-qbtn-lab {
+  color: var(--gold);
+}
+body.sheet-open .hub-quickbar-chips .hub-qbtn:not(.is-active) {
+  opacity: 0.72;
+}
+body.sheet-open .landscape-nudge {
+  display: none !important;
+}
+body.sheet-open .hub-hint-chip:not(.hub-hint-hot) {
+  opacity: 0.75;
+}
+
+.battle-field-hidden,
+.battle-field[hidden] {
+  display: none !important;
+}
+.combat-log-slim {
+  max-height: 88px !important;
+  font-size: 0.72rem !important;
+  opacity: 0.9;
+}
+.combat-pick-busy .party-bar {
+  margin-bottom: 8px;
+}
+body.combat-open .hub-shell {
+  /* 出巡時主殼藏喺疊層下；唔使濾鏡抖 */
+  visibility: hidden;
+}
+.combat-overlay-head {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.combat-overlay .battle-card.stage-first {
+  border-color: var(--ink);
+  background: rgba(42, 34, 24, 0.92);
+  color: var(--cream);
+}
+.combat-overlay .battle-card.stage-first .panel-sec {
+  border-bottom-color: var(--gold);
+}
+.combat-overlay .battle-card.stage-first .panel-lead,
+.combat-overlay .battle-card.stage-first .muted {
+  color: var(--paper-dark);
+}
+.combat-overlay .combat-stage-host {
+  margin-top: 4px;
+}
+
+/* 浮層表單控件：少網頁味 */
+.sheet-float select,
+.sheet-float input {
+  border: 2px solid var(--ink);
+  background: var(--paper-light);
+  border-radius: 0;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  padding: 4px 6px;
+  color: var(--ink);
+}
+.sheet-float label {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.sheet-float .hero-card,
+.sheet-float .story-card {
+  box-shadow: none;
+  border-width: 2px;
+}
+.sheet-float .subhead {
+  margin: 10px 0 6px;
+  font-size: 0.88rem;
+  letter-spacing: 0.06em;
+  border-left: 4px solid var(--gold);
+  padding-left: 8px;
+  color: var(--ink);
+}

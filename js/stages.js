@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.9.1：場景化預熱＋鏡頭減震＋r2 精靈／960×540）
+ * 俠客棧 — 墨點江湖舞台（v1.0.0：介面場景化——熱點回饋／門廊引導／Esc·點空關面板／960×540）
  * Hub 面板開仍呼吸；熱點墨框／硃標；戰鬥 shake 下調；招名飄字；戰場分層
  */
 (function (global) {
@@ -370,6 +370,13 @@
     let idleBlink = 0;
     let hoverId = null;
     let selectedHotspotId = null; // sheet 打開時對應熱點高亮
+    let pressId = null;           // 點擊／長按回饋熱點
+    let pressUntil = 0;           // performance.now() 截止
+    let pressStrong = false;      // 長按加強回饋
+    let pointerDownAt = 0;
+    let pointerDownHotspot = null;
+    let longPressFired = false;
+    let emptyClickHandler = null;
     let hotspotHandler = null;
     let hintHandler = null;
     let choiceHandler = null;
@@ -450,7 +457,10 @@
       canvas.addEventListener('mousemove', onMove);
       canvas.addEventListener('mouseleave', () => { hoverId = null; });
       canvas.addEventListener('click', onClick);
-      canvas.addEventListener('touchstart', onTouch, { passive: true });
+      canvas.addEventListener('pointerdown', onPointerDown);
+      canvas.addEventListener('pointerup', onPointerUp);
+      canvas.addEventListener('pointercancel', onPointerCancel);
+      canvas.addEventListener('touchstart', onTouch, { passive: false });
       cancelAnimationFrame(raf);
       seedSeated();
       loop(performance.now());
@@ -463,6 +473,9 @@
       if (canvas) {
         canvas.removeEventListener('mousemove', onMove);
         canvas.removeEventListener('click', onClick);
+        canvas.removeEventListener('pointerdown', onPointerDown);
+        canvas.removeEventListener('pointerup', onPointerUp);
+        canvas.removeEventListener('pointercancel', onPointerCancel);
         canvas.removeEventListener('touchstart', onTouch);
       }
       canvas = null;
@@ -479,6 +492,7 @@
 
     function setHotspotHandler(fn) { hotspotHandler = typeof fn === 'function' ? fn : null; }
     function setSelectedHotspot(id) { selectedHotspotId = id || null; }
+    function setEmptyClickHandler(fn) { emptyClickHandler = typeof fn === 'function' ? fn : null; }
     function setHintHandler(fn) { hintHandler = typeof fn === 'function' ? fn : null; }
     function setChoiceHandler(fn) { choiceHandler = typeof fn === 'function' ? fn : null; }
     function setTipHandler(fn) { tipHandler = typeof fn === 'function' ? fn : null; }
@@ -687,8 +701,22 @@
       }
     }
 
-    function handleHotspot(h) {
+    function flashPress(h, strong) {
       if (!h) return;
+      pressId = h.id;
+      pressStrong = !!strong;
+      pressUntil = performance.now() + (strong ? 420 : 220);
+    }
+
+    function handleHotspot(h, opts) {
+      opts = opts || {};
+      if (!h) {
+        if (emptyClickHandler) {
+          try { emptyClickHandler(); } catch (e) { /* ignore */ }
+        }
+        return;
+      }
+      flashPress(h, !!opts.longPress);
       if (h.open === 'table') {
         onTableInteract(h);
         return;
@@ -696,17 +724,56 @@
       if (hotspotHandler) hotspotHandler(h.open, h);
     }
 
-    function onClick(evt) {
+    function onPointerDown(evt) {
+      if (evt.pointerType === 'mouse' && evt.button !== 0) return;
       const p = canvasPos(evt);
-      handleHotspot(hitTest(p.x, p.y));
+      const h = hitTest(p.x, p.y);
+      pointerDownAt = performance.now();
+      pointerDownHotspot = h;
+      longPressFired = false;
+      if (h) {
+        hoverId = h.id;
+        flashPress(h, false);
+      }
+    }
+
+    function onPointerUp(evt) {
+      if (!pointerDownAt) return;
+      const held = performance.now() - pointerDownAt;
+      const h = pointerDownHotspot;
+      pointerDownAt = 0;
+      pointerDownHotspot = null;
+      if (longPressFired) return;
+      if (h && held >= 420) {
+        longPressFired = true;
+        handleHotspot(h, { longPress: true });
+      }
+    }
+
+    function onPointerCancel() {
+      pointerDownAt = 0;
+      pointerDownHotspot = null;
+      longPressFired = false;
+    }
+
+    function onClick(evt) {
+      // 長按已由 pointerup 處理；短按喺度開／關
+      if (longPressFired) {
+        longPressFired = false;
+        return;
+      }
+      const p = canvasPos(evt);
+      const h = hitTest(p.x, p.y);
+      // 若 pointerdown 已記熱點，用嗰個（避免微移失準）
+      handleHotspot(h);
     }
 
     function onTouch(evt) {
-      if (!evt.touches || !evt.touches[0]) return;
-      const p = canvasPos(evt.touches[0]);
-      const h = hitTest(p.x, p.y);
-      hoverId = h ? h.id : null;
-      handleHotspot(h);
+      // 交畀 pointer 事件；保留 touch 只係阻止頁面捲動搶手勢
+      if (evt.cancelable && evt.touches && evt.touches[0]) {
+        const p = canvasPos(evt.touches[0]);
+        if (hitTest(p.x, p.y)) evt.preventDefault();
+      }
     }
 
     function onTableInteract(h) {
@@ -919,30 +986,72 @@
       drawRect(ctx, 24, 204, 96, 110, C.night);
     }
 
-    function drawHotspotHints() {
+    function drawDoorCorridorGuide(now) {
+      // 大門／走廊淡引導：唔擋熱點、唔閃大字
+      const door = HOTSPOTS.find(function (h) { return h.id === 'door'; });
+      if (!door) return;
+      const pulse = 0.5 + 0.5 * Math.sin((now || performance.now()) / 520);
+      const a = 0.18 + pulse * 0.14;
+      // 走廊虛線：櫃檯左側 → 門（淡金點）
+      const dots = [
+        { x: 280, y: 360 }, { x: 220, y: 348 }, { x: 160, y: 332 }, { x: 110, y: 300 }
+      ];
+      dots.forEach(function (d, i) {
+        ctx.globalAlpha = a * (0.45 + i * 0.12);
+        drawRect(ctx, d.x, d.y, 4, 4, C.gold);
+      });
+      ctx.globalAlpha = 1;
+      // 門旁雙角「入」標（硃／金交替淡）
+      const cx = door.x + door.w - 6;
+      const cy = door.y + Math.floor(door.h / 2);
+      ctx.globalAlpha = a + 0.08;
+      drawRect(ctx, cx, cy - 10, 8, 3, C.cinnabar);
+      drawRect(ctx, cx + 3, cy - 5, 8, 3, C.gold);
+      drawRect(ctx, cx, cy, 8, 3, C.cinnabar);
+      // 門框外側淡豎線
+      ctx.globalAlpha = 0.22 + pulse * 0.1;
+      drawRect(ctx, door.x + door.w + 2, door.y + 12, 2, door.h - 24, C.gold);
+      ctx.globalAlpha = 1;
+    }
+
+    function drawHotspotHints(now) {
+      const tnow = now != null ? now : performance.now();
+      if (pressId && tnow > pressUntil) {
+        pressId = null;
+        pressStrong = false;
+      }
       HOTSPOTS.forEach(function (h) {
         const on = hoverId === h.id;
         const sel = selectedHotspotId === h.id;
+        const pressed = pressId === h.id;
         const isTable = h.open === 'table';
-        const active = on || sel;
+        const active = on || sel || pressed;
         if (active) {
-          // 墨框＋硃角標（唔靠大文字板）
-          const fill = isTable ? C.jadeBright : (sel ? C.cinnabar : C.gold);
-          ctx.globalAlpha = on ? 0.22 : 0.14;
+          const fill = isTable ? C.jadeBright : (sel ? C.cinnabar : (pressed ? C.cinnabarBright : C.gold));
+          let fa = on ? 0.22 : 0.14;
+          if (pressed) fa = pressStrong ? 0.38 : 0.3;
+          ctx.globalAlpha = fa;
           drawRect(ctx, h.x, h.y, h.w, h.h, fill);
           ctx.globalAlpha = 1;
-          drawRect(ctx, h.x, h.y, h.w, 3, C.ink);
-          drawRect(ctx, h.x, h.y + h.h - 3, h.w, 3, C.ink);
-          drawRect(ctx, h.x, h.y, 3, h.h, C.ink);
-          drawRect(ctx, h.x + h.w - 3, h.y, 3, h.h, C.ink);
-          // 硃紅角標
-          const mark = sel ? C.cinnabarBright : C.cinnabar;
-          drawRect(ctx, h.x - 1, h.y - 1, 10, 10, mark);
-          drawRect(ctx, h.x + h.w - 9, h.y - 1, 10, 10, mark);
-          drawRect(ctx, h.x - 1, h.y + h.h - 9, 10, 10, C.ink);
-          drawRect(ctx, h.x + h.w - 9, h.y + h.h - 9, 10, 10, C.ink);
-          // 僅 hover 時短字（選中唔再疊大標）
-          if (on) {
+          const bw = pressed ? 4 : 3;
+          drawRect(ctx, h.x, h.y, h.w, bw, C.ink);
+          drawRect(ctx, h.x, h.y + h.h - bw, h.w, bw, C.ink);
+          drawRect(ctx, h.x, h.y, bw, h.h, C.ink);
+          drawRect(ctx, h.x + h.w - bw, h.y, bw, h.h, C.ink);
+          if (pressed) {
+            // 內縮 1px 金／硃反饋框
+            ctx.globalAlpha = pressStrong ? 0.85 : 0.65;
+            drawRect(ctx, h.x + 4, h.y + 4, h.w - 8, 2, C.cream);
+            drawRect(ctx, h.x + 4, h.y + h.h - 6, h.w - 8, 2, C.cream);
+            ctx.globalAlpha = 1;
+          }
+          const mark = (sel || pressed) ? C.cinnabarBright : C.cinnabar;
+          const ms = pressed ? 12 : 10;
+          drawRect(ctx, h.x - 1, h.y - 1, ms, ms, mark);
+          drawRect(ctx, h.x + h.w - (ms - 1), h.y - 1, ms, ms, mark);
+          drawRect(ctx, h.x - 1, h.y + h.h - (ms - 1), ms, ms, C.ink);
+          drawRect(ctx, h.x + h.w - (ms - 1), h.y + h.h - (ms - 1), ms, ms, C.ink);
+          if (on || pressed) {
             const short = (h.label || '').split('·')[0];
             if (short) {
               drawRect(ctx, h.x + 4, Math.max(8, h.y - 16), Math.min(72, 8 + short.length * 10), 12, C.ink);
@@ -950,14 +1059,14 @@
             }
           }
         } else if (!isTable) {
-          // 常駐：淡墨角＋1px 框，無大字
-          ctx.globalAlpha = 0.55;
-          drawRect(ctx, h.x, h.y, h.w, 1, C.inkSoft);
-          drawRect(ctx, h.x, h.y + h.h - 1, h.w, 1, C.inkSoft);
-          drawRect(ctx, h.x, h.y, 1, h.h, C.inkSoft);
-          drawRect(ctx, h.x + h.w - 1, h.y, 1, h.h, C.inkSoft);
-          ctx.globalAlpha = 0.85;
-          drawRect(ctx, h.x + 2, h.y + 2, 6, 6, C.cinnabar);
+          const doorish = h.id === 'door';
+          ctx.globalAlpha = doorish ? 0.7 : 0.55;
+          drawRect(ctx, h.x, h.y, h.w, 1, doorish ? C.gold : C.inkSoft);
+          drawRect(ctx, h.x, h.y + h.h - 1, h.w, 1, doorish ? C.gold : C.inkSoft);
+          drawRect(ctx, h.x, h.y, 1, h.h, doorish ? C.gold : C.inkSoft);
+          drawRect(ctx, h.x + h.w - 1, h.y, 1, h.h, doorish ? C.gold : C.inkSoft);
+          ctx.globalAlpha = doorish ? 0.95 : 0.85;
+          drawRect(ctx, h.x + 2, h.y + 2, doorish ? 7 : 6, doorish ? 7 : 6, doorish ? C.gold : C.cinnabar);
           ctx.globalAlpha = 1;
         } else {
           ctx.globalAlpha = 0.4;
@@ -965,6 +1074,24 @@
           ctx.globalAlpha = 1;
         }
       });
+      // 長按進行中：熱點邊緣再跳一格
+      if (pointerDownHotspot && pointerDownAt && !longPressFired) {
+        const held = tnow - pointerDownAt;
+        if (held > 160) {
+          const h = pointerDownHotspot;
+          const p = Math.min(1, (held - 160) / 260);
+          ctx.globalAlpha = 0.2 + p * 0.35;
+          drawRect(ctx, h.x - 2, h.y - 2, h.w + 4, 2, C.gold);
+          drawRect(ctx, h.x - 2, h.y + h.h, h.w + 4, 2, C.gold);
+          ctx.globalAlpha = 1;
+          if (held >= 420) {
+            longPressFired = true;
+            handleHotspot(h, { longPress: true });
+            pointerDownAt = 0;
+            pointerDownHotspot = null;
+          }
+        }
+      }
     }
 
     function weaponFor(id) {
@@ -1303,12 +1430,13 @@
       });
       if (bubble && !bubbles.length) drawBubble(ctx, bubble.text, bubble.x, bubble.y, bubble.life);
 
-      drawHotspotHints();
+      drawDoorCorridorGuide(now);
+      drawHotspotHints(now);
     }
 
     return {
       mount, destroy, isMounted, playGuest, enqueueGuest,
-      setHotspotHandler, setSelectedHotspot, setTipHandler, setAmbientHeroes, setInnTitle,
+      setHotspotHandler, setSelectedHotspot, setEmptyClickHandler, setTipHandler, setAmbientHeroes, setInnTitle,
       setAmbientChange, isNight, getTipMul, dayPhaseName, setRumor, greetXiaoer, showBubble, playSceneEvent, resolveSceneChoice, setHintHandler, setChoiceHandler,
       HOTSPOTS, getPhase: function () { return phase; },
       isScenePlaying: function () { return !!(sceneEvt && !sceneEvt.done); }
