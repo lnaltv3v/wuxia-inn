@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v1.8.0：橫屏提示／文案打磨／玩法摘要）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v1.9.0：版本提示／空狀態／暫停點）
  */
 (function () {
   'use strict';
@@ -1868,7 +1868,7 @@
       const pct = row.maxHp > 0 ? Math.round(100 * row.hp / row.maxHp) : 0;
       const cls = pct <= 0 ? 'down' : (pct < 45 ? 'hurt' : 'ok');
       return '<li class="settle-inj ' + cls + '"><span>' + row.name + '</span><b>' + row.hp + '/' + row.maxHp + '</b></li>';
-    }).join('') || '<li class="muted">無出戰記錄</li>';
+    }).join('') || '<li class="muted">未出巡過——去大門選一波，打完會喺度留名。</li>';
     const lootBits = [];
     if (win) {
       lootBits.push('<div class="settle-loot-row"><span>銀兩</span><b>+' + payload.silver + '</b>' + (payload.borderNote || '') + '</div>');
@@ -2888,7 +2888,7 @@
     state.libraryHero = selId;
     const selRt = selId ? heroRuntime(selId) : null;
 
-    let libHtml = '<p class="muted">尚無入駐俠客。</p>';
+    let libHtml = '<p class="muted empty-soft">藏書閣等侠客入駐——先去「俠客」分頁請人，再返嚟習武學。</p>';
     if (selRt) {
       const opts = recruitedHeroes.map((r) =>
         `<option value="${r.id}" ${r.id === selId ? 'selected' : ''}>${r.emoji}${r.name}</option>`
@@ -3077,7 +3077,7 @@
             </div>
           </div>`;
         }).join('')
-      : '<p class="muted">尚無進行中的委託。</p>';
+      : '<p class="muted empty-soft">而家冇委託喺外——任務板撳一單，派空閒俠客跑腿賺聲望。</p>';
 
     // 任務板
     const boardHtml = state.questBoard.length
@@ -3103,7 +3103,7 @@
             <button class="btn tiny primary" data-start-quest="${q.uid}" ${can ? '' : 'disabled'}>派出</button>
           </div>`;
         }).join('')
-      : '<p class="muted">任務板已空，可刷新或等待明日自動刷新。</p>';
+      : '<p class="muted empty-soft">任務板暫時清空——可花少許銀刷新，或等日更自動上板。</p>';
 
     el.innerHTML = `
       <div class="card ink-card panel-block">
@@ -3179,7 +3179,7 @@
       <div class="party-bar">出戰：${state.party.length ? state.party.map((id) => {
         const r = heroRuntime(id);
         return r ? `<span class="tag">${pxIcon(r.emoji)}${r.name}</span>` : '';
-      }).join('') : '<span class="muted">尚未編隊</span>'}</div>
+      }).join('') : '<span class="muted">出戰欄仲空——喺下方名冊撳「出戰」，編入 1–3 人。</span>'}</div>
     </div><div class="hero-grid">`;
 
     HERO_TEMPLATES.forEach((t) => {
@@ -3488,7 +3488,7 @@
       const got = state.achievements.indexOf(a.id) >= 0;
       const claimed = isAchievementClaimed(a.id);
       const rewardTxt = a.reward ? rewardLabel(a.reward) : '';
-      let status = '<span class="pill">未解鎖</span>';
+      let status = '<span class="pill">待解鎖</span>';
       let action = '';
       if (got && claimed) {
         status = '<span class="pill jade">已領獎</span>';
@@ -3517,6 +3517,7 @@
       <div class="card panel-block">
         <header class="panel-sec">
           <h3>${pxIcon('🏅')} 成就 ${state.achievements.length}/${ACHIEVEMENTS.length}</h3>
+          ${state.achievements.length ? '' : '<p class="muted empty-soft">未解鎖成就好正常——打贏一場、升下客棧，獎盃就會亮起；可領嘅會標「可領獎」。</p>'}
         </header>
         <div class="achieve-list">${achHtml}</div>
       </div>
@@ -3581,7 +3582,7 @@
       </header>
       <div class="log-list">${state.log.map((e) =>
         `<div class="log-line ${e.kind}"><span class="t">${e.t}</span>${e.msg}</div>`
-      ).join('') || '<p class="muted">尚無記錄</p>'}</div>
+      ).join('') || '<p class="muted empty-soft">日誌仲係新紙一張——接客、出巡、閱章之後，足跡會寫喺度。</p>'}</div>
       <div class="card panel-block prefs-io">
         <header class="panel-sec">
           <h3>⚙️ 提示與引導</h3>
@@ -3614,15 +3615,19 @@
     const statusEl = $('save-io-status');
     const ioText = $('save-io-text');
     function setIoStatus(msg) { if (statusEl) statusEl.textContent = msg || ''; }
-    $('btn-save').onclick = () => { save(); pushLog('手動存檔完成。', 'system'); setIoStatus('已手動存檔'); };
-    $('btn-export-save').onclick = () => {
+    function bindIf(id, fn) {
+      const el = $(id);
+      if (el) el.onclick = fn;
+    }
+    bindIf('btn-save', () => { save(); pushLog('手動存檔完成。', 'system'); setIoStatus('已手動存檔'); });
+    bindIf('btn-export-save', () => {
       const text = exportSaveText();
       if (!text || !ioText) { setIoStatus('匯出失敗'); return; }
       ioText.value = text;
       setIoStatus('已匯出 JSON（' + text.length + ' 字）');
       showUiToast('💾 匯出', '存檔已寫入文字框', 'system');
-    };
-    $('btn-copy-save').onclick = () => {
+    });
+    bindIf('btn-copy-save', () => {
       const text = (ioText && ioText.value) || exportSaveText();
       if (!text) { setIoStatus('無可複製內容'); return; }
       if (ioText && !ioText.value) ioText.value = text;
@@ -3633,20 +3638,20 @@
           setIoStatus('請手動 Ctrl/⌘+C 複製');
         }
       });
-    };
-    $('btn-import-save').onclick = () => {
+    });
+    bindIf('btn-import-save', () => {
       if (!ioText || !ioText.value.trim()) { setIoStatus('請先貼上 JSON'); return; }
       if (!confirm('匯入會覆蓋目前進度，確定？')) return;
       const res = importSaveText(ioText.value);
       setIoStatus(res.ok ? '匯入成功' : ('匯入失敗：' + (res.error || '')));
-    };
-    $('btn-reset').onclick = () => {
+    });
+    bindIf('btn-reset', () => {
       if (!confirm('開新遊戲會清空本地進度，確定？')) return;
       if (!confirm('最後確認：此操作唔可復原。真係重置？')) return;
       resetGame();
       setIoStatus('已重置為新遊戲');
       maybeStartHubTour();
-    };
+    });
     const prefsStatus = $('prefs-io-status');
     function setPrefsStatus(msg) { if (prefsStatus) prefsStatus.textContent = msg || ''; }
     const btnTeach = $('btn-reopen-combat-teach');
@@ -3809,6 +3814,13 @@
       try { WuxiaAudio.preload(); } catch (e) { /* ignore */ }
     }
 
+    const footVer = $('footer-version');
+    if (footVer) footVer.textContent = 'v' + GAME.version;
+    try {
+      const brand = document.querySelector('.brand');
+      if (brand) brand.title = '俠客棧 v' + GAME.version + ' · 墨點江湖';
+      document.title = '俠客棧 v' + GAME.version;
+    } catch (e) { /* ignore */ }
     renderAll();
     syncCombatSpeedUI();
     maybeStartHubTour();
