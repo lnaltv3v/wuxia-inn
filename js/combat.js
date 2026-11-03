@@ -1,7 +1,7 @@
 /**
- * 俠客棧 — 自動即時走位戰鬥（v0.8.0）
+ * 俠客棧 — 自動即時走位戰鬥（v0.8.1）
  * 戰場 960×540；狀態機：idle→approach→windup→strike→recover（hurt／parry／dodge）
- * 僅 strike 判定幀可造成傷害；近戰必須接觸；速度 0.5–2×
+ * 幀語意 v0.9：windup6-8／strike9-12；僅 strike 判定幀傷害；近戰須接觸；速度 0.5–2×
  */
 (function (global) {
   'use strict';

@@ -9,7 +9,7 @@ Output: assets/sprites/64/{id}.png — 18 frames × 64 → 1152×64
 Optional: guest_sit.png (6×64=384×64), boss_*_combat.png (64×64)
 
 Frame map (same as 32):
-  0–1 idle | 2–5 walk | 6–8 serve | 9–12 attack (xiaoer=wipe) | 13–14 hurt | 15–17 parry
+  0–1 idle | 2–5 walk | 6–8 windup (舊 serve；Hub xiaoer 暫共用斟茶) | 9–12 strike/attack (xiaoer=wipe) | 13–14 hurt | 15–17 parry
 """
 from __future__ import annotations
 
@@ -918,6 +918,7 @@ def poses_for_character(kind):
     poses.append({"lift_r": 16, "breath": 0})
     poses.append({"lift_r": 6, "breath": 1})
     if kind == "qinshi":
+        # frames 6–8：v0.9 語意 = windup（腳本變數名仍 serve_phase，僅佔位／預覽用，唔當最終美術）
         poses.append({"hold": True, "serve_phase": 0, "breath": 0})
         poses.append({"hold": True, "serve_phase": 1, "breath": 1})
         poses.append({"hold": True, "serve_phase": 2, "breath": 0})
@@ -1125,8 +1126,8 @@ def write_readme64():
 |----|------|------|
 | 0–1 | **idle** | 呼吸微動 |
 | 2–5 | **walk** | 高抬左 → 過渡 → 高抬右 → 過渡（抬腳約 16px） |
-| 6–8 | **serve** | 起盤 → 端穩 → 倒茶／撫琴（qinshi） |
-| 9–12 | **attack** *或* **wipe** | 俠客：後引→大弧→擊中→收回；**xiaoer＝抹枱** |
+| 6–8 | **windup** | 讀招蓄勢（舊 serve 位；xiaoer Hub 暫共用斟茶） |
+| 9–12 | **strike**／**attack** *或* **wipe** | 俠客出招；**xiaoer＝抹枱** |
 | 13–14 | **hurt** | 兩幀差大 stagger |
 | 15–17 | **parry** | 舉武器／盤擋 → 微震 → 回穩 |
 

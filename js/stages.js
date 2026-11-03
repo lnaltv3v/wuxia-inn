@@ -1,6 +1,6 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.8.0：戰鬥狀態機手感／Hub・戰鬥 960×540）
- * Hub 960×540：場景 v2.0；優先 assets/sprites/64/；戰鬥 FSM：windup→strike→recover
+ * 俠客棧 — 墨點江湖舞台（v0.8.1：windup 幀對齊 v0.9／Hub・戰鬥 960×540）
+ * Hub 960×540；戰鬥 FSM；幀：idle0-1／walk2-5／windup6-8／strike9-12／hurt13-14／parry15-17
  */
 (function (global) {
   'use strict';
@@ -47,9 +47,12 @@
   const ANIM = {
     idle:   [0, 1],
     walk:   [2, 3, 4, 5],
+    // v0.9：6–8 = windup（舊稱 serve）；Hub 小二暫共用幀位播斟茶
+    windup: [6, 7, 8],
     serve:  [6, 7, 8],
-    attack: [9, 10, 11, 12], // 俠客攻擊；xiaoer 同幀位＝wipe（見下）
-    wipe:   [9, 10, 11, 12], // 僅 xiaoer：抹枱（唔係 attack）
+    attack: [9, 10, 11, 12], // strike；xiaoer 同幀位＝wipe
+    strike: [9, 10, 11, 12],
+    wipe:   [9, 10, 11, 12],
     hurt:   [13, 14],
     parry:  [15, 16, 17]
   };
@@ -80,7 +83,7 @@
   /** 資產快取戳：跟 GAME.version 對齊，確保 v1.2.1 精靈表換檔後瀏覽器重拉 */
   const ASSET_VER = (typeof global !== 'undefined' && global.WuxiaData && global.WuxiaData.GAME && global.WuxiaData.GAME.version)
     ? global.WuxiaData.GAME.version
-    : '0.8.0';
+    : '0.8.1';
 
   function loadImg(src) {
     return new Promise(function (resolve) {
@@ -1505,21 +1508,28 @@
       // v0.8：讀招 telegraph
       if (evt.kind === 'windup' && atk) {
         const dir = atk.side === 'ally' ? 1 : -1;
-        anims[atk.id] = { kind: 'windup', t: 0, dur: scaleDur(42), dir: dir, ranged: !!evt.ranged };
-        atk.flash = Math.max(atk.flash || 0, 8);
+        anims[atk.id] = { kind: 'windup', t: 0, dur: scaleDur(48), dir: dir, ranged: !!evt.ranged };
+        atk.flash = Math.max(atk.flash || 0, 12);
+        // 讀招 telegraph：金點＋雙層短刀光預兆（比 v0.8.0 更明顯）
         fx.push({
-          kind: 'burst', x: atk.x + (dir > 0 ? 18 : -6), y: atk.y + 8,
-          life: scaleDur(20), max: scaleDur(20), color: evt.skillName ? C.gold : C.cream
+          kind: 'burst', x: atk.x + (dir > 0 ? 22 : -8), y: atk.y + 6,
+          life: scaleDur(26), max: scaleDur(26), color: evt.skillName ? C.gold : C.cream
         });
-        pushFxSheet('slash', atk.x + (dir > 0 ? 10 : -14), atk.y - 4, {
-          flip: dir < 0, dur: scaleDur(14), scale: 0.85
+        fx.push({
+          kind: 'burst', x: atk.x + (dir > 0 ? 10 : 4), y: atk.y - 8,
+          life: scaleDur(18), max: scaleDur(18), color: C.gold
         });
-        if (evt.skillName) {
-          fx.push({
-            kind: 'text', text: '「' + evt.skillName + '」',
-            x: atk.x - 20, y: atk.y - 36, life: scaleDur(40), max: scaleDur(40), color: C.gold
-          });
-        }
+        pushFxSheet('slash', atk.x + (dir > 0 ? 8 : -16), atk.y - 6, {
+          flip: dir < 0, dur: scaleDur(18), scale: 1.05
+        });
+        pushFxSheet('slash', atk.x + (dir > 0 ? 18 : -22), atk.y + 4, {
+          flip: dir < 0, dur: scaleDur(14), scale: 0.9
+        });
+        fx.push({
+          kind: 'text', text: evt.skillName ? ('「' + evt.skillName + '」') : '！',
+          x: atk.x - 12, y: atk.y - 40, life: scaleDur(36), max: scaleDur(36),
+          color: evt.skillName ? C.gold : C.cream
+        });
         return;
       }
 
@@ -1542,13 +1552,14 @@
       if (evt.kind === 'clash') {
         const mx = evt.ax != null ? evt.ax : ((atk && tgt) ? (atk.x + tgt.x) / 2 : 480);
         const my = evt.ay != null ? evt.ay : ((atk && tgt) ? (atk.y + tgt.y) / 2 : 320);
-        pushFxSheet('clash', mx - 16, my - 14, { dur: scaleDur(22), scale: 1.55 });
-        pushFxSheet('spark', mx - 8, my - 8, { dur: scaleDur(16), scale: 1.35 });
-        fx.push({ kind: 'burst', x: mx, y: my, life: scaleDur(16), max: scaleDur(16), color: C.gold });
-        fx.push({ kind: 'text', text: '撞刃', x: mx - 16, y: my - 28, life: scaleDur(36), max: scaleDur(36), color: C.gold });
-        screenFlash = Math.max(screenFlash, 8);
-        hitStop = Math.max(hitStop, scaleStop(14));
-        shake = Math.max(shake, 5.5);
+        pushFxSheet('clash', mx - 16, my - 14, { dur: scaleDur(24), scale: 1.7 });
+        pushFxSheet('slash', mx - 10, my - 8, { dur: scaleDur(16), scale: 1.25 });
+        pushFxSheet('spark', mx - 8, my - 8, { dur: scaleDur(18), scale: 1.45 });
+        fx.push({ kind: 'burst', x: mx, y: my, life: scaleDur(18), max: scaleDur(18), color: C.gold });
+        fx.push({ kind: 'text', text: '撞刃', x: mx - 16, y: my - 28, life: scaleDur(38), max: scaleDur(38), color: C.gold });
+        screenFlash = Math.max(screenFlash, 9);
+        hitStop = Math.max(hitStop, scaleStop(16));
+        shake = Math.max(shake, 6.2);
         if (atk) atk.flash = Math.max(atk.flash || 0, 14);
         if (tgt) tgt.flash = Math.max(tgt.flash || 0, 14);
         return;
@@ -1831,10 +1842,11 @@
         } else if (an.kind === 'windup') {
           dx = u.ox - an.dir * (6 + 4 * Math.sin(p * Math.PI));
           dy = u.oy - 4 * Math.sin(p * Math.PI);
-          pose = 'parry';
-          animName = 'parry';
-          frameOverride = ANIM.parry[Math.min(1, Math.floor(p * 2))];
-          flash = flash || (p > 0.2 && p < 0.85);
+          pose = 'idle';
+          animName = 'windup';
+          // v0.9：6→7→8 讀招，唔再用 parry／serve 茶盤感
+          frameOverride = ANIM.windup[Math.min(2, Math.floor(p * 3))];
+          flash = flash || (p > 0.15 && p < 0.9);
         }
       } else {
         const st = u.combatState || u.intent || 'idle';
@@ -1843,16 +1855,17 @@
           animName = 'walk';
           frameOverride = ANIM.walk[Math.floor(tick / 8) % 4];
         } else if (st === 'windup') {
-          animName = 'parry';
-          frameOverride = ANIM.parry[Math.floor(tick / 10) % 2];
+          animName = 'windup';
+          frameOverride = ANIM.windup[Math.floor(tick / 8) % 3];
           flash = true;
         } else if (st === 'strike') {
-          animName = 'attack';
-          frameOverride = ANIM.attack[1 + (Math.floor(tick / 6) % 3)];
+          animName = 'strike';
+          frameOverride = ANIM.strike[1 + (Math.floor(tick / 6) % 3)];
           pose = 'strike';
         } else if (st === 'recover') {
-          animName = 'idle';
-          frameOverride = ANIM.idle[0];
+          // 收招偏 strike 尾幀 11–12，再回 idle
+          animName = 'strike';
+          frameOverride = ANIM.strike[2 + (Math.floor(tick / 10) % 2)];
         } else if (st === 'hurt') {
           animName = 'hurt';
           frameOverride = ANIM.hurt[Math.floor(tick / 8) % 2];
