@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v0.6.3：日夜小費／夜路信使／戰鬥速度存檔）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v0.6.4：羈絆場景／第四章血影／日夜指示／速度鈕）
  */
 (function () {
   'use strict';
@@ -390,6 +390,8 @@
     if (u.battlesWon != null && state.battlesWon < u.battlesWon) return false;
     if (u.reputation != null && state.reputation < u.reputation) return false;
     if (u.innLevel != null && state.innLevel < u.innLevel) return false;
+    if (u.bossDefeated != null && !isBossDefeated(u.bossDefeated)) return false;
+    if (u.chapterRead != null && !isStoryRead(u.chapterRead)) return false;
     return true;
   }
 
@@ -399,6 +401,14 @@
     if (u.battlesWon != null) reasons.push(`勝仗 ${u.battlesWon}`);
     if (u.reputation != null) reasons.push(`聲望 ${u.reputation}`);
     if (u.innLevel != null) reasons.push(`客棧 Lv.${u.innLevel}`);
+    if (u.bossDefeated != null) {
+      const b = getBoss(u.bossDefeated);
+      reasons.push('擊敗' + (b ? b.name : u.bossDefeated));
+    }
+    if (u.chapterRead != null) {
+      const c = getStoryChapter(u.chapterRead);
+      reasons.push('閱覽' + (c ? c.title : u.chapterRead));
+    }
     return reasons;
   }
 
@@ -488,6 +498,8 @@
         return isBossDefeated('boss_heifeng');
       case 'boss_xieyi':
         return isBossDefeated('boss_xieyi');
+      case 'boss_xueying':
+        return isBossDefeated('boss_xueying');
       case 'manuals_4':
         return (state.unlockedManuals || []).length >= 4;
       case 'quest_5':
@@ -792,6 +804,20 @@
     }
   }
 
+  function applyFavorDelta(heroId, delta) {
+    if (!heroId || !delta) return;
+    const h = state.heroes[heroId];
+    if (!h) return;
+    const prev = h.favor || 0;
+    h.favor = Math.max(0, Math.min(100, prev + delta));
+    // 即使未招募，場景選擇仍可累積好感（招募後繼承）
+    const evs = checkBondEvents(heroId, prev, h.favor);
+    evs.forEach((ev) => {
+      pushLog('【羈絆·' + ev.title + '】' + ev.text, 'bond');
+      showBondToast(ev.title, ev.text);
+    });
+  }
+
   function applySceneChoiceEffects(effects) {
     if (!effects) return;
     if (effects.silver) {
@@ -802,11 +828,10 @@
       state.reputation = Math.max(0, (state.reputation || 0) + effects.reputation);
     }
     if (effects.favorHero && effects.favor) {
-      const h = state.heroes[effects.favorHero];
-      if (h) {
-        h.favor = (h.favor || 0) + effects.favor;
-        checkBondEvents(effects.favorHero);
-      }
+      applyFavorDelta(effects.favorHero, effects.favor);
+    }
+    if (effects.favorHero2 && effects.favor2) {
+      applyFavorDelta(effects.favorHero2, effects.favor2);
     }
     updateTopbar();
     save(true);
@@ -873,10 +898,12 @@
   function gameTick() {
     if (battle) {
       settleQuests();
+      syncDayPhaseChip();
       return;
     }
     processTicks(1);
     maybeHubFlavor();
+    syncDayPhaseChip();
     const clinic = clinicMods();
     const regenRate = 0.02 + clinic.regenBonus;
     Object.keys(state.heroes).forEach((id) => {
@@ -1624,11 +1651,33 @@
   // ——— UI ———
   function $(id) { return document.getElementById(id); }
 
+  const DAYPHASE_LABEL = {
+    dawn: { short: '晨', title: '破曉 · 小費較淡' },
+    day: { short: '晝', title: '白日營業' },
+    dusk: { short: '昏', title: '黃昏 · 小費略豐' },
+    night: { short: '夜', title: '夜客時分 · 小費最豐' }
+  };
+
+  function syncDayPhaseChip() {
+    const el = $('stat-dayphase');
+    if (!el) return;
+    let phase = 'day';
+    if (globalThis.WuxiaStages && WuxiaStages.Inn && typeof WuxiaStages.Inn.dayPhaseName === 'function') {
+      try { phase = WuxiaStages.Inn.dayPhaseName() || 'day'; } catch (e) { phase = 'day'; }
+    }
+    const meta = DAYPHASE_LABEL[phase] || DAYPHASE_LABEL.day;
+    el.dataset.phase = phase;
+    el.textContent = meta.short;
+    el.title = meta.title;
+    el.setAttribute('aria-label', '時辰：' + meta.title);
+  }
+
   function updateTopbar() {
     const inn = innInfo(state.innLevel);
     $('stat-silver').textContent = Math.floor(state.silver);
     $('stat-rep').textContent = state.reputation;
     $('stat-inn').textContent = `Lv.${state.innLevel} ${inn.name}`;
+    syncDayPhaseChip();
     const saveEl = $('stat-save');
     if (Date.now() < saveFlashUntil) {
       saveEl.textContent = '已存檔';

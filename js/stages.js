@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.6.3：日夜更明顯／小費波動／夜燈）
+ * 俠客棧 — 墨點江湖舞台（v0.6.4：血影 Boss／日夜指示銜接）
  * Hub 480×270：場景分層、小二／俠客 spritesheet；戰鬥 400×180：attack／hurt／parry 幀
  */
 (function (global) {
@@ -100,7 +100,7 @@
         if (img) Assets.sheets[id] = img;
       }));
     });
-    ['boss_heifeng', 'boss_xieyi'].forEach(function (id) {
+    ['boss_heifeng', 'boss_xieyi', 'boss_xueying'].forEach(function (id) {
       jobs.push(loadImg('assets/sprites/' + id + '_combat.png').then(function (img) {
         if (img) Assets.bosses[id] = img;
       }));
@@ -1391,8 +1391,10 @@
         let heroId = 'enemy';
         if (u.id && String(u.id).indexOf('boss_heifeng') >= 0) heroId = 'boss_heifeng';
         else if (u.id && String(u.id).indexOf('boss_xieyi') >= 0) heroId = 'boss_xieyi';
+        else if (u.id && String(u.id).indexOf('boss_xueying') >= 0) heroId = 'boss_xueying';
         else if (u.name && u.name.indexOf('黑風寨主') >= 0) heroId = 'boss_heifeng';
         else if (u.name && u.name.indexOf('邪醫') >= 0) heroId = 'boss_xieyi';
+        else if (u.name && u.name.indexOf('血影樓主') >= 0) heroId = 'boss_xueying';
         const tx = (u.x != null) ? u.x : slot.x;
         const ty = (u.y != null) ? u.y : slot.y;
         let x = tx;

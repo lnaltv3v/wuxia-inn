@@ -18,6 +18,7 @@
         <span class="stat-chip">銀兩 <b id="stat-silver">0</b></span>
         <span class="stat-chip">聲望 <b id="stat-rep">0</b></span>
         <span class="stat-chip" id="stat-inn">Lv.1</span>
+        <span class="stat-chip dayphase-chip" id="stat-dayphase" data-phase="day" title="白日營業" aria-label="時辰：白日營業">晝</span>
         <span class="save-ok" id="stat-save">自動存檔</span>
       </div>
       <div class="top-actions">
@@ -70,12 +71,12 @@
     <div id="combat-overlay" class="combat-overlay hidden" role="dialog" aria-modal="true" aria-label="出巡戰場">
       <header class="combat-overlay-head">
         <h2>出巡戰場</h2>
-        <div class="combat-speed" id="combat-speed" role="group" aria-label="戰鬥速度">
-          <span class="combat-speed-label">速度</span>
-          <button type="button" class="btn tiny combat-speed-btn" data-speed="0.5">0.5×</button>
-          <button type="button" class="btn tiny combat-speed-btn" data-speed="1">1×</button>
-          <button type="button" class="btn tiny combat-speed-btn" data-speed="1.5">1.5×</button>
-          <button type="button" class="btn tiny combat-speed-btn" data-speed="2">2×</button>
+        <div class="combat-speed px-frame" id="combat-speed" role="group" aria-label="戰鬥速度">
+          <span class="combat-speed-label">⚔ 速度</span>
+          <button type="button" class="btn combat-speed-btn" data-speed="0.5">0.5×</button>
+          <button type="button" class="btn combat-speed-btn" data-speed="1">1×</button>
+          <button type="button" class="btn combat-speed-btn" data-speed="1.5">1.5×</button>
+          <button type="button" class="btn combat-speed-btn" data-speed="2">2×</button>
         </div>
         <button type="button" class="btn tiny" id="btn-combat-back">返回客棧</button>
       </header>
@@ -83,7 +84,7 @@
     </div>
 
     <div id="toast-host" class="toast-host hidden" aria-live="polite"></div>
-    <footer class="footer">俠客棧 v0.6.3 · 日夜／小費 · 夜路信使 · 戰鬥速度存檔 · 墨點江湖</footer>
+    <footer class="footer">俠客棧 v0.6.4 · 羈絆場景 · 第四章血影 · 日夜指示 · 墨點江湖</footer>
   </div>
 
   <script src="js/data.js"></script>

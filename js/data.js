@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v0.6.3
+ * v0.6.4
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '0.6.3',
+    version: '0.6.4',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -202,6 +202,76 @@
           label: '拒收門外',
           effects: { reputation: -1 },
           resultLine: '信使嘆了口氣，消失在夜色裡。'
+        }
+      ]
+    },
+    {
+      id: 'moon_sword',
+      caption: '廊下青衣邀你月下論劍…',
+      interactive: true,
+      walkers: [
+        { id: 'qingyi', x: 40, y: 170, tx: 150, ty: 176 },
+        { id: 'xiaoer', x: 280, y: 168, tx: 220, ty: 172 }
+      ],
+      beats: [
+        { at: 0, caption: '月色灑在廊下青石', line: '掌櫃可敢接我一劍？', walker: 0, life: 1.25 },
+        { at: 900, line: '小心別碰倒茶壺！', walker: 1, life: 1.1 },
+        { at: 1800, caption: '青衣劍尖輕點——', line: '點到即止，亦可只觀。', walker: 0, life: 1.25 },
+        { at: 2600, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'spar',
+          label: '接劍點到為止（+羈絆）',
+          effects: { favorHero: 'qingyi', favor: 5, reputation: 2 },
+          resultLine: '劍風掠過燈籠。青衣收劍淺笑：「劍意更近。」羈絆上升。'
+        },
+        {
+          id: 'watch',
+          label: '旁觀指點（+銀／微羈絆）',
+          effects: { silver: 8, favorHero: 'qingyi', favor: 2 },
+          resultLine: '你點破一處收勢，她頷首謝過，茶錢也多給了。'
+        },
+        {
+          id: 'decline',
+          label: '今夜改日',
+          effects: { favorHero: 'qingyi', favor: -1 },
+          resultLine: '青衣收劍：「也好。」廊下只餘月光。'
+        }
+      ]
+    },
+    {
+      id: 'wine_oath',
+      caption: '浪人拍桌邀酒結義…',
+      interactive: true,
+      walkers: [
+        { id: 'langren', x: 300, y: 178, tx: 230, ty: 182 },
+        { id: 'tiezhang', x: 80, y: 180, tx: 150, ty: 184 }
+      ],
+      beats: [
+        { at: 0, caption: '雅座忽然喧鬧', line: '掌櫃！來喝！刀酒同盟！', walker: 0, life: 1.25 },
+        { at: 900, line: '少灌，傷肝。', walker: 1, life: 1.15, move: { i: 0, tx: 200, ty: 180 } },
+        { at: 1800, caption: '浪人舉碗相邀——', line: '你敢陪，我便護這棧。', walker: 0, life: 1.3 },
+        { at: 2600, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'drink',
+          label: '對飲三碗（+羈絆／−銀）',
+          effects: { silver: -10, favorHero: 'langren', favor: 6, reputation: 1 },
+          resultLine: '酒氣衝天。浪人拍肩大笑：「成！出巡有我。」羈絆大升。'
+        },
+        {
+          id: 'tea',
+          label: '以茶代酒（微羈絆）',
+          effects: { favorHero: 'langren', favor: 3, favorHero2: 'tiezhang', favor2: 2 },
+          resultLine: '浪人撇嘴仍乾了茶。醫女點頭：「這樣才像話。」'
+        },
+        {
+          id: 'refuse_wine',
+          label: '拒酒勸他歇息',
+          effects: { favorHero: 'langren', favor: -2, favorHero2: 'tiezhang', favor2: 1 },
+          resultLine: '浪人哼一聲離席；醫女卻道：「掌櫃懂分寸。」'
         }
       ]
     }
@@ -427,6 +497,23 @@
         { speaker: '掌櫃', text: '客棧醫館已備好傷藥。去吧——把迷霧撕開。' },
         { speaker: '旁白', text: '—— 第三章完。Boss「邪醫·腐骨」已可挑戰。擊敗後可獲獨特秘籍獎勵。' }
       ]
+    },
+    {
+      id: 'ch4_xueying',
+      title: '第四章 · 血影樓訊',
+      subtitle: '樓主預告',
+      emoji: '🩸',
+      unlock: { innLevel: 3, reputation: 110, battlesWon: 9, bossDefeated: 'boss_xieyi' },
+      bossId: 'boss_xueying',
+      reward: { silver: 120, reputation: 18 },
+      lines: [
+        { speaker: '行商', text: '掌櫃……血影樓的紅帖到了。說是「借刀」，實則要本棧交人。' },
+        { speaker: '浪人刀客', text: '紅帖？哼，樓裡那些影刀，最喜歡夜裡從窗縫鑽進來。' },
+        { speaker: '青衣劍客', text: '邪醫既除，更大的影卻來了。樓主善用雙刃，專挑弱處。' },
+        { speaker: '琴心師太', text: '血氣過重，梵音可鎮其鋒。然此戰不宜輕忽。' },
+        { speaker: '掌櫃', text: '客棧不交人。備傷藥、亮燈——去血影樓問個明白。' },
+        { speaker: '旁白', text: '—— 第四章骨架完。Boss「血影樓主」已可挑戰（路線預告・可再戰）。' }
+      ]
     }
   ];
 
@@ -490,6 +577,35 @@
           startShield: 0.1
         }
       ]
+    },
+    {
+      id: 'boss_xueying',
+      name: '血影樓主',
+      emoji: '🩸',
+      chapterId: 'ch4_xueying',
+      desc: '血影樓主，雙刃嗜血，影衛成對；專剋護盾薄弱者。（第四章路線預告）',
+      minInnLevel: 3,
+      rewardSilver: [320, 460],
+      rewardRep: [42, 60],
+      rewardManual: 'xueying',
+      bonusSilver: 180,
+      enemies: [
+        {
+          name: '血影衛甲', emoji: '🗡️', force: 20, nei: 14, hp: 120,
+          skill: { name: '影刺', mul: 1.5, chance: 0.26 }
+        },
+        {
+          name: '血影衛乙', emoji: '🗡️', force: 20, nei: 14, hp: 120,
+          skill: { name: '影刺', mul: 1.5, chance: 0.26 }
+        },
+        {
+          id: 'boss_xueying',
+          name: '血影樓主', emoji: '🩸', force: 30, nei: 22, hp: 300,
+          skill: { name: '血影連斬', mul: 2.05, chance: 0.36, weaken: 0.12 },
+          mitBonus: 0.09,
+          startShield: 0.08
+        }
+      ]
     }
   ];
 
@@ -507,9 +623,10 @@
     { id: 'facility_any', name: '百工就緒', desc: '建造任一設施（達 Lv.1）', emoji: '🔧' },
     { id: 'boss_heifeng', name: '黑風盡滅', desc: '擊敗 Boss「黑風寨主」', emoji: '🌪️' },
     { id: 'boss_xieyi', name: '霧破毒消', desc: '擊敗 Boss「邪醫·腐骨」', emoji: '☠️' },
+    { id: 'boss_xueying', name: '血影盡散', desc: '擊敗 Boss「血影樓主」', emoji: '🩸' },
     { id: 'manuals_4', name: '武學初成', desc: '藏書閣收藏至少 4 本秘籍', emoji: '📚' },
     { id: 'quest_5', name: '俠義奔走', desc: '完成至少 5 件聲望委託', emoji: '📋' },
-    { id: 'story_all', name: '燈火三章', desc: '閱覽全部劇情章節', emoji: '📜' }
+    { id: 'story_all', name: '燈火篇章', desc: '閱覽全部劇情章節', emoji: '📜' }
   ];
 
   const BOND_TIERS = [
@@ -582,6 +699,15 @@
       effect: { forceBonus: 0.08, skillChanceBonus: 0.06 },
       learnCost: 90,
       dropWeight: 9
+    },
+    {
+      id: 'xueying',
+      name: '血影雙刃',
+      type: 'active',
+      desc: '雙刃錯落，高觸發傷害並短暫削弱敵方。',
+      effect: { mul: 1.85, chance: 0.28, weaken: 0.1 },
+      learnCost: 150,
+      dropWeight: 3
     }
   ];
 
