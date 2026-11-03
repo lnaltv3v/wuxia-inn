@@ -1,6 +1,6 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.4.2）
- * 客棧接客 Canvas + 戰鬥對峙 Canvas；色盤跟 ART.md
+ * 俠客棧 — 墨點江湖舞台（v0.5.0-hub）
+ * 客棧 Hub 480×270 + 戰鬥對峙 Canvas；色盤跟 ART.md
  */
 (function (global) {
   'use strict';
@@ -114,12 +114,13 @@
     ctx.fillText(String(text), Math.round(x), Math.round(y));
   }
 
-  // ——— 客棧接客舞台 ———
+  // ——— 客棧 Hub 舞台（v0.5 · 480×270 場景驅動） ———
   const InnStage = (function () {
-    const W = 320;
-    const H = 180;
+    const W = 480;
+    const H = 270;
     let canvas = null;
     let ctx = null;
+    let wrapEl = null;
     let raf = 0;
     let running = false;
     let phase = 'idle'; // idle | enter | serve | pay | leave
@@ -130,30 +131,50 @@
     let queue = [];
     let coinY = 0;
     let coinAlpha = 0;
-    let floatLabel = null; // { text, x, y, life }
+    let floatLabel = null;
     let staffArm = 0;
-    let guestX = 300;
+    let guestX = 450;
     let guestStride = 0;
     let idleBlink = 0;
+    let hoverId = null;
+    let hotspotHandler = null;
+    let ambientHeroes = ['qingyi'];
+    let innTitle = '俠客棧';
+    let walkerPhase = 0;
+    let seatedGuests = []; // ambient seated {x,y,robe}
+
+    // 熱點：場景內可點區域（邏輯座標）
+    const HOTSPOTS = [
+      { id: 'counter',  label: '櫃檯·經營',  x: 150, y: 145, w: 180, h: 55, open: 'inn' },
+      { id: 'heroes',   label: '俠客席·養成', x: 20,  y: 175, w: 110, h: 70, open: 'heroes' },
+      { id: 'door',     label: '大門·出巡',  x: 430, y: 95,  w: 48,  h: 100, open: 'combat' },
+      { id: 'board',    label: '告示·江湖',  x: 355, y: 55,  w: 55,  h: 50, open: 'story' },
+      { id: 'map',      label: '地圖·據點',  x: 20,  y: 55,  w: 70,  h: 55, open: 'outposts' },
+      { id: 'books',    label: '書架·藏書',  x: 300, y: 55,  w: 45,  h: 55, open: 'inn' }
+    ];
 
     function mount(host) {
       if (!host) return;
       host.innerHTML = '';
       const wrap = document.createElement('div');
-      wrap.className = 'stage-wrap inn-stage-wrap';
-      wrap.innerHTML = '<canvas class="px-stage" width="320" height="180" aria-label="客棧接客舞台"></canvas>' +
-        '<div class="stage-caption" id="inn-stage-cap">等待客人上門…</div>';
+      wrap.className = 'stage-wrap inn-stage-wrap hub-stage-wrap';
+      wrap.innerHTML =
+        '<canvas class="px-stage hub-canvas" width="480" height="270" aria-label="客棧內部主場景" tabindex="0"></canvas>' +
+        '<div class="stage-caption" id="inn-stage-cap">客棧內部 · 點擊場景熱點開啟功能</div>';
       host.appendChild(wrap);
+      wrapEl = wrap;
       canvas = wrap.querySelector('canvas');
       ctx = canvas.getContext('2d');
       ctx.imageSmoothingEnabled = false;
       running = true;
       t0 = performance.now();
-      if (phase !== 'idle' && phase !== 'enter' && phase !== 'serve' && phase !== 'pay' && phase !== 'leave') {
-        phase = 'idle';
-      }
-      // remount 時若佇列有客或正閒置，接續／開下一場
+      if (['idle', 'enter', 'serve', 'pay', 'leave'].indexOf(phase) < 0) phase = 'idle';
+      canvas.addEventListener('mousemove', onMove);
+      canvas.addEventListener('mouseleave', () => { hoverId = null; });
+      canvas.addEventListener('click', onClick);
+      canvas.addEventListener('touchstart', onTouch, { passive: true });
       cancelAnimationFrame(raf);
+      seedSeated();
       loop(performance.now());
       if (phase === 'idle' && queue.length) startNext();
     }
@@ -161,8 +182,14 @@
     function destroy() {
       running = false;
       cancelAnimationFrame(raf);
+      if (canvas) {
+        canvas.removeEventListener('mousemove', onMove);
+        canvas.removeEventListener('click', onClick);
+        canvas.removeEventListener('touchstart', onTouch);
+      }
       canvas = null;
       ctx = null;
+      wrapEl = null;
     }
 
     function isMounted() { return !!canvas && running && canvas.isConnected; }
@@ -172,117 +199,240 @@
       if (el) el.textContent = text;
     }
 
+    function setHotspotHandler(fn) { hotspotHandler = typeof fn === 'function' ? fn : null; }
+    function setAmbientHeroes(ids) {
+      ambientHeroes = Array.isArray(ids) && ids.length ? ids.slice(0, 4) : ['qingyi'];
+    }
+    function setInnTitle(name) { innTitle = name || '俠客棧'; }
+
+    function canvasPos(evt) {
+      const rect = canvas.getBoundingClientRect();
+      const sx = canvas.width / rect.width;
+      const sy = canvas.height / rect.height;
+      const cx = (evt.clientX != null ? evt.clientX : (evt.touches && evt.touches[0].clientX)) - rect.left;
+      const cy = (evt.clientY != null ? evt.clientY : (evt.touches && evt.touches[0].clientY)) - rect.top;
+      return { x: cx * sx, y: cy * sy };
+    }
+
+    function hitTest(x, y) {
+      for (let i = HOTSPOTS.length - 1; i >= 0; i--) {
+        const h = HOTSPOTS[i];
+        if (x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h) return h;
+      }
+      return null;
+    }
+
+    function onMove(evt) {
+      const p = canvasPos(evt);
+      const h = hitTest(p.x, p.y);
+      hoverId = h ? h.id : null;
+      if (canvas) canvas.style.cursor = h ? 'pointer' : 'default';
+    }
+
+    function onClick(evt) {
+      const p = canvasPos(evt);
+      const h = hitTest(p.x, p.y);
+      if (h && hotspotHandler) hotspotHandler(h.open, h);
+    }
+
+    function onTouch(evt) {
+      if (!evt.touches || !evt.touches[0]) return;
+      const p = canvasPos(evt.touches[0]);
+      const h = hitTest(p.x, p.y);
+      hoverId = h ? h.id : null;
+      if (h && hotspotHandler) hotspotHandler(h.open, h);
+    }
+
     function enqueueGuest(guest, pay) {
       queue.push({ guest: guest || { name: '過路客', kind: 'meal' }, pay: pay || 0 });
       if (phase === 'idle') startNext();
     }
 
-    function playGuest(guest, pay) {
-      enqueueGuest(guest, pay);
-    }
+    function playGuest(guest, pay) { enqueueGuest(guest, pay); }
 
     function startNext() {
       if (!queue.length) {
         phase = 'idle';
-        setCaption('等待客人上門…');
+        setCaption(innTitle + ' · 點擊場景熱點 · 等待客人上門…');
         return;
       }
       const job = queue.shift();
       guestName = job.guest.name || '過路客';
       guestKind = job.guest.kind || 'meal';
       payAmt = job.pay || 0;
-      guestX = 310;
+      guestX = 460;
       guestStride = 0;
       staffArm = 0;
       coinAlpha = 0;
       floatLabel = null;
       phase = 'enter';
       t0 = performance.now();
-      setCaption(guestName + ' 進門…');
+      setCaption(guestName + ' 從大門進場…');
+    }
+
+    function seedSeated() {
+      seatedGuests = [
+        { x: 55, y: 200, robe: C.mist },
+        { x: 95, y: 208, robe: C.inkSoft },
+        { x: 250, y: 205, robe: C.wood }
+      ];
+    }
+
+    function drawTable(tx, ty, tw) {
+      drawRect(ctx, tx, ty, tw, 10, C.wood);
+      drawRect(ctx, tx, ty, tw, 2, C.woodLight);
+      drawRect(ctx, tx + 4, ty + 10, 4, 8, C.inkSoft);
+      drawRect(ctx, tx + tw - 8, ty + 10, 4, 8, C.inkSoft);
+      // 椅
+      drawRect(ctx, tx - 10, ty + 4, 8, 6, C.woodLight);
+      drawRect(ctx, tx + tw + 2, ty + 4, 8, 6, C.woodLight);
     }
 
     function drawBg() {
-      // 室內：木牆＋地板＋櫃檯
-      drawRect(ctx, 0, 0, W, 70, C.wood);
-      drawRect(ctx, 0, 0, W, 18, C.night);
-      // 窗外遠景條
-      drawRect(ctx, 24, 22, 70, 36, C.sky);
-      drawRect(ctx, 28, 40, 24, 18, C.mtn);
-      drawRect(ctx, 48, 34, 30, 24, C.jade);
-      drawRect(ctx, 226, 22, 70, 36, C.sky);
-      drawRect(ctx, 230, 38, 28, 20, C.mtn);
-      // 窗框
-      drawRect(ctx, 24, 22, 70, 2, C.ink);
-      drawRect(ctx, 24, 56, 70, 2, C.ink);
-      drawRect(ctx, 24, 22, 2, 36, C.ink);
-      drawRect(ctx, 92, 22, 2, 36, C.ink);
-      drawRect(ctx, 58, 22, 2, 36, C.ink);
-      drawRect(ctx, 24, 39, 70, 2, C.ink);
-      drawRect(ctx, 226, 22, 70, 2, C.ink);
-      drawRect(ctx, 226, 56, 70, 2, C.ink);
-      drawRect(ctx, 226, 22, 2, 36, C.ink);
-      drawRect(ctx, 294, 22, 2, 36, C.ink);
-      drawRect(ctx, 260, 22, 2, 36, C.ink);
-      drawRect(ctx, 226, 39, 70, 2, C.ink);
+      // 牆與梁
+      drawRect(ctx, 0, 0, W, 100, C.wood);
+      drawRect(ctx, 0, 0, W, 22, C.night);
+      // 梁木
+      drawRect(ctx, 0, 96, W, 6, C.inkSoft);
+      drawRect(ctx, 0, 98, W, 2, C.woodLight);
+      // 左窗
+      drawRect(ctx, 28, 32, 54, 42, C.sky);
+      drawRect(ctx, 32, 52, 20, 22, C.mtn);
+      drawRect(ctx, 48, 44, 24, 30, C.jade);
+      drawRect(ctx, 28, 32, 54, 2, C.ink);
+      drawRect(ctx, 28, 72, 54, 2, C.ink);
+      drawRect(ctx, 28, 32, 2, 42, C.ink);
+      drawRect(ctx, 80, 32, 2, 42, C.ink);
+      drawRect(ctx, 54, 32, 2, 42, C.ink);
+      drawRect(ctx, 28, 52, 54, 2, C.ink);
+      // 右窗
+      drawRect(ctx, 380, 32, 40, 42, C.sky);
+      drawRect(ctx, 384, 50, 18, 24, C.mtn);
+      drawRect(ctx, 380, 32, 40, 2, C.ink);
+      drawRect(ctx, 380, 72, 40, 2, C.ink);
+      drawRect(ctx, 380, 32, 2, 42, C.ink);
+      drawRect(ctx, 418, 32, 2, 42, C.ink);
       // 燈籠
-      drawRect(ctx, 110, 20, 10, 14, C.cinnabarBright);
-      drawRect(ctx, 200, 20, 10, 14, C.cinnabarBright);
-      drawRect(ctx, 112, 18, 6, 2, C.gold);
-      drawRect(ctx, 202, 18, 6, 2, C.gold);
+      [[120, 26], [220, 26], [320, 26]].forEach(function (p) {
+        drawRect(ctx, p[0], p[1], 12, 16, C.cinnabarBright);
+        drawRect(ctx, p[0] + 2, p[1] - 2, 8, 2, C.gold);
+        drawRect(ctx, p[0] + 4, p[1] + 16, 4, 4, C.gold);
+      });
+      // 地圖掛軸（據點熱點）
+      drawRect(ctx, 24, 58, 62, 48, '#D4BC8A');
+      drawRect(ctx, 28, 62, 54, 40, C.mtn);
+      drawRect(ctx, 34, 70, 16, 10, C.jade);
+      drawRect(ctx, 52, 78, 20, 12, C.loess);
+      drawRect(ctx, 24, 54, 62, 4, C.inkSoft);
+      // 書架
+      drawRect(ctx, 302, 58, 42, 48, C.wood);
+      drawRect(ctx, 306, 62, 8, 18, C.blood);
+      drawRect(ctx, 316, 64, 8, 16, C.teal);
+      drawRect(ctx, 326, 62, 8, 18, C.violet);
+      drawRect(ctx, 306, 84, 34, 4, C.woodLight);
+      drawRect(ctx, 306, 92, 34, 4, C.woodLight);
+      // 告示板
+      drawRect(ctx, 358, 58, 50, 46, C.woodLight);
+      drawRect(ctx, 362, 62, 42, 38, C.paper);
+      drawRect(ctx, 366, 66, 34, 3, C.inkSoft);
+      drawRect(ctx, 366, 72, 28, 3, C.mist);
+      drawRect(ctx, 366, 78, 30, 3, C.cinnabar);
+      drawRect(ctx, 366, 84, 22, 3, C.inkSoft);
+      // 牌匾
+      const tw = Math.min(160, 16 + innTitle.length * 14);
+      drawRect(ctx, (W - tw) / 2, 6, tw, 14, C.inkSoft);
+      drawRect(ctx, (W - tw) / 2 + 2, 8, tw - 4, 10, C.blood);
       // 地板
-      drawRect(ctx, 0, 70, W, 110, C.loess);
-      for (let i = 0; i < 10; i++) {
-        drawRect(ctx, 8 + i * 32, 78 + (i % 2) * 10, 14, 4, C.woodLight);
+      drawRect(ctx, 0, 102, W, H - 102, C.loess);
+      for (let i = 0; i < 14; i++) {
+        drawRect(ctx, 10 + i * 34, 112 + (i % 3) * 8, 16, 3, C.woodLight);
       }
+      // 桌椅
+      drawTable(40, 195, 70);
+      drawTable(230, 200, 70);
+      drawTable(130, 220, 60);
       // 櫃檯
-      drawRect(ctx, 70, 100, 180, 28, C.wood);
-      drawRect(ctx, 70, 100, 180, 4, C.woodLight);
-      drawRect(ctx, 70, 124, 180, 4, C.inkSoft);
-      // 茶壺／杯位
-      drawRect(ctx, 140, 92, 10, 8, C.teal);
-      drawRect(ctx, 142, 88, 6, 4, C.tealBright);
-      drawRect(ctx, 160, 96, 6, 4, C.paperLight);
-      // 門
-      drawRect(ctx, 292, 70, 20, 70, C.night);
-      drawRect(ctx, 296, 100, 4, 8, C.gold);
-      // 木牌
-      drawRect(ctx, 128, 8, 64, 12, C.inkSoft);
-      drawRect(ctx, 132, 10, 56, 8, C.blood);
+      drawRect(ctx, 150, 155, 180, 36, C.wood);
+      drawRect(ctx, 150, 155, 180, 5, C.woodLight);
+      drawRect(ctx, 150, 186, 180, 5, C.inkSoft);
+      drawRect(ctx, 220, 148, 14, 10, C.teal);
+      drawRect(ctx, 224, 144, 6, 4, C.tealBright);
+      drawRect(ctx, 245, 152, 8, 5, C.paperLight);
+      drawRect(ctx, 260, 152, 8, 5, C.paperLight);
+      // 銀匣
+      drawRect(ctx, 170, 148, 16, 10, C.gold);
+      drawRect(ctx, 172, 150, 12, 6, C.loess);
+      // 大門
+      drawRect(ctx, 432, 102, 48, 110, C.night);
+      drawRect(ctx, 436, 106, 40, 102, C.inkSoft);
+      drawRect(ctx, 452, 148, 6, 14, C.gold);
+      drawRect(ctx, 440, 120, 12, 20, C.sky);
+      drawRect(ctx, 464, 120, 12, 20, C.sky);
+    }
+
+    function drawHotspotHints() {
+      HOTSPOTS.forEach(function (h) {
+        const on = hoverId === h.id;
+        if (on) {
+          ctx.globalAlpha = 0.35;
+          drawRect(ctx, h.x, h.y, h.w, h.h, C.gold);
+          ctx.globalAlpha = 1;
+          // 邊框
+          drawRect(ctx, h.x, h.y, h.w, 2, C.cream);
+          drawRect(ctx, h.x, h.y + h.h - 2, h.w, 2, C.cream);
+          drawRect(ctx, h.x, h.y, 2, h.h, C.cream);
+          drawRect(ctx, h.x + h.w - 2, h.y, 2, h.h, C.cream);
+          drawPixelText(ctx, h.label, h.x + 4, Math.max(8, h.y - 12), C.cream);
+        } else {
+          // 常駐小標
+          ctx.globalAlpha = 0.55;
+          drawRect(ctx, h.x + 2, h.y + 2, 4, 4, C.gold);
+          ctx.globalAlpha = 1;
+        }
+      });
+    }
+
+    function weaponFor(id) {
+      if (id === 'qingyi') return 'sword';
+      if (id === 'tiezhang') return 'fist';
+      if (id === 'langren') return 'blade';
+      if (id === 'qinshi') return 'qin';
+      return null;
     }
 
     function loop(now) {
       if (!running || !ctx || !canvas || !canvas.isConnected) return;
       raf = requestAnimationFrame(loop);
       const elapsed = now - t0;
-      idleBlink = (idleBlink + 1) % 60;
+      idleBlink = (idleBlink + 1) % 90;
+      walkerPhase = (walkerPhase + 1) % 240;
 
-      // 相位推進
       if (phase === 'enter') {
-        guestX = 310 - Math.min(1, elapsed / 900) * 130;
+        guestX = 460 - Math.min(1, elapsed / 1100) * 200;
         guestStride = Math.floor(elapsed / 120) % 2;
-        if (elapsed >= 900) {
+        if (elapsed >= 1100) {
           phase = 'serve';
           t0 = now;
-          guestX = 180;
+          guestX = 260;
           guestStride = 0;
           setCaption('店員斟茶遞水…');
         }
       } else if (phase === 'serve') {
         staffArm = Math.floor(elapsed / 180) % 2;
-        if (elapsed >= 1100) {
+        if (elapsed >= 1200) {
           phase = 'pay';
           t0 = now;
           staffArm = 0;
           coinAlpha = 1;
           coinY = 0;
-          floatLabel = { text: '+' + payAmt + '兩', x: 168, y: 86, life: 1 };
+          floatLabel = { text: '+' + payAmt + '兩', x: 250, y: 130, life: 1 };
           setCaption(guestName + ' 付銀 ' + payAmt + ' 兩');
         }
       } else if (phase === 'pay') {
-        coinY = Math.min(24, elapsed / 20);
+        coinY = Math.min(28, elapsed / 18);
         coinAlpha = clamp(1 - elapsed / 900, 0, 1);
         if (floatLabel) {
-          floatLabel.y = 86 - elapsed / 40;
+          floatLabel.y = 130 - elapsed / 40;
           floatLabel.life = clamp(1 - elapsed / 1000, 0, 1);
         }
         if (elapsed >= 1000) {
@@ -292,67 +442,76 @@
           setCaption(guestName + ' 告辭離場');
         }
       } else if (phase === 'leave') {
-        guestX = 180 + Math.min(1, elapsed / 900) * 150;
+        guestX = 260 + Math.min(1, elapsed / 1000) * 210;
         guestStride = Math.floor(elapsed / 120) % 2;
-        if (elapsed >= 900) {
-          startNext();
-        }
+        if (elapsed >= 1000) startNext();
       }
 
-      // 繪製
       ctx.clearRect(0, 0, W, H);
       drawBg();
 
-      // 店員（櫃後左側）
-      const staffPal = HERO_COLORS.staff;
-      const staffX = phase === 'serve' ? 118 + staffArm * 2 : 112;
-      drawFigure(ctx, staffX, 78, staffPal, {
-        weapon: phase === 'serve' ? 'tray' : null,
-        arm: staffArm,
-        scale: 1
+      // 坐客
+      seatedGuests.forEach(function (g) {
+        drawFigure(ctx, g.x, g.y, { robe: g.robe, accent: C.gold, skin: C.skin, hair: C.inkSoft }, { scale: 1 });
       });
 
-      // 閒時俠客剪影（右後）
-      if (phase === 'idle') {
-        drawFigure(ctx, 240, 118, HERO_COLORS.qingyi, { weapon: 'sword', scale: 1, stride: idleBlink < 30 ? 0 : 1 });
-      }
+      // 店員櫃後
+      const staffPal = HERO_COLORS.staff;
+      const staffX = phase === 'serve' ? 188 + staffArm * 2 : 182;
+      drawFigure(ctx, staffX, 128, staffPal, {
+        weapon: phase === 'serve' ? 'tray' : null,
+        arm: staffArm,
+        scale: 1.15
+      });
+
+      // 俠客走動（養成熱點區與中場）
+      ambientHeroes.forEach(function (hid, i) {
+        const pal = HERO_COLORS[hid] || HERO_COLORS.default;
+        const baseX = 30 + i * 28;
+        const walk = Math.sin((walkerPhase + i * 40) / 30) * 18;
+        const stride = Math.floor((walkerPhase + i * 20) / 20) % 2;
+        const y = 178 + (i % 2) * 6;
+        drawFigure(ctx, baseX + walk, y, pal, {
+          weapon: weaponFor(hid),
+          stride: stride,
+          scale: 1.1
+        });
+      });
 
       // 客人
       if (phase !== 'idle') {
-        const gPal = HERO_COLORS.guest;
-        // 富紳略改色
         const robe = guestKind === 'stay' ? C.inkSoft : C.mist;
-        drawFigure(ctx, guestX, 108, { robe: robe, accent: C.gold, skin: C.skin, hair: C.inkSoft }, {
+        drawFigure(ctx, guestX, 168, { robe: robe, accent: C.gold, skin: C.skin, hair: C.inkSoft }, {
           stride: guestStride,
-          arm: 0,
-          scale: 1
+          scale: 1.15
         });
-      } else {
-        // idle 輕微提示：門口影子
-        if (idleBlink < 20) {
-          drawRect(ctx, 300, 120, 8, 16, C.inkSoft);
-        }
+      } else if (idleBlink < 25) {
+        drawRect(ctx, 448, 180, 10, 20, C.inkSoft);
       }
 
-      // 銀兩飛向櫃
       if (phase === 'pay' && coinAlpha > 0) {
-        const cx = 190;
-        const cy = 110 - coinY;
-        drawRect(ctx, cx, cy, 6, 6, C.gold);
+        const cx = 270;
+        const cy = 160 - coinY;
+        drawRect(ctx, cx, cy, 7, 7, C.gold);
         drawRect(ctx, cx + 1, cy + 1, 2, 2, C.cream);
         ctx.globalAlpha = coinAlpha;
-        drawRect(ctx, 148, 94, 6, 6, C.gold);
+        drawRect(ctx, 230, 148, 7, 7, C.gold);
         ctx.globalAlpha = 1;
       }
-
       if (floatLabel && floatLabel.life > 0) {
         ctx.globalAlpha = floatLabel.life;
         drawPixelText(ctx, floatLabel.text, floatLabel.x, floatLabel.y, C.gold);
         ctx.globalAlpha = 1;
       }
+
+      drawHotspotHints();
     }
 
-    return { mount, destroy, isMounted, playGuest, enqueueGuest };
+    return {
+      mount, destroy, isMounted, playGuest, enqueueGuest,
+      setHotspotHandler, setAmbientHeroes, setInnTitle,
+      HOTSPOTS
+    };
   })();
 
   // ——— 戰鬥舞台 ———

@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v0.4.2：接客／戰鬥舞台 · 墨點江湖）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v0.5.0-hub：場景 hub · 墨點江湖）
  */
 (function () {
   'use strict';
@@ -20,7 +20,7 @@
   let tickTimer = null;
   let battle = null;
   let saveFlashUntil = 0;
-  let activeTab = 'inn';
+  let activeTab = 'hub';
   let bondToast = null;
   let selectedOutpost = 'main';
   let uiToast = null; // { title, text, kind }
@@ -659,7 +659,7 @@
       checkStoryUnlocks();
       checkAchievements();
     }
-    if (activeTab === 'inn') softUpdateInn();
+    if (activeTab === 'inn' || activeTab === 'hub') softUpdateInn();
     if (activeTab === 'outposts') renderOutposts();
     if (activeTab === 'story') renderStory();
     updateTopbar();
@@ -1362,14 +1362,103 @@
     }
   }
 
-  function setTab(name) {
+  const SHEET_TITLES = {
+    inn: '經營 · 設施／藏書',
+    outposts: '據點 · 任務板',
+    heroes: '俠客 · 養成',
+    story: '江湖 · 劇情／成就',
+    log: '日誌 · 存檔'
+  };
+
+  function closeMenu() {
+    const m = $('hub-menu');
+    if (m) m.classList.add('hidden');
+  }
+
+  function toggleMenu() {
+    const m = $('hub-menu');
+    if (!m) return;
+    m.classList.toggle('hidden');
+  }
+
+  function closeSheet() {
+    const sheet = $('sheet');
+    const bd = $('sheet-backdrop');
+    if (sheet) sheet.classList.add('hidden');
+    if (bd) bd.classList.add('hidden');
+    document.querySelectorAll('#sheet .panel').forEach((p) => p.classList.add('hidden'));
+    if (activeTab !== 'combat') activeTab = 'hub';
+    document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.remove('active'));
+    closeMenu();
+    ensureHubStage();
+  }
+
+  function openSheet(name) {
+    if (name === 'combat') {
+      openCombatOverlay();
+      return;
+    }
+    // 關掉戰鬥疊層（非戰鬥中才允許）
+    if (!battle) closeCombatOverlay(false);
     activeTab = name;
+    const sheet = $('sheet');
+    const bd = $('sheet-backdrop');
+    const title = $('sheet-title');
+    if (title) title.textContent = SHEET_TITLES[name] || '功能';
+    document.querySelectorAll('#sheet .panel').forEach((p) => {
+      p.classList.toggle('hidden', p.id !== 'panel-' + name);
+    });
     document.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.tab === name);
     });
-    document.querySelectorAll('.panel').forEach((p) => {
-      p.classList.toggle('hidden', p.id !== 'panel-' + name);
+    if (sheet) sheet.classList.remove('hidden');
+    if (bd) bd.classList.remove('hidden');
+    closeMenu();
+    if (name === 'inn') renderInn();
+    if (name === 'outposts') renderOutposts();
+    if (name === 'heroes') renderHeroes();
+    if (name === 'story') renderStory();
+    if (name === 'log') renderLog();
+  }
+
+  function openCombatOverlay() {
+    activeTab = 'combat';
+    closeSheet();
+    activeTab = 'combat';
+    const ov = $('combat-overlay');
+    if (ov) ov.classList.remove('hidden');
+    document.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.tab === 'combat');
     });
+    closeMenu();
+    renderCombat();
+  }
+
+  function closeCombatOverlay(force) {
+    if (battle && !force) {
+      // 戰鬥中不可直接關掉；需鳴金或打完
+      return false;
+    }
+    const ov = $('combat-overlay');
+    if (ov) ov.classList.add('hidden');
+    if (activeTab === 'combat') activeTab = 'hub';
+    document.querySelectorAll('.tab-btn').forEach((btn) => {
+      if (btn.dataset.tab === 'combat') btn.classList.remove('active');
+    });
+    ensureHubStage();
+    return true;
+  }
+
+  function setTab(name) {
+    if (!name || name === 'hub') {
+      closeCombatOverlay(false);
+      closeSheet();
+      activeTab = 'hub';
+      ensureHubStage();
+      return;
+    }
+    if (name === 'combat') openCombatOverlay();
+    else openSheet(name);
   }
 
 
@@ -1555,7 +1644,7 @@
   }
 
   function softUpdateInn() {
-    // 不重繪整頁，避免清掉接客 Canvas；只刷數字
+    // Hub 常駐；經營 sheet 開住時只刷數字，避免清掉 Canvas
     const inn = innInfo(state.innLevel);
     const earned = document.getElementById('inn-stat-earned');
     if (earned) earned.textContent = String(state.totalEarned);
@@ -1567,16 +1656,37 @@
     if (quests) quests.textContent = String(state.questsDone);
     const mul = document.getElementById('inn-stat-mul');
     if (mul) mul.textContent = '×' + (inn.incomeMul * cellarIncomeMul()).toFixed(2);
-    if (!document.getElementById('inn-stage-host') || !(WuxiaStages && WuxiaStages.Inn && WuxiaStages.Inn.isMounted())) {
-      renderInn();
+    ensureHubStage();
+    const hint = document.getElementById('hub-hint');
+    if (hint && !battle) {
+      hint.textContent = inn.name + ' · 已接客 ' + state.guestsServed + ' · 點場景熱點開啟功能';
     }
   }
 
-  function ensureInnStage() {
-    const host = document.getElementById('inn-stage-host');
+  function ensureHubStage() {
+    const host = document.getElementById('hub-stage-host');
     if (!host || !globalThis.WuxiaStages || !WuxiaStages.Inn) return;
     if (!WuxiaStages.Inn.isMounted()) WuxiaStages.Inn.mount(host);
+    if (WuxiaStages.Inn.setInnTitle) {
+      const inn = innInfo(state.innLevel);
+      WuxiaStages.Inn.setInnTitle(inn.name);
+    }
+    if (WuxiaStages.Inn.setAmbientHeroes) {
+      const ids = HERO_TEMPLATES
+        .map((tpl) => heroRuntime(tpl.id))
+        .filter((r) => r && r.recruited)
+        .map((r) => r.id);
+      WuxiaStages.Inn.setAmbientHeroes(ids.length ? ids : ['qingyi']);
+    }
+    if (WuxiaStages.Inn.setHotspotHandler) {
+      WuxiaStages.Inn.setHotspotHandler((openId) => {
+        setTab(openId);
+      });
+    }
   }
+
+  /** @deprecated 相容別名 */
+  function ensureInnStage() { ensureHubStage(); }
 
   function ensureCombatStage() {
     const host = document.getElementById('combat-stage-host');
@@ -1657,10 +1767,8 @@
 
     el.innerHTML = `
       <div class="card ink-card">
-        <div id="inn-stage-host" class="stage-host" aria-label="客棧接客舞台"></div>
-        ${innSceneHtml(inn.name)}
         <h2>${pxIcon('🏯')} ${inn.name}</h2>
-        <p class="muted">客棧乃江湖樞紐：賺錢、招募、休養生息、藏書練功。設施加成已計入收入與訓練。</p>
+        <p class="muted">主畫面已是客棧內部場景。此處管理升級、設施與藏書閣；接客演出在場景中自動播放。</p>
         <div class="stat-grid">
           <div><span class="label">收入倍率</span><b id="inn-stat-mul">×${(inn.incomeMul * cellarIncomeMul()).toFixed(2)}</b></div>
           <div><span class="label">客容量</span><b>${inn.guestCap}</b></div>
@@ -1686,7 +1794,7 @@
       <div class="card">
         <h3>今日流水</h3>
         <p>已接待客人 <b id="inn-stat-guests">${state.guestsServed}</b> 位 · 勝仗 <b id="inn-stat-wins">${state.battlesWon}</b> 場 · 委託 <b id="inn-stat-quests">${state.questsDone}</b> 件</p>
-        <p class="tip">💡 上方舞台會演出接客（斟茶／付款）。放置中每秒可能有客人上門；離線最長 ${GAME.offlineCapHours} 小時。</p>
+        <p class="tip">💡 返回客棧場景可見接客動畫。放置中每秒可能有客人上門；離線最長 ${GAME.offlineCapHours} 小時。</p>
       </div>
     `;
     const btn = $('btn-upgrade');
@@ -1706,7 +1814,7 @@
     el.querySelectorAll('[data-build]').forEach((b) => {
       b.onclick = () => tryBuildFacility(b.dataset.build);
     });
-    ensureInnStage();
+    /* hub 舞台在主畫面，不在本 sheet */
   }
 
   function renderOutposts() {
@@ -2183,6 +2291,7 @@
 
   function renderAll() {
     updateTopbar();
+    ensureHubStage();
     renderInn();
     renderOutposts();
     renderHeroes();
@@ -2190,7 +2299,15 @@
     renderStory();
     renderLog();
     renderFloatingToast();
-    setTab(activeTab);
+    if (activeTab === 'hub') {
+      closeSheet();
+      if (!battle) closeCombatOverlay(true);
+      activeTab = 'hub';
+    } else if (activeTab === 'combat') {
+      openCombatOverlay();
+    } else {
+      openSheet(activeTab);
+    }
   }
 
   function init() {
@@ -2205,20 +2322,40 @@
     } else {
       state = defaultState();
       ensureQuestBoard(true);
-      pushLog('新開張！青衣劍客已願為客棧護院。可開分舵、建設施、接任務板委託。勝仗後可開劇情章節。', 'system');
+      pushLog('新開張！你站在客棧大廳——點櫃檯經營、點俠客養成、點大門出巡。青衣劍客已願為護院。', 'system');
     }
 
     document.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         setTab(btn.dataset.tab);
-        if (btn.dataset.tab === 'inn') renderInn();
-        if (btn.dataset.tab === 'outposts') renderOutposts();
-        if (btn.dataset.tab === 'heroes') renderHeroes();
-        if (btn.dataset.tab === 'combat') renderCombat();
-        if (btn.dataset.tab === 'story') renderStory();
-        if (btn.dataset.tab === 'log') renderLog();
       });
     });
+
+    document.querySelectorAll('.hub-qbtn').forEach((btn) => {
+      btn.addEventListener('click', () => setTab(btn.dataset.open));
+    });
+
+    const btnMenu = $('btn-hub-menu');
+    if (btnMenu) btnMenu.addEventListener('click', () => toggleMenu());
+
+    const btnClose = $('btn-sheet-close');
+    if (btnClose) btnClose.addEventListener('click', () => setTab('hub'));
+    const bd = $('sheet-backdrop');
+    if (bd) bd.addEventListener('click', () => setTab('hub'));
+
+    const btnCombatBack = $('btn-combat-back');
+    if (btnCombatBack) {
+      btnCombatBack.addEventListener('click', () => {
+        if (battle) {
+          if (confirm('戰鬥進行中，確定鳴金返回客棧？')) {
+            stopBattle();
+            closeCombatOverlay(true);
+          }
+        } else {
+          closeCombatOverlay(true);
+        }
+      });
+    }
 
     $('btn-manual-save').addEventListener('click', () => {
       save();

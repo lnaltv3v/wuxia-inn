@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="description" content="俠客棧 — 武俠客棧經營 × 放置養成 × 自動即時戰鬥 · 墨點江湖 Ink-Pixel Inn" />
+  <meta name="description" content="俠客棧 — 場景驅動武俠客棧 · 墨點江湖 Ink-Pixel Inn · 對齊大俠立志傳式 hub" />
   <title>俠客棧</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
-<body class="ink-pixel-theme">
+<body class="ink-pixel-theme hub-mode">
   <div class="app">
-    <header class="topbar px-frame">
-      <div class="brand">俠客棧<small>客棧經營 · 放置養成 · 自動戰鬥</small></div>
+    <header class="topbar px-frame topbar-slim">
+      <div class="brand">俠客棧<small>場景 hub · 放置養成 · 自動戰鬥</small></div>
       <div class="stats">
         <span class="stat-chip">銀兩 <b id="stat-silver">0</b></span>
         <span class="stat-chip">聲望 <b id="stat-rep">0</b></span>
@@ -22,29 +22,60 @@
       </div>
       <div class="top-actions">
         <button class="btn tiny" id="btn-manual-save" type="button">存檔</button>
+        <button class="btn tiny" id="btn-hub-menu" type="button" title="次要選單">選單</button>
       </div>
     </header>
 
-    <nav class="tabs" role="tablist">
-      <button class="tab-btn active" type="button" data-tab="inn" role="tab"><span class="px-ico">🏯</span> 客棧</button>
+    <!-- 主畫面：大型客棧內部場景 -->
+    <section class="hub-shell" aria-label="客棧內部主畫面">
+      <div id="hub-stage-host" class="stage-host hub-stage-host" aria-label="客棧內部像素場景"></div>
+      <p class="hub-hint" id="hub-hint">點櫃檯經營 · 點俠客養成 · 點大門出巡 · 點告示江湖 · 點地圖據點</p>
+      <div class="hub-quickbar" role="toolbar" aria-label="快捷入口">
+        <button type="button" class="hub-qbtn" data-open="inn"><span class="px-ico">🏯</span>經營</button>
+        <button type="button" class="hub-qbtn" data-open="heroes"><span class="px-ico">⚔️</span>俠客</button>
+        <button type="button" class="hub-qbtn" data-open="combat"><span class="px-ico">🗡️</span>出巡</button>
+        <button type="button" class="hub-qbtn" data-open="outposts"><span class="px-ico">🗺️</span>據點</button>
+        <button type="button" class="hub-qbtn" data-open="story"><span class="px-ico">📖</span>江湖</button>
+      </div>
+    </section>
+
+    <!-- 舊 Tab 收進次要選單 -->
+    <nav class="tabs hub-menu hidden" id="hub-menu" role="tablist" aria-label="次要選單">
+      <button class="tab-btn" type="button" data-tab="inn" role="tab"><span class="px-ico">🏯</span> 經營詳情</button>
       <button class="tab-btn" type="button" data-tab="outposts" role="tab"><span class="px-ico">🗺️</span> 據點</button>
       <button class="tab-btn" type="button" data-tab="heroes" role="tab"><span class="px-ico">⚔️</span> 俠客</button>
-      <button class="tab-btn" type="button" data-tab="combat" role="tab"><span class="px-ico">🗡️</span> 戰鬥</button>
+      <button class="tab-btn" type="button" data-tab="combat" role="tab"><span class="px-ico">🗡️</span> 出巡</button>
       <button class="tab-btn" type="button" data-tab="story" role="tab"><span class="px-ico">📖</span> 江湖</button>
       <button class="tab-btn" type="button" data-tab="log" role="tab"><span class="px-ico">📜</span> 日誌</button>
     </nav>
 
-    <main>
-      <section id="panel-inn" class="panel" role="tabpanel"></section>
-      <section id="panel-outposts" class="panel hidden" role="tabpanel"></section>
-      <section id="panel-heroes" class="panel hidden" role="tabpanel"></section>
-      <section id="panel-combat" class="panel hidden" role="tabpanel"></section>
-      <section id="panel-story" class="panel hidden" role="tabpanel"></section>
-      <section id="panel-log" class="panel hidden" role="tabpanel"></section>
-    </main>
+    <!-- 功能疊層（非戰鬥） -->
+    <div id="sheet-backdrop" class="sheet-backdrop hidden" aria-hidden="true"></div>
+    <aside id="sheet" class="sheet hidden px-frame" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <header class="sheet-head">
+        <h2 id="sheet-title">功能</h2>
+        <button type="button" class="btn tiny primary" id="btn-sheet-close">返回客棧</button>
+      </header>
+      <div class="sheet-body">
+        <section id="panel-inn" class="panel hidden" role="tabpanel"></section>
+        <section id="panel-outposts" class="panel hidden" role="tabpanel"></section>
+        <section id="panel-heroes" class="panel hidden" role="tabpanel"></section>
+        <section id="panel-story" class="panel hidden" role="tabpanel"></section>
+        <section id="panel-log" class="panel hidden" role="tabpanel"></section>
+      </div>
+    </aside>
+
+    <!-- 戰鬥全屏疊層：結束返回客棧 -->
+    <div id="combat-overlay" class="combat-overlay hidden" role="dialog" aria-modal="true" aria-label="出巡戰場">
+      <header class="combat-overlay-head">
+        <h2>出巡戰場</h2>
+        <button type="button" class="btn tiny" id="btn-combat-back">返回客棧</button>
+      </header>
+      <section id="panel-combat" class="panel combat-panel" role="tabpanel"></section>
+    </div>
 
     <div id="toast-host" class="toast-host hidden" aria-live="polite"></div>
-    <footer class="footer">俠客棧 v0.4.2 stage · 墨點江湖 · 接客／戰鬥舞台 · 本地存檔</footer>
+    <footer class="footer">俠客棧 v0.5.0-hub · 場景驅動主畫面 · 墨點江湖 · 本地存檔</footer>
   </div>
 
   <script src="js/data.js"></script>

@@ -1,4 +1,4 @@
-/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.4.2 stage（見 ART.md） */
+/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.5.0-hub（見 ART.md／DESIGN.md） */
 :root {
   /* 嚴格色盤 — 禁止盤外色 */
   --ink: #1A1510;
@@ -75,10 +75,11 @@ body::before {
 .app {
   position: relative;
   z-index: 1;
-  max-width: 960px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 12px 14px 40px;
+  padding: 10px 12px 36px;
 }
+body.hub-mode .app { max-width: 1100px; }
 
 /* —— 像素框通用 —— */
 .px-frame {
@@ -884,6 +885,9 @@ body::before {
   image-rendering: crisp-edges;
   background: var(--wood);
 }
+.hub-stage-wrap .px-stage {
+  aspect-ratio: 480 / 270;
+}
 .combat-stage-wrap .px-stage {
   aspect-ratio: 320 / 150;
 }
@@ -909,3 +913,160 @@ body::before {
 .tiny-tip { font-size: 0.8rem; }
 .stage-first { order: -1; }
 .card.stage-first h3 { margin-top: 0; }
+
+
+/* —— v0.5.0-hub：場景主畫面 + 疊層面板 —— */
+.topbar-slim { padding: 8px 12px; }
+.topbar-slim .brand small { font-size: 0.72rem; }
+
+.hub-shell {
+  margin: 10px 0 8px;
+}
+.hub-stage-host {
+  margin: 0;
+  border: 4px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink), inset 2px 2px 0 var(--ink-soft);
+}
+.hub-stage-wrap .px-stage,
+.hub-stage-wrap .hub-canvas {
+  aspect-ratio: 480 / 270 !important;
+  width: 100%;
+  max-height: min(72vh, 620px);
+  object-fit: contain;
+  background: var(--loess);
+}
+.hub-hint {
+  margin: 8px 0 6px;
+  padding: 6px 10px;
+  font-family: var(--font-title);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  background: var(--paper-dark);
+  border: 2px solid var(--frame);
+  border-left: 6px solid var(--gold);
+  letter-spacing: 0.04em;
+}
+.hub-quickbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.hub-qbtn {
+  flex: 1;
+  min-width: 72px;
+  border: 3px solid var(--ink);
+  background: var(--paper-light);
+  color: var(--ink);
+  padding: 8px 6px;
+  font-family: var(--font-title);
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--ink);
+  border-radius: 0;
+  image-rendering: pixelated;
+}
+.hub-qbtn:hover { background: var(--cream); }
+.hub-qbtn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+
+.hub-menu {
+  margin-top: 4px;
+  margin-bottom: 8px;
+  background: var(--paper-dark);
+  padding: 6px;
+  border: 2px solid var(--frame);
+}
+.hub-menu.hidden { display: none !important; }
+
+/* 功能 sheet 疊層 */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--ink);
+  opacity: 0.55;
+  z-index: 40;
+  image-rendering: pixelated;
+}
+.sheet-backdrop.hidden { display: none; }
+.sheet {
+  position: fixed;
+  z-index: 50;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(920px, calc(100vw - 20px));
+  max-height: min(88vh, 860px);
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  padding: 0;
+  overflow: hidden;
+}
+.sheet.hidden { display: none; }
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--night);
+  color: var(--cream);
+  border-bottom: 3px solid var(--ink);
+}
+.sheet-head h2 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 1.25rem;
+  letter-spacing: 0.08em;
+}
+.sheet-body {
+  overflow: auto;
+  padding: 12px 14px 18px;
+  flex: 1;
+}
+.sheet-body .panel.hidden { display: none; }
+.sheet-body .panel { display: block; }
+
+/* 戰鬥全屏疊層 */
+.combat-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 3px, var(--paper-dark) 3px, var(--paper-dark) 4px),
+    var(--paper);
+  overflow: auto;
+  padding: 10px 12px 28px;
+  image-rendering: pixelated;
+}
+.combat-overlay.hidden { display: none; }
+.combat-overlay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1100px;
+  margin: 0 auto 10px;
+  padding: 8px 12px;
+  background: var(--night);
+  color: var(--cream);
+  border: 3px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.combat-overlay-head h2 {
+  margin: 0;
+  font-family: var(--font-title);
+  letter-spacing: 0.08em;
+}
+.combat-overlay .combat-panel {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.combat-overlay .combat-stage-host .px-stage {
+  max-height: min(42vh, 360px);
+}
+
+@media (max-width: 640px) {
+  .hub-qbtn { font-size: 0.8rem; min-width: 56px; }
+  .hub-hint { font-size: 0.75rem; }
+  .sheet { width: calc(100vw - 8px); max-height: 92vh; }
+}
