@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v1.3.0：告示密信支線／養成泡泡／Hub v2.1／960×540）
+ * 俠客棧 — 墨點江湖舞台（v1.4.0：成就領獎／結算卡／敵人剪影接入／guest_walk 64／養成泡泡／Hub v2.1／960×540）
  * Hub 面板開仍呼吸；熱點墨框／硃標；戰鬥 shake 下調；招名飄字；戰場分層
  */
 (function (global) {
@@ -69,6 +69,7 @@
   const Assets = {
     sheets: {},
     bosses: {},
+    enemies: {},
     layers: {},
     fx: {},
     ready: false,
@@ -143,10 +144,30 @@
         Assets.sheetNative.guest_walk = 64;
         return null;
       }
+      // 正式規格 3072×64；僅當 64 缺失時才回退 32 橋接
       return loadImg('assets/sprites/guest_walk.png').then(function (img) {
         if (img) { Assets.sheets.guest_walk = img; Assets.sheetNative.guest_walk = img.height || 32; }
       });
     }));
+    // 敵人剪影 sheet（交件即接入；未到則戰鬥走色塊剪影）
+    Assets.enemies = Assets.enemies || {};
+    ['enemy_melee', 'enemy_kite', 'enemy_charge'].forEach(function (id) {
+      jobs.push(loadImg('assets/sprites/64/' + id + '.png').then(function (img64) {
+        if (img64) {
+          Assets.enemies[id] = img64;
+          Assets.sheetNative = Assets.sheetNative || {};
+          Assets.sheetNative[id] = img64.height || 64;
+          return null;
+        }
+        return loadImg('assets/sprites/' + id + '.png').then(function (img) {
+          if (img) {
+            Assets.enemies[id] = img;
+            Assets.sheetNative = Assets.sheetNative || {};
+            Assets.sheetNative[id] = img.height || 32;
+          }
+        });
+      }));
+    });
 
     LAYER_ORDER.concat(LAYER_TOP).concat(LAYER_FG).concat(LAYER_NIGHT).concat(BATTLE_LAYERS).forEach(function (name) {
       jobs.push(loadImg('assets/scenes/' + name + '.png').then(function (img) {
@@ -565,7 +586,7 @@
         pushBubble(picked.resultLine, 440, 220, 1.6);
         setCaption(picked.resultLine);
       }
-      const out = picked;
+      const out = picked ? Object.assign({}, picked, { sceneId: sceneEvt.id }) : null;
       setTimeout(function () { sceneEvt = null; }, 900);
       return out;
     }
@@ -830,7 +851,7 @@
       payAmt = job.pay || 0;
       guestPrefer = job.guest.preferPhase || null;
       guestPreferLabel = job.guest.preferLabel || '';
-      // guest_walk：guestIndex 0–5＝teal／robe-red／ink-soft／violet／jade／wood-hat（對齊 guest_sit）
+      // guest_walk 正式 3072×64；guestIndex 0–5＝teal／robe-red／ink-soft／violet／jade／wood-hat；absIndex=guestIndex*8+local
       guestIndex = Math.floor(Math.random() * 6);
       guestFrame = guestIndex; // 入座後切同色 sit（有杯）
       guestLocal = 0;
@@ -1660,6 +1681,7 @@
           maxHp: u.maxHp,
           shield: u.shield || 0,
           heroId: heroId,
+          sprite: u.sprite || null,
           intent: u.intent || 'hold',
           combatState: u.combatState || u.intent || 'idle',
           telegraph: !!u.telegraph,
@@ -2204,8 +2226,29 @@
       const flip = u.side === 'enemy';
       const sheet = Assets.sheets[u.heroId];
       const bossImg = Assets.bosses[u.heroId];
+      const enemyImg = (u.sprite && Assets.enemies) ? Assets.enemies[u.sprite] : null;
       let drew = false;
-      if (sheet) {
+      if (enemyImg && u.side === 'enemy') {
+        const native = enemyImg.height || 64;
+        const frames = Math.max(1, Math.floor(enemyImg.width / native));
+        // v1.4 敵人 256×64＝4 幀：0 idle｜1 windup｜2 strike｜3 hurt
+        let fi = 0;
+        if (u.dead || animName === 'hurt' || pose === 'hurt') fi = Math.min(frames - 1, 3);
+        else if (animName === 'strike' || pose === 'strike') fi = Math.min(frames - 1, 2);
+        else if (animName === 'windup' || u.telegraph) fi = Math.min(frames - 1, 1);
+        else if (animName === 'walk') fi = Math.floor(tick / 10) % Math.min(frames, 2);
+        else fi = 0;
+        const sc = (native === 64) ? CHAR_SCALE_64 : ((native === 32) ? CHAR_SCALE_32 : CHAR_SCALE_64);
+        const out = native * sc;
+        const ox = dx - Math.round(out * 0.12);
+        const oy = dy - Math.round(out * 0.12);
+        drew = drawSheetFrame(ctx, enemyImg, fi, ox, oy, {
+          scale: sc,
+          flip: flip,
+          alpha: flash ? 0.95 : (u.dead ? 0.35 : 1),
+          frameSize: native
+        });
+      } else if (sheet) {
         const fi = frameOverride != null ? frameOverride : animFrame(animName, tick, 8);
         const sc = (sheet.height === 64) ? CHAR_SCALE_64 : ((sheet.height === 32) ? CHAR_SCALE_32 : CHAR_SCALE_64);
         const out = (sheet.height === 64 ? 64 : 32) * sc;

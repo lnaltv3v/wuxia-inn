@@ -1,0 +1,82 @@
+# v1.4 sprite gen report (boss + enemy)
+
+## boss_heifeng
+path: /workspace/wuxia-inn/assets/sprites/64/boss_heifeng_combat.png
+size: (256, 64)
+oob: 0
+palette_used (12): #1A1510, #2A2218, #3D3226, #5A4A32, #5C4030, #8A7A60, #8B2942, #A61B1B, #C09070, #C42B2B, #C9A227, #FFF8EE
+  0 idle: visible=2012
+  1 windup: visible=1568
+  2 strike: visible=1778
+  3 hurt: visible=1590
+
+## boss_xieyi
+path: /workspace/wuxia-inn/assets/sprites/64/boss_xieyi_combat.png
+size: (256, 64)
+oob: 0
+palette_used (15): #1A1510, #2A2218, #2F6B4F, #3D3226, #3D8F66, #5A4060, #5C4030, #8B2942, #A61B1B, #C09070, #C42B2B, #C9A227, #E8C4A0, #F4E6C4, #FFF8EE
+  0 idle: visible=1569
+  1 windup: visible=1700
+  2 strike: visible=1543
+  3 hurt: visible=1405
+
+## boss_xueying
+path: /workspace/wuxia-inn/assets/sprites/64/boss_xueying_combat.png
+size: (256, 64)
+oob: 0
+palette_used (10): #1A1510, #2A2218, #5C4030, #8A7A60, #8B2942, #A61B1B, #C09070, #C42B2B, #C9A227, #FFF8EE
+  0 idle: visible=1687
+  1 windup: visible=1836
+  2 strike: visible=1748
+  3 hurt: visible=1620
+
+## enemy_charge
+path: /workspace/wuxia-inn/assets/sprites/64/enemy_charge.png
+size: (256, 64)
+oob: 0
+  0 idle: visible=1487
+  1 ready: visible=1445
+  2 strike: visible=1417
+  3 hurt: visible=1274
+
+## enemy_kite
+path: /workspace/wuxia-inn/assets/sprites/64/enemy_kite.png
+size: (256, 64)
+oob: 0
+  0 idle: visible=1345
+  1 ready: visible=1473
+  2 strike: visible=1498
+  3 hurt: visible=1247
+
+## enemy_melee
+path: /workspace/wuxia-inn/assets/sprites/64/enemy_melee.png
+size: (256, 64)
+oob: 0
+  0 idle: visible=1508
+  1 ready: visible=1455
+  2 strike: visible=1557
+  3 hurt: visible=1356
+
+untouched_ok: qingyi
+untouched_ok: langren
+untouched_ok: tiezhang
+untouched_ok: qinshi
+untouched_ok: xiaoer
+untouched_ok: guest_sit
+untouched_ok: guest_walk
+TOTAL_OOB=0
+
+## design
+- heifeng: wild hair + cinnabar band + shoulder armor + giant dao
+- xieyi: violet double-bun + jade vial + claws
+- xueying: blood band + night cape + twin daggers
+- charge: bulky + cinnabar scarf + short blade rush
+- kite: bamboo hat + bow/darts + lean-back
+- melee: wood tunic + long dao slash
+
+## weaknesses
+- 4-frame only — no walk cycle for bosses/enemies
+- kite arrow flies leftward visually on strike (retreat-facing right body)
+- heifeng giant blade can crowd frame edge on slash
+- enemy_melee / charge both use bandit head — differ by scarf color + weapon + bulk
+

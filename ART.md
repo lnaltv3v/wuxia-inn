@@ -1,5 +1,8 @@
 # 俠客棧美術規範 — 墨點江湖（Ink-Pixel Inn）
 
+> **v1.4**：`enemy_melee`／`enemy_kite`／`enemy_charge`（各 256×64＝4 幀 idle／windup／strike／hurt）；Boss `*_combat` 同規格精修。`guest_walk` 正式 **3072×64**（absIndex=guestIndex×8+local）。唔覆蓋四俠 sheet。
+
+
 > 版本：v1.3.0 · 獨有風格體系，**禁止**混用《大俠立志傳》高清像素立繪、照片級插畫、或不同解析度素材。
 
 ## 風格名

@@ -151,8 +151,12 @@
       storyNotified: [],
       bossesDefeated: [],
       achievements: [],
+      achievementClaims: [],
       bossesWon: 0,
-      combatSpeed: 1
+      combatSpeed: 1,
+      countersLanded: 0,
+      marketTips: 0,
+      boardLetterDone: false
     };
   }
 
@@ -249,6 +253,12 @@
     if (typeof s.battlesWon !== 'number') s.battlesWon = 0;
     if (typeof s.guestsServed !== 'number') s.guestsServed = 0;
     if (typeof s.totalEarned !== 'number') s.totalEarned = 0;
+
+    // v1.4 成就領獎／生涯統計
+    if (!Array.isArray(s.achievementClaims)) s.achievementClaims = [];
+    if (typeof s.countersLanded !== 'number') s.countersLanded = 0;
+    if (typeof s.marketTips !== 'number') s.marketTips = 0;
+    if (typeof s.boardLetterDone !== 'boolean') s.boardLetterDone = false;
 
     return s;
   }
@@ -534,9 +544,56 @@
         return isStoryRead('ch5_lantern_long');
       case 'story_all':
         return STORY_CHAPTERS.every((c) => isStoryRead(c.id));
+      case 'counter_8':
+        return (state.countersLanded || 0) >= 8;
+      case 'teahouse_1':
+        return facilityLevel('teahouse') >= 1;
+      case 'qingshi_open':
+        return opUnlocked(state, 'qingshi');
+      case 'bianguan_open':
+        return opUnlocked(state, 'bianguan');
+      case 'board_letter':
+        return !!state.boardLetterDone;
+      case 'market_tip_3':
+        return (state.marketTips || 0) >= 3;
       default:
         return false;
     }
+  }
+
+  function rewardLabel(reward) {
+    if (!reward) return '';
+    const parts = [];
+    if (reward.silver) parts.push('銀兩 +' + reward.silver);
+    if (reward.reputation) parts.push('聲望 +' + reward.reputation);
+    return parts.join(' · ');
+  }
+
+  function isAchievementClaimed(id) {
+    return (state.achievementClaims || []).indexOf(id) >= 0;
+  }
+
+  function claimAchievement(id) {
+    if (!id || state.achievements.indexOf(id) < 0) return false;
+    if (!Array.isArray(state.achievementClaims)) state.achievementClaims = [];
+    if (state.achievementClaims.indexOf(id) >= 0) return false;
+    const a = ACHIEVEMENTS.find((x) => x.id === id);
+    if (!a) return false;
+    state.achievementClaims.push(id);
+    const reward = a.reward || null;
+    if (reward) {
+      if (reward.silver) {
+        state.silver += reward.silver;
+        state.totalEarned += reward.silver;
+      }
+      if (reward.reputation) state.reputation += reward.reputation;
+    }
+    const label = rewardLabel(reward) || '無物資犒賞';
+    pushLog(`成就領獎：${a.emoji}${a.name}——${label}`, 'achieve');
+    showUiToast(a.emoji + ' 領獎', a.name + '｜' + label, 'achieve');
+    save(true);
+    renderAll();
+    return true;
   }
 
   function checkAchievements() {
@@ -548,8 +605,9 @@
       unlocked.push(a);
     });
     unlocked.forEach((a) => {
+      const tip = a.reward ? ('可領：' + rewardLabel(a.reward)) : a.desc;
       pushLog(`成就解鎖：${a.emoji}${a.name}——${a.desc}`, 'achieve');
-      showUiToast(a.emoji + ' 成就', a.name + '｜' + a.desc, 'achieve');
+      showUiToast(a.emoji + ' 成就', a.name + '｜' + tip, 'achieve');
     });
     if (unlocked.length) save(true);
     return unlocked;
@@ -673,6 +731,7 @@
           if (op.marketTipChance && Math.random() < op.marketTipChance) {
             const tip = randInt(op.marketTipSilver[0], op.marketTipSilver[1]);
             income += tip;
+            state.marketTips = (state.marketTips || 0) + 1;
             if (Math.random() < 0.35) notes.push('青石夜市抽成 +' + tip + ' 兩');
           }
         }
@@ -902,9 +961,10 @@
     save(true);
   }
 
-  function showHubChoices(choices) {
+  function showHubChoices(choices, sceneEvt) {
     const bar = document.getElementById('hub-choice-bar');
     if (!bar || !choices || !choices.length) return;
+    const sceneId = sceneEvt && sceneEvt.id ? sceneEvt.id : null;
     bar.classList.remove('hidden');
     bar.innerHTML = '<div class="hub-choice-title">掌櫃定夺</div>' + choices.map(function (c) {
       return '<button type="button" class="hub-choice-btn" data-choice="' + c.id + '">' + c.label + '</button>';
@@ -917,10 +977,14 @@
           : null;
         hideHubChoices();
         if (picked) {
+          if (sceneId === 'board_secret_letter' || (picked.sceneId === 'board_secret_letter')) {
+            state.boardLetterDone = true;
+          }
           applySceneChoiceEffects(picked.effects);
           pushLog('【江湖一景】' + (picked.resultLine || picked.label), 'system');
           const hint = document.getElementById('hub-hint');
           if (hint) hint.textContent = picked.resultLine || picked.label;
+          checkAchievements();
         }
       });
     });
@@ -1561,8 +1625,85 @@
     return { allies, bondInfo };
   }
 
+  function hideBattleSettlement() {
+    const card = document.getElementById('battle-settlement');
+    if (card) {
+      card.classList.add('hidden');
+      card.setAttribute('hidden', '');
+    }
+  }
+
+  function showBattleSettlement(payload) {
+    const card = document.getElementById('battle-settlement');
+    if (!card) {
+      // 無結算卡時直接收尾
+      battle = null;
+      save();
+      renderAll();
+      lastHubBgm = null;
+      refreshHubBgm(true);
+      return;
+    }
+    const win = payload.result === 'win';
+    const title = win
+      ? (payload.isBoss ? '討伐成功' : '出巡勝利')
+      : (payload.isBoss ? '討伐失利' : '出巡失利');
+    const inj = (payload.injuries || []).map(function (row) {
+      const pct = row.maxHp > 0 ? Math.round(100 * row.hp / row.maxHp) : 0;
+      const cls = pct <= 0 ? 'down' : (pct < 45 ? 'hurt' : 'ok');
+      return '<li class="settle-inj ' + cls + '"><span>' + row.name + '</span><b>' + row.hp + '/' + row.maxHp + '</b></li>';
+    }).join('') || '<li class="muted">無出戰記錄</li>';
+    const lootBits = [];
+    if (win) {
+      lootBits.push('<div class="settle-loot-row"><span>銀兩</span><b>+' + payload.silver + '</b>' + (payload.borderNote || '') + '</div>');
+      lootBits.push('<div class="settle-loot-row"><span>聲望</span><b>+' + payload.rep + '</b></div>');
+      if (payload.dropMsg) lootBits.push('<div class="settle-loot-row drop">' + payload.dropMsg.trim() + '</div>');
+      if (payload.uniqueMsg) lootBits.push('<div class="settle-loot-row drop">' + payload.uniqueMsg + '</div>');
+    } else {
+      lootBits.push('<div class="settle-loot-row muted">此役無戰利 · 先養傷再戰</div>');
+    }
+    card.innerHTML = [
+      '<div class="settle-card ' + (win ? 'win' : 'lose') + '">',
+      '  <header class="settle-head">',
+      '    <h3>' + (win ? '⚔ ' : '🕯 ') + title + '</h3>',
+      '    <p class="muted">' + (payload.subtitle || '') + '</p>',
+      '  </header>',
+      '  <section class="settle-loot">',
+      '    <h4>戰利結算</h4>',
+      lootBits.join(''),
+      '  </section>',
+      '  <section class="settle-injuries">',
+      '    <h4>俠客傷勢</h4>',
+      '    <ul class="settle-inj-list">' + inj + '</ul>',
+      '  </section>',
+      '  <div class="btn-row settle-actions">',
+      '    <button type="button" class="btn primary" id="btn-settle-return">返回客棧</button>',
+      '  </div>',
+      '</div>'
+    ].join('');
+    card.classList.remove('hidden');
+    card.removeAttribute('hidden');
+    const btn = document.getElementById('btn-settle-return');
+    if (btn) {
+      btn.onclick = function () {
+        hideBattleSettlement();
+        battle = null;
+        save();
+        renderAll();
+        lastHubBgm = null;
+        refreshHubBgm(true);
+        // 關戰鬥疊層
+        const ov = document.getElementById('combat-overlay');
+        if (ov) ov.classList.add('hidden');
+        activeTab = 'hub';
+        setTab('hub');
+      };
+    }
+  }
+
   function finishBattleCommon(result, units, bondInfo, rewardOpts) {
     const clinic = clinicMods();
+    const injuries = [];
     units.filter((u) => u.side === 'ally').forEach((u) => {
       if (state.heroes[u.id]) {
         let hp = Math.max(0, u.hp);
@@ -1571,19 +1712,32 @@
           if (rt) hp = Math.min(rt.maxHp, hp + Math.round(rt.maxHp * clinic.postHeal));
         }
         state.heroes[u.id].hp = hp;
+        const rt2 = heroRuntime(u.id);
+        injuries.push({
+          id: u.id,
+          name: (rt2 && rt2.name) || u.name || u.id,
+          hp: hp,
+          maxHp: (rt2 && rt2.maxHp) || u.maxHp || hp
+        });
       }
     });
+    let silver = 0;
+    let rep = 0;
+    let borderNote = '';
+    let dropMsg = '';
+    let uniqueMsg = '';
+    let subtitle = '';
     if (result === 'win') {
-      let silver = randInt(rewardOpts.rewardSilver[0], rewardOpts.rewardSilver[1]);
-      const rep = randInt(rewardOpts.rewardRep[0], rewardOpts.rewardRep[1]);
-      let borderNote = '';
+      silver = randInt(rewardOpts.rewardSilver[0], rewardOpts.rewardSilver[1]);
+      rep = randInt(rewardOpts.rewardRep[0], rewardOpts.rewardRep[1]);
       if (opUnlocked(state, 'bianguan')) {
         const bg = getOutpost('bianguan');
         const mul = (bg && bg.patrolBonusMul) || 0;
+        const cap = (bg && bg.patrolBonusCap) || 36;
         if (mul > 0) {
-          const bonus = Math.max(1, Math.round(silver * mul));
+          const bonus = Math.min(cap, Math.max(1, Math.round(silver * mul)));
           silver += bonus;
-          borderNote = '（邊關犒賞 +' + bonus + '）';
+          borderNote = '<span class="settle-border">邊關 +' + bonus + '</span>';
         }
       }
       state.silver += silver;
@@ -1603,8 +1757,6 @@
           });
         }
       });
-      let dropMsg = '';
-      let uniqueMsg = '';
       if (rewardOpts.isBoss && rewardOpts.boss) {
         const firstClear = state.bossesDefeated.indexOf(rewardOpts.boss.id) < 0;
         if (firstClear) {
@@ -1622,36 +1774,47 @@
           uniqueMsg = `再戰犒賞 +${pity} 兩`;
           appendCombatLog(uniqueMsg, 'skill');
         }
+        subtitle = 'Boss「' + rewardOpts.boss.name + '」';
       } else {
         const drop = rollManualDrop();
         if (drop) {
           if (drop.already) {
-            dropMsg = ` 秘籍共鳴，額外銀兩 +${drop.bonus}。`;
+            dropMsg = `秘籍共鳴，額外銀兩 +${drop.bonus}`;
             appendCombatLog(`已藏「${drop.name}」抄本，折銀 ${drop.bonus}`, 'skill');
           } else {
-            dropMsg = ` 獲得秘籍「${drop.name}」！`;
+            dropMsg = `獲得秘籍「${drop.name}」`;
             pushLog(`戰利秘籍：「${drop.name}」已入藏書閣。`, 'skill');
             appendCombatLog(`掉落秘籍：${drop.name}`, 'skill');
           }
         }
+        subtitle = '剿匪出巡';
       }
       const label = rewardOpts.isBoss ? `Boss「${rewardOpts.boss.name}」討伐成功` : '剿匪勝利';
-      pushLog(`${label}！獲銀兩 ${silver}${borderNote}、聲望 ${rep}。${dropMsg}`, 'win');
-      appendCombatLog(`戰利品：銀兩 +${silver}${borderNote}，聲望 +${rep}`, 'win');
+      const borderLog = borderNote ? ('（邊關犒賞）') : '';
+      pushLog(`${label}！獲銀兩 ${silver}${borderLog}、聲望 ${rep}。${dropMsg}`, 'win');
+      appendCombatLog(`戰利品：銀兩 +${silver}，聲望 +${rep}`, 'win');
       if (bondInfo.mul > 1) {
         appendCombatLog(`羈絆「${bondInfo.tier.name}」加成生效（×${bondInfo.mul.toFixed(2)}）`, 'skill');
       }
       checkStoryUnlocks();
       checkAchievements();
     } else {
+      subtitle = rewardOpts.isBoss && rewardOpts.boss ? ('Boss「' + rewardOpts.boss.name + '」') : '出巡';
       pushLog(rewardOpts.isBoss ? 'Boss 戰失利，俠客帶傷而回……' : '出巡失利，俠客帶傷而回……', 'lose');
     }
     audioPlay(result === 'win' ? 'victory' : 'defeat');
-    battle = null;
-    save();
-    renderAll();
-    lastHubBgm = null;
-    refreshHubBgm(true);
+    save(true);
+    showBattleSettlement({
+      result: result,
+      isBoss: !!(rewardOpts && rewardOpts.isBoss),
+      silver: silver,
+      rep: rep,
+      borderNote: borderNote,
+      dropMsg: dropMsg,
+      uniqueMsg: uniqueMsg,
+      injuries: injuries,
+      subtitle: subtitle
+    });
   }
 
   function startPatrol(waveId) {
@@ -1696,6 +1859,7 @@
   }
 
   function beginBattle(allies, enemies, bondInfo, rewardOpts) {
+    hideBattleSettlement();
     const combatLogEl = document.getElementById('combat-log');
     if (combatLogEl) combatLogEl.innerHTML = '';
     activeTab = 'combat';
@@ -1714,6 +1878,9 @@
         renderBattleUnits(snap.units);
       },
       onAction(evt) {
+        if (evt && evt.kind === 'counter') {
+          state.countersLanded = (state.countersLanded || 0) + 1;
+        }
         if (evt && evt.kind) audioPlayAction(evt.kind);
         if (globalThis.WuxiaStages && WuxiaStages.Combat && WuxiaStages.Combat.isMounted()) {
           WuxiaStages.Combat.playAction(evt);
@@ -2332,8 +2499,8 @@
       });
     }
     if (WuxiaStages.Inn.setChoiceHandler) {
-      WuxiaStages.Inn.setChoiceHandler(function (choices) {
-        showHubChoices(choices || []);
+      WuxiaStages.Inn.setChoiceHandler(function (choices, sceneEvt) {
+        showHubChoices(choices || [], sceneEvt || null);
       });
     }
     refreshHubBgm(false);
@@ -2945,11 +3112,22 @@
 
     const achHtml = ACHIEVEMENTS.map((a) => {
       const got = state.achievements.indexOf(a.id) >= 0;
-      return `<div class="achieve-row ${got ? 'got' : ''}">
+      const claimed = isAchievementClaimed(a.id);
+      const rewardTxt = a.reward ? rewardLabel(a.reward) : '';
+      let status = '<span class="pill">未解鎖</span>';
+      let action = '';
+      if (got && claimed) {
+        status = '<span class="pill jade">已領獎</span>';
+      } else if (got) {
+        status = '<span class="pill cinnabar">可領獎</span>';
+        action = `<button type="button" class="btn tiny primary" data-claim-ach="${a.id}">領取${rewardTxt ? ' · ' + rewardTxt : ''}</button>`;
+      }
+      return `<div class="achieve-row ${got ? 'got' : ''} ${got && !claimed ? 'claimable' : ''}">
         <span class="achieve-ico">${a.emoji}</span>
         <div class="achieve-info">
-          <b>${a.name}</b> ${got ? '<span class="pill jade">已達成</span>' : '<span class="pill">未解鎖</span>'}
-          <div class="muted">${a.desc}</div>
+          <b>${a.name}</b> ${status}
+          <div class="muted">${a.desc}${rewardTxt ? ' · 犒賞 ' + rewardTxt : ''}</div>
+          ${action}
         </div>
       </div>`;
     }).join('');
@@ -2971,6 +3149,9 @@
     `;
     el.querySelectorAll('[data-read-story]').forEach((b) => {
       b.onclick = () => readStoryChapter(b.dataset.readStory);
+    });
+    el.querySelectorAll('[data-claim-ach]').forEach((b) => {
+      b.onclick = () => claimAchievement(b.dataset.claimAch);
     });
   }
 

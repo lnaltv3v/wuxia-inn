@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v1.3.0
+ * v1.4.0
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '1.3.0',
+    version: '1.4.0',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -506,9 +506,10 @@
       baseIncome: 1.0,
       garrisonIncome: 4.0,
       garrisonRepChance: 0.10,
-      patrolBonusMul: 0.12,
+      patrolBonusMul: 0.10,
+      patrolBonusCap: 36,
       traitLabel: '邊關犒賞',
-      traitDesc: '出巡勝仗銀兩 +12%；駐守進帳偏高。'
+      traitDesc: '出巡勝仗銀兩約 +10%（有上限）；駐守進帳偏高。'
     }
   ];
 
@@ -838,20 +839,26 @@
    * check 於執行期由 game.js 依 state 判定
    */
   const ACHIEVEMENTS = [
-    { id: 'first_win', name: '初試鋒芒', desc: '贏得第一場出巡勝仗', emoji: '⚔️' },
-    { id: 'wins_10', name: '百戰初成', desc: '累計勝仗達 10 場', emoji: '🏆' },
-    { id: 'recruit_all', name: '高朋滿座', desc: '招募全部可入駐俠客', emoji: '🏯' },
-    { id: 'bond_confidant', name: '知己難求', desc: '任一名俠客羈絆達「知己」', emoji: '💞' },
-    { id: 'inn_lv2', name: '青石新貌', desc: '客棧升級至 Lv.2 或以上', emoji: '🏗️' },
-    { id: 'outpost_any', name: '分舵初開', desc: '解鎖本棧以外的任一據點', emoji: '🗺️' },
-    { id: 'facility_any', name: '百工就緒', desc: '建造任一設施（達 Lv.1）', emoji: '🔧' },
-    { id: 'boss_heifeng', name: '黑風盡滅', desc: '擊敗 Boss「黑風寨主」', emoji: '🌪️' },
-    { id: 'boss_xieyi', name: '霧破毒消', desc: '擊敗 Boss「邪醫·腐骨」', emoji: '☠️' },
-    { id: 'boss_xueying', name: '血影盡散', desc: '擊敗 Boss「血影樓主」', emoji: '🩸' },
-    { id: 'manuals_4', name: '武學初成', desc: '藏書閣收藏至少 4 本秘籍', emoji: '📚' },
-    { id: 'quest_5', name: '俠義奔走', desc: '完成至少 5 件聲望委託', emoji: '📋' },
-    { id: 'story_ch5', name: '燈火長明', desc: '閱覽第五章「燈火長明」', emoji: '🕯️' },
-    { id: 'story_all', name: '燈火篇章', desc: '閱覽全部劇情章節', emoji: '📜' }
+    { id: 'first_win', name: '初試鋒芒', desc: '贏得第一場出巡勝仗', emoji: '⚔️', reward: { silver: 20, reputation: 2 } },
+    { id: 'wins_10', name: '百戰初成', desc: '累計勝仗達 10 場', emoji: '🏆', reward: { silver: 60, reputation: 8 } },
+    { id: 'recruit_all', name: '高朋滿座', desc: '招募全部可入駐俠客', emoji: '🏯', reward: { silver: 50, reputation: 6 } },
+    { id: 'bond_confidant', name: '知己難求', desc: '任一名俠客羈絆達「知己」', emoji: '💞', reward: { silver: 40, reputation: 5 } },
+    { id: 'inn_lv2', name: '青石新貌', desc: '客棧升級至 Lv.2 或以上', emoji: '🏗️', reward: { silver: 35, reputation: 4 } },
+    { id: 'outpost_any', name: '分舵初開', desc: '解鎖本棧以外的任一據點', emoji: '🗺️', reward: { silver: 45, reputation: 5 } },
+    { id: 'facility_any', name: '百工就緒', desc: '建造任一設施（達 Lv.1）', emoji: '🔧', reward: { silver: 25, reputation: 3 } },
+    { id: 'boss_heifeng', name: '黑風盡滅', desc: '擊敗 Boss「黑風寨主」', emoji: '🌪️', reward: { silver: 80, reputation: 10 } },
+    { id: 'boss_xieyi', name: '霧破毒消', desc: '擊敗 Boss「邪醫·腐骨」', emoji: '☠️', reward: { silver: 100, reputation: 12 } },
+    { id: 'boss_xueying', name: '血影盡散', desc: '擊敗 Boss「血影樓主」', emoji: '🩸', reward: { silver: 120, reputation: 14 } },
+    { id: 'manuals_4', name: '武學初成', desc: '藏書閣收藏至少 4 本秘籍', emoji: '📚', reward: { silver: 55, reputation: 6 } },
+    { id: 'quest_5', name: '俠義奔走', desc: '完成至少 5 件聲望委託', emoji: '📋', reward: { silver: 50, reputation: 7 } },
+    { id: 'story_ch5', name: '燈火長明', desc: '閱覽第五章「燈火長明」', emoji: '🕯️', reward: { silver: 70, reputation: 10 } },
+    { id: 'story_all', name: '燈火篇章', desc: '閱覽全部劇情章節', emoji: '📜', reward: { silver: 100, reputation: 15 } },
+    { id: 'counter_8', name: '借力打力', desc: '招架反打命中累計 8 次', emoji: '🛡️', reward: { silver: 55, reputation: 8 } },
+    { id: 'teahouse_1', name: '雅座初香', desc: '建造雅座茶寮（達 Lv.1）', emoji: '🍵', reward: { silver: 40, reputation: 6 } },
+    { id: 'qingshi_open', name: '青石夜市', desc: '解鎖青石鎮分舵', emoji: '🏘️', reward: { silver: 50, reputation: 7 } },
+    { id: 'bianguan_open', name: '邊關戍衛', desc: '解鎖邊關哨站', emoji: '🏰', reward: { silver: 70, reputation: 9 } },
+    { id: 'board_letter', name: '密信有回', desc: '於告示完成「燈火密信」任一選擇', emoji: '✉️', reward: { silver: 45, reputation: 8 } },
+    { id: 'market_tip_3', name: '夜市抽成', desc: '青石夜市抽成累計入帳 3 次', emoji: '🪙', reward: { silver: 60, reputation: 6 } }
   ];
 
   const BOND_TIERS = [
@@ -1070,12 +1077,12 @@
       minInnLevel: 1,
       risk: 1,
       tags: ['近戰', '練手'],
-      blurb: '喽啰成群，節奏慢，適合熱身。',
-      rewardSilver: [28, 48],
-      rewardRep: [3, 6],
+      blurb: '喽啰成群，節奏仍可讀；早期略硬，唔好無腦衝。',
+      rewardSilver: [22, 40],
+      rewardRep: [3, 5],
       enemies: [
-        { name: '山賊喽啰', emoji: '👺', force: 6, nei: 3, hp: 40, ai: 'skirmish' },
-        { name: '山賊喽啰', emoji: '👺', force: 6, nei: 3, hp: 40, ai: 'skirmish' }
+        { name: '山賊喽啰', emoji: '👺', force: 8, nei: 4, hp: 48, ai: 'skirmish', sprite: 'enemy_melee' },
+        { name: '山賊喽啰', emoji: '👺', force: 8, nei: 4, hp: 48, ai: 'skirmish', sprite: 'enemy_melee' }
       ]
     },
     {
@@ -1084,13 +1091,13 @@
       minInnLevel: 1,
       risk: 2,
       tags: ['混合', '拉距'],
-      blurb: '刀手推進、弓手拉距；頭目會伺機衝鋒。',
-      rewardSilver: [55, 95],
-      rewardRep: [6, 12],
+      blurb: '刀手推進、弓手拉距；頭目會伺機衝鋒。早期第二關略壓。',
+      rewardSilver: [48, 82],
+      rewardRep: [6, 11],
       enemies: [
-        { name: '流寇刀手', emoji: '💀', force: 10, nei: 5, hp: 60, ai: 'skirmish' },
-        { name: '流寇弓手', emoji: '🏹', force: 8, nei: 6, hp: 45, ranged: true, ai: 'kite' },
-        { name: '流寇頭目', emoji: '👹', force: 14, nei: 8, hp: 90, ai: 'charge' }
+        { name: '流寇刀手', emoji: '💀', force: 12, nei: 6, hp: 70, ai: 'skirmish', sprite: 'enemy_melee' },
+        { name: '流寇弓手', emoji: '🏹', force: 9, nei: 7, hp: 52, ranged: true, ai: 'kite', sprite: 'enemy_kite' },
+        { name: '流寇頭目', emoji: '👹', force: 16, nei: 9, hp: 105, ai: 'charge', sprite: 'enemy_charge' }
       ]
     },
     {
@@ -1100,12 +1107,12 @@
       risk: 3,
       tags: ['衝鋒', '高壓'],
       blurb: '槍騎直撲中軍；側翼弓手風箏。輸贏往往在前十秒。',
-      rewardSilver: [120, 190],
-      rewardRep: [14, 22],
+      rewardSilver: [110, 170],
+      rewardRep: [13, 20],
       enemies: [
-        { name: '馬匪槍騎', emoji: '🐎', force: 15, nei: 7, hp: 85, ai: 'charge' },
-        { name: '馬匪槍騎', emoji: '🐎', force: 15, nei: 7, hp: 85, ai: 'charge' },
-        { name: '馬匪弓手', emoji: '🏹', force: 11, nei: 9, hp: 55, ranged: true, ai: 'kite' }
+        { name: '馬匪槍騎', emoji: '🐎', force: 15, nei: 7, hp: 85, ai: 'charge', sprite: 'enemy_charge' },
+        { name: '馬匪槍騎', emoji: '🐎', force: 15, nei: 7, hp: 85, ai: 'charge', sprite: 'enemy_charge' },
+        { name: '馬匪弓手', emoji: '🏹', force: 11, nei: 9, hp: 55, ranged: true, ai: 'kite', sprite: 'enemy_kite' }
       ]
     },
     {
@@ -1115,12 +1122,12 @@
       risk: 3,
       tags: ['厚血', '護盾感'],
       blurb: '護院肉盾纏鬥，惡霸下手重；宜集火頭目。',
-      rewardSilver: [100, 160],
-      rewardRep: [12, 20],
+      rewardSilver: [95, 150],
+      rewardRep: [12, 18],
       enemies: [
-        { name: '惡霸護院', emoji: '🛡️', force: 12, nei: 8, hp: 80, ai: 'skirmish', mitBonus: 0.08 },
-        { name: '惡霸護院', emoji: '🛡️', force: 12, nei: 8, hp: 80, ai: 'skirmish', mitBonus: 0.08 },
-        { name: '黑市惡霸', emoji: '👿', force: 18, nei: 12, hp: 130, ai: 'charge' }
+        { name: '惡霸護院', emoji: '🛡️', force: 12, nei: 8, hp: 80, ai: 'skirmish', mitBonus: 0.08, sprite: 'enemy_melee' },
+        { name: '惡霸護院', emoji: '🛡️', force: 12, nei: 8, hp: 80, ai: 'skirmish', mitBonus: 0.08, sprite: 'enemy_melee' },
+        { name: '黑市惡霸', emoji: '👿', force: 18, nei: 12, hp: 130, ai: 'charge', sprite: 'enemy_charge' }
       ]
     },
     {
@@ -1129,13 +1136,13 @@
       minInnLevel: 3,
       risk: 4,
       tags: ['刺客', '高壓'],
-      blurb: '刺客喜突進，血影使內力深厚；慢熱易崩。',
-      rewardSilver: [180, 280],
-      rewardRep: [20, 35],
+      blurb: '刺客喜突進，血影使內力深厚；慢熱易崩。後期犒賞已收斂。',
+      rewardSilver: [160, 230],
+      rewardRep: [18, 28],
       enemies: [
-        { name: '魔教探子', emoji: '🌑', force: 16, nei: 14, hp: 100, ai: 'kite', ranged: true },
-        { name: '魔教刺客', emoji: '🗡️', force: 20, nei: 10, hp: 90, ai: 'charge' },
-        { name: '血影使', emoji: '🩸', force: 24, nei: 18, hp: 160, ai: 'charge' }
+        { name: '魔教探子', emoji: '🌑', force: 16, nei: 14, hp: 100, ai: 'kite', ranged: true, sprite: 'enemy_kite' },
+        { name: '魔教刺客', emoji: '🗡️', force: 20, nei: 10, hp: 90, ai: 'charge', sprite: 'enemy_charge' },
+        { name: '血影使', emoji: '🩸', force: 24, nei: 18, hp: 160, ai: 'charge', sprite: 'enemy_charge' }
       ]
     }
   ];

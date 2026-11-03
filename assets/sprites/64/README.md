@@ -14,7 +14,10 @@
 | `xiaoer.png` | **1152×64** | **v1.3 精修（serve／wipe）** | `tools/gen_sprites_64_v13.py` |
 | `guest_sit.png` | **384×64** | **v1.3 精修（6 色坐姿）** | `tools/gen_sprites_64_v13.py` |
 | `guest_walk.png` | **3072×64** | **v1.3 新增（6×8 walk／入座）** | `tools/gen_sprites_64_v13.py` |
-| `boss_*_combat.png` | 64×64 | 可選／舊版 | `tools/gen_sprites_64.py` |
+| `boss_*_combat.png` | **256×64** | **v1.4 精修（4 幀 idle／windup／strike／hurt）** | `tools/gen_sprites_64_v14.py` |
+| `enemy_charge.png` | **256×64** | **v1.4 新增（衝鋒 4 幀）** | `tools/gen_sprites_64_v14.py` |
+| `enemy_kite.png` | **256×64** | **v1.4 新增（拉距 4 幀）** | `tools/gen_sprites_64_v14.py` |
+| `enemy_melee.png` | **256×64** | **v1.4 新增（近戰 4 幀）** | `tools/gen_sprites_64_v14.py` |
 
 每角：每幀 **64×64**，橫向 **18** 幀 → `18×64 = 1152`。面向右。戰鬥顯示 ×2 上 960 場。
 
@@ -100,4 +103,30 @@ ctx.drawImage(guestWalk, sx, 0, FRAME, FRAME, dx, dy, FRAME, FRAME);
 ```
 
 生成：`tools/gen_sprites_64_v13.py` · 報告：`_gen_report_v13.txt`
+
+## v1.4 Boss／敵戰鬥剪影
+
+### 對幀（Boss 與通用敵相同）
+
+| 幀 | Boss | 通用敵 |
+|----|------|--------|
+| 0 | idle | idle |
+| 1 | windup／威嚇 | approach／ready |
+| 2 | strike | strike |
+| 3 | hurt | hurt |
+
+- 尺寸：**256×64**（4×64）；面向右；硬邊；oob=0
+- 遊戲現況：`drawImage(img, 0, 0, h, h, …)` → **先用幀 0**；短表預留動畫
+- **heifeng**：墨褐＋血；披髮額帶＋寬肩甲＋巨刀
+- **xieyi**：梵紫＋藥綠；雙髻＋毒瓶＋爪
+- **xueying**：血／墨黑；雙刃＋影披風
+- **charge**：厚重前衝／短刀；**kite**：斗笠弓矢／後撤；**melee**：木褐單刀砍弧
+
+```js
+const FRAME = 64;
+const sx = frameIndex * FRAME; // 0..3
+ctx.drawImage(sheet, sx, 0, FRAME, FRAME, dx, dy, FRAME, FRAME);
+```
+
+生成：`tools/gen_sprites_64_v14.py` · 報告：`_gen_report_v14.txt`
 

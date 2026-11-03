@@ -1914,3 +1914,76 @@ body.combat-open .hub-shell {
 .float-toast.skill { border-color: var(--violet); }
 .outpost-trait { color: #5a4a32; margin-top: 0.25rem; }
 .hero-card .btn-row .btn.tiny { white-space: normal; line-height: 1.25; max-width: 11.5rem; text-align: left; }
+
+
+/* ——— v1.4 戰鬥結算卡／成就領獎 ——— */
+#battle-settlement {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(12, 10, 8, 0.55);
+  padding: 16px;
+}
+#battle-settlement.hidden { display: none; }
+.settle-card {
+  width: min(420px, 92%);
+  background: linear-gradient(180deg, #2a2218 0%, #1a1510 100%);
+  border: 2px solid #c9a227;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.55);
+  padding: 16px 18px 14px;
+  color: #f3e6c8;
+}
+.settle-card.win { border-color: #7cb87c; }
+.settle-card.lose { border-color: #b86a5a; }
+.settle-head h3 {
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+  letter-spacing: 0.06em;
+}
+.settle-loot, .settle-injuries {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(201,162,39,.35);
+}
+.settle-loot h4, .settle-injuries h4 {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  color: #c9a227;
+}
+.settle-loot-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 0.95rem;
+}
+.settle-loot-row.drop { color: #e8c86a; justify-content: flex-start; }
+.settle-border {
+  margin-left: 6px;
+  color: #9ec5e8;
+  font-size: 0.8rem;
+}
+.settle-inj-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.settle-inj {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-size: 0.9rem;
+}
+.settle-inj.hurt b { color: #e8a060; }
+.settle-inj.down b { color: #e07070; }
+.settle-inj.ok b { color: #8ecf8e; }
+.settle-actions { margin-top: 14px; justify-content: center; }
+.achieve-row.claimable {
+  outline: 1px solid rgba(201, 80, 60, 0.45);
+  background: rgba(201, 80, 60, 0.08);
+}
+.achieve-row .btn[data-claim-ach] { margin-top: 6px; }

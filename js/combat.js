@@ -164,7 +164,9 @@
       counterWindow: 0,
       counterReady: false,
       _counterStrike: false,
-      comboHits: 0
+      comboHits: 0,
+      heroId: src.heroId || src.id || null,
+      sprite: src.sprite || null
     };
     return u;
   }
@@ -1099,7 +1101,11 @@
   }
 
   function scaleEnemy(template, innLevel, bossScale) {
-    const base = 1 + (innLevel - 1) * 0.12;
+    // v1.4：前期略硬；後期成長 0.10 並軟頂，避免數值爆炸
+    const lv = Math.max(1, innLevel || 1);
+    const raw = 1 + (lv - 1) * 0.10;
+    const soft = 1 + Math.min(0.55, (lv - 1) * 0.10); // 約 Lv.6.5 後趨平
+    const base = Math.min(raw, soft);
     const scale = base * (bossScale || 1);
     const hp = Math.round(template.hp * scale);
     const out = {
@@ -1121,6 +1127,7 @@
       out.shield = Math.round(hp * template.startShield);
     }
     if (template.id) out.id = template.id;
+    if (template.sprite) out.sprite = template.sprite;
     return out;
   }
 
