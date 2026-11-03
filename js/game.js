@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v2.6.0：Hub短景＋合擊成功提示）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v2.7.0：廂房夜半夢語＋合擊新手提示）
  */
 (function () {
   'use strict';
@@ -161,6 +161,8 @@
       duoBondDone: [],
       chapterPlayables: [],
       roomRestAt: 0,
+      roomDreamAt: 0,
+      comboTipSeen: false,
       metScenes: [],
       combatBuffs: [],
       hubTourDone: false,
@@ -271,6 +273,11 @@
     if (!Array.isArray(s.duoBondDone)) s.duoBondDone = [];
     if (!Array.isArray(s.chapterPlayables)) s.chapterPlayables = [];
     if (typeof s.roomRestAt !== 'number') s.roomRestAt = 0;
+    if (typeof s.roomDreamAt !== 'number') s.roomDreamAt = 0;
+    // v2.7：合擊新手提示 once；舊檔已有羈絆則視為看過，免打擾
+    if (typeof s.comboTipSeen !== 'boolean') {
+      s.comboTipSeen = Array.isArray(s.duoBondDone) && s.duoBondDone.length > 0;
+    }
     if (!Array.isArray(s.metScenes)) s.metScenes = [];
     if (!Array.isArray(s.combatBuffs)) s.combatBuffs = [];
     s.combatBuffs = s.combatBuffs.filter(function (b) {
@@ -1219,7 +1226,10 @@
           }
           if (sid && String(sid).indexOf('duo_') === 0) {
             if (!Array.isArray(state.duoBondDone)) state.duoBondDone = [];
-            if (state.duoBondDone.indexOf(sid) < 0) state.duoBondDone.push(sid);
+            if (state.duoBondDone.indexOf(sid) < 0) {
+              state.duoBondDone.push(sid);
+              maybeFirstComboTip();
+            }
             markMetScene(sid);
             pushLog('【雙人羈絆】' + (picked.resultLine || picked.label), 'bond');
           } else {
@@ -3672,14 +3682,31 @@
   }
 
 
-  // ——— v2.1 廂房宣紙浮層 ———
+  // ——— v2.1 廂房宣紙浮層（v2.7：夜半夢語） ———
   const ROOM_REST_CD_MS = 8 * 60 * 1000;
+  const ROOM_DREAM_CD_MS = 12 * 60 * 1000;
   const ROOM_FLAVOR = [
     '廂房木樑上掛著舊刀穗，灰塵裡仍有江湖味。',
     '後樓梯吱呀一聲——小二說是風，你姑且信了。',
     '枕下壓著半張地圖抄本，灰路東岔畫了個圈。',
     '藥櫃底層多了一瓶未開封的金創藥，鐵掌留的。'
   ];
+  const ROOM_DREAM_LINES = [
+    '夜半夢語：舊棧主低聲說「灰路東岔勿獨行」……醒來茶涼。',
+    '夢裡刀光一閃，浪人笑著收刀：「掌櫃，明日再喝。」',
+    '琴音入夢，師太拂塵輕點——心頭清了一寸。',
+    '鐵掌塞你一包藥渣：「夢裡也別逞強。」你笑醒。',
+    '青衣立於簷下，劍穗微動：「掌櫃，歇夠了再上路。」'
+  ];
+
+  /** 首次解鎖任一雙人羈絆時，提示可編隊出巡合擊（once） */
+  function maybeFirstComboTip() {
+    if (state.comboTipSeen) return;
+    state.comboTipSeen = true;
+    pushLog('【合擊指引】雙人羈絆已解鎖——把相關俠客編入隊中出巡，戰鬥可放一場合擊。', 'system');
+    showUiToast('⚔ 合擊可開', '編隊出巡即可合擊', 'skill');
+    save(true);
+  }
 
   function closeRoomFloat() {
     const el = document.getElementById('room-float');
@@ -3713,15 +3740,21 @@
     const cdLeft = Math.max(0, (state.roomRestAt || 0) + ROOM_REST_CD_MS - now);
     const cdMin = Math.ceil(cdLeft / 60000);
     const canRest = cdLeft <= 0;
+    const dreamLeft = Math.max(0, (state.roomDreamAt || 0) + ROOM_DREAM_CD_MS - now);
+    const dreamMin = Math.ceil(dreamLeft / 60000);
+    const canDream = dreamLeft <= 0;
     const flavor = ROOM_FLAVOR[Math.floor(Math.random() * ROOM_FLAVOR.length)];
     body.innerHTML = [
-      '<p class="room-lead">廂房／後樓梯——歇息回氣、翻翻置物。</p>',
+      '<p class="room-lead">廂房／後樓梯——歇息回氣、翻翻置物；夜半可聽夢語。</p>',
       '<p class="muted room-flavor">' + flavor + '</p>',
       '<div class="btn-row room-actions">',
       canRest
         ? '<button type="button" class="btn primary" id="btn-room-rest">歇息回氣（全隊小療）</button>'
         : '<button type="button" class="btn" disabled>歇息冷卻中（約 ' + cdMin + ' 分）</button>',
       '<button type="button" class="btn" id="btn-room-peek">翻置物（小事件）</button>',
+      canDream
+        ? '<button type="button" class="btn" id="btn-room-dream">夜半夢語（冷卻）</button>'
+        : '<button type="button" class="btn" disabled>夢語冷卻中（約 ' + dreamMin + ' 分）</button>',
       '<button type="button" class="btn tiny" id="btn-room-close2">關閉</button>',
       '</div>'
     ].join('');
@@ -3737,6 +3770,8 @@
     if (restBtn) restBtn.onclick = function () { doRoomRest(); };
     const peekBtn = document.getElementById('btn-room-peek');
     if (peekBtn) peekBtn.onclick = function () { doRoomPeek(); };
+    const dreamBtn = document.getElementById('btn-room-dream');
+    if (dreamBtn) dreamBtn.onclick = function () { doRoomDream(); };
     const c2 = document.getElementById('btn-room-close2');
     if (c2) c2.onclick = closeRoomFloat;
   }
@@ -3795,6 +3830,50 @@
     } else {
       pushLog('翻到半張灰路草圖——與第六章餘燼之路隱隱相合。', 'story');
       showUiToast('🌫️ 灰圖', '餘燼線索', 'story');
+    }
+    save(true);
+    updateTopbar();
+    openRoomFloat();
+  }
+
+  /** v2.7：廂房可重複冷卻事件——夜半夢語（輕微獎勵／風味） */
+  function doRoomDream() {
+    const now = Date.now();
+    if ((state.roomDreamAt || 0) + ROOM_DREAM_CD_MS > now) {
+      pushLog('夢意未散，再等等才聽得清。', 'warn');
+      openRoomFloat();
+      return;
+    }
+    state.roomDreamAt = now;
+    const line = ROOM_DREAM_LINES[Math.floor(Math.random() * ROOM_DREAM_LINES.length)];
+    const roll = Math.random();
+    if (roll < 0.40) {
+      const gain = 5 + Math.floor(Math.random() * 8);
+      state.silver += gain;
+      state.totalEarned += gain;
+      pushLog('【夜半夢語】' + line + ' 枕下多了散銀 +' + gain + ' 兩。', 'earn');
+      showUiToast('🌙 夢語', '+' + gain + ' 兩', 'earn');
+    } else if (roll < 0.70) {
+      state.reputation += 1;
+      pushLog('【夜半夢語】' + line + ' 聲望 +1。', 'system');
+      showUiToast('🌙 夢語', '望 +1', 'system');
+    } else if (roll < 0.90) {
+      const ids = Object.keys(state.heroes).filter(function (id) {
+        return state.heroes[id] && state.heroes[id].recruited;
+      });
+      if (ids.length) {
+        const hid = ids[Math.floor(Math.random() * ids.length)];
+        state.heroes[hid].favor = Math.min(100, (state.heroes[hid].favor || 0) + 1);
+        const nm = (heroRuntime(hid) || {}).name || hid;
+        pushLog('【夜半夢語】' + line + ' ' + nm + ' 好感 +1。', 'bond');
+        showUiToast('🌙 夢語', nm + ' +1', 'bond');
+      } else {
+        pushLog('【夜半夢語】' + line, 'story');
+        showUiToast('🌙 夢語', '江湖囈語', 'story');
+      }
+    } else {
+      pushLog('【夜半夢語】' + line, 'story');
+      showUiToast('🌙 夢語', '風味一則', 'story');
     }
     save(true);
     updateTopbar();
@@ -4265,7 +4344,7 @@
       try { WuxiaAudio.preload(); } catch (e) { /* ignore */ }
     }
 
-    const verLabel = (GAME && GAME.version) ? String(GAME.version) : '2.6.0';
+    const verLabel = (GAME && GAME.version) ? String(GAME.version) : '2.7.0';
     const footVer = $('footer-version');
     if (footVer) footVer.textContent = 'v' + verLabel;
     try {
