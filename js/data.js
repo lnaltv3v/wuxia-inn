@@ -7,7 +7,7 @@
 
   const GAME = {
     name: '俠客棧',
-    version: '0.9.0',
+    version: '0.9.1',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,

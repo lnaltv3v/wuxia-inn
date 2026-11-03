@@ -920,7 +920,11 @@
       checkStoryUnlocks();
       checkAchievements();
     }
-    if (activeTab === 'inn' || activeTab === 'hub') softUpdateInn();
+    // 面板開住都刷 Hub／經營數字，場景繼續接客演出
+    if (activeTab === 'inn' || activeTab === 'hub' || activeTab === 'heroes'
+      || activeTab === 'outposts' || activeTab === 'story' || activeTab === 'log') {
+      softUpdateInn();
+    }
     if (activeTab === 'outposts') renderOutposts();
     if (activeTab === 'story') renderStory();
     updateTopbar();
@@ -1692,6 +1696,23 @@
     }
   }
 
+
+  const SHEET_HOTSPOT = {
+    inn: 'counter',
+    heroes: 'heroes',
+    combat: 'door',
+    outposts: 'map',
+    story: 'board',
+    library: 'books',
+    log: null
+  };
+
+  function syncHubSelectedHotspot(name) {
+    if (!globalThis.WuxiaStages || !WuxiaStages.Inn || !WuxiaStages.Inn.setSelectedHotspot) return;
+    const id = name ? (SHEET_HOTSPOT[name] || null) : null;
+    WuxiaStages.Inn.setSelectedHotspot(id);
+  }
+
   const SHEET_TITLES = {
     inn: '經營 · 設施／藏書',
     outposts: '據點 · 任務板',
@@ -1719,7 +1740,9 @@
     document.querySelectorAll('#sheet .panel').forEach((p) => p.classList.add('hidden'));
     if (activeTab !== 'combat') activeTab = 'hub';
     document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.remove('active'));
+    document.body.classList.remove('sheet-open');
     closeMenu();
+    syncHubSelectedHotspot(null);
     ensureHubStage();
   }
 
@@ -1743,7 +1766,11 @@
     });
     if (sheet) sheet.classList.remove('hidden');
     if (bd) bd.classList.remove('hidden');
+    document.body.classList.add('sheet-open');
+    document.body.classList.remove('combat-open');
     closeMenu();
+    ensureHubStage(); // 面板開住 Hub 繼續 mount／呼吸
+    syncHubSelectedHotspot(name === 'inn' ? 'inn' : name);
     if (name === 'inn') renderInn();
     if (name === 'outposts') renderOutposts();
     if (name === 'heroes') renderHeroes();
@@ -1800,7 +1827,13 @@
     closeSheet();
     activeTab = 'combat';
     const ov = $('combat-overlay');
-    if (ov) ov.classList.remove('hidden');
+    if (ov) {
+      ov.classList.remove('combat-overlay-leave');
+      ov.classList.remove('hidden');
+    }
+    document.body.classList.add('combat-open');
+    document.body.classList.remove('sheet-open');
+    syncHubSelectedHotspot('combat');
     document.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.tab === 'combat');
     });
@@ -1816,15 +1849,33 @@
       return false;
     }
     const ov = $('combat-overlay');
-    if (ov) ov.classList.add('hidden');
-    if (activeTab === 'combat') activeTab = 'hub';
-    document.querySelectorAll('.tab-btn').forEach((btn) => {
-      if (btn.dataset.tab === 'combat') btn.classList.remove('active');
-    });
-    ensureHubStage();
-    if (!battle) {
-      lastHubBgm = null;
-      refreshHubBgm(true);
+    function finishClose() {
+      if (ov) {
+        ov.classList.add('hidden');
+        ov.classList.remove('combat-overlay-leave');
+      }
+      document.body.classList.remove('combat-open');
+      if (activeTab === 'combat') activeTab = 'hub';
+      document.querySelectorAll('.tab-btn').forEach((btn) => {
+        if (btn.dataset.tab === 'combat') btn.classList.remove('active');
+      });
+      syncHubSelectedHotspot(null);
+      ensureHubStage();
+      if (!battle) {
+        lastHubBgm = null;
+        refreshHubBgm(true);
+        try {
+          if (WuxiaStages && WuxiaStages.Inn && WuxiaStages.Inn.greetXiaoer) {
+            WuxiaStages.Inn.greetXiaoer('客官凱旋／回棧——茶已溫熱。');
+          }
+        } catch (e) { /* ignore */ }
+      }
+    }
+    if (ov && !ov.classList.contains('hidden')) {
+      ov.classList.add('combat-overlay-leave');
+      window.setTimeout(finishClose, 220);
+    } else {
+      finishClose();
     }
     return true;
   }
@@ -2063,6 +2114,7 @@
         if (openId === 'table') return;
         if (openId === 'library') {
           openSheet('inn');
+          syncHubSelectedHotspot('library');
           setTimeout(function () {
             const el = document.getElementById('library-section');
             if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });

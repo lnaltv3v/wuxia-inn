@@ -1,6 +1,6 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.9.0：青衣／浪人精修＋招名飄字／960×540）
- * Hub＋戰鬥 960×540；FSM＋v0.9 幀；讀招淡出／判定強顯招名；戰場分層；shake／VFX
+ * 俠客棧 — 墨點江湖舞台（v0.9.1：場景化預熱＋鏡頭減震＋r2 精靈／960×540）
+ * Hub 面板開仍呼吸；熱點墨框／硃標；戰鬥 shake 下調；招名飄字；戰場分層
  */
 (function (global) {
   'use strict';
@@ -369,6 +369,7 @@
     let guestStride = 0;
     let idleBlink = 0;
     let hoverId = null;
+    let selectedHotspotId = null; // sheet 打開時對應熱點高亮
     let hotspotHandler = null;
     let hintHandler = null;
     let choiceHandler = null;
@@ -437,7 +438,7 @@
       wrap.className = 'stage-wrap inn-stage-wrap hub-stage-wrap';
       wrap.innerHTML =
         '<canvas class="px-stage hub-canvas" width="960" height="540" aria-label="客棧內部主場景" tabindex="0"></canvas>' +
-        '<div class="stage-caption" id="inn-stage-cap">客棧內部 · 點擊場景熱點開啟功能</div>';
+        '<div class="stage-caption stage-caption-slim" id="inn-stage-cap" hidden>客棧內部</div>';
       host.appendChild(wrap);
       wrapEl = wrap;
       canvas = wrap.querySelector('canvas');
@@ -477,6 +478,7 @@
     }
 
     function setHotspotHandler(fn) { hotspotHandler = typeof fn === 'function' ? fn : null; }
+    function setSelectedHotspot(id) { selectedHotspotId = id || null; }
     function setHintHandler(fn) { hintHandler = typeof fn === 'function' ? fn : null; }
     function setChoiceHandler(fn) { choiceHandler = typeof fn === 'function' ? fn : null; }
     function setTipHandler(fn) { tipHandler = typeof fn === 'function' ? fn : null; }
@@ -920,32 +922,45 @@
     function drawHotspotHints() {
       HOTSPOTS.forEach(function (h) {
         const on = hoverId === h.id;
+        const sel = selectedHotspotId === h.id;
         const isTable = h.open === 'table';
-        if (on) {
-          ctx.globalAlpha = isTable ? 0.32 : 0.38;
-          drawRect(ctx, h.x, h.y, h.w, h.h, isTable ? C.jadeBright : C.gold);
+        const active = on || sel;
+        if (active) {
+          // 墨框＋硃角標（唔靠大文字板）
+          const fill = isTable ? C.jadeBright : (sel ? C.cinnabar : C.gold);
+          ctx.globalAlpha = on ? 0.22 : 0.14;
+          drawRect(ctx, h.x, h.y, h.w, h.h, fill);
           ctx.globalAlpha = 1;
-          drawRect(ctx, h.x, h.y, h.w, 2, C.cream);
-          drawRect(ctx, h.x, h.y + h.h - 2, h.w, 2, C.cream);
-          drawRect(ctx, h.x, h.y, 2, h.h, C.cream);
-          drawRect(ctx, h.x + h.w - 2, h.y, 2, h.h, C.cream);
-          drawPixelText(ctx, h.label, h.x + 8, Math.max(16, h.y - 24), C.cream);
+          drawRect(ctx, h.x, h.y, h.w, 3, C.ink);
+          drawRect(ctx, h.x, h.y + h.h - 3, h.w, 3, C.ink);
+          drawRect(ctx, h.x, h.y, 3, h.h, C.ink);
+          drawRect(ctx, h.x + h.w - 3, h.y, 3, h.h, C.ink);
+          // 硃紅角標
+          const mark = sel ? C.cinnabarBright : C.cinnabar;
+          drawRect(ctx, h.x - 1, h.y - 1, 10, 10, mark);
+          drawRect(ctx, h.x + h.w - 9, h.y - 1, 10, 10, mark);
+          drawRect(ctx, h.x - 1, h.y + h.h - 9, 10, 10, C.ink);
+          drawRect(ctx, h.x + h.w - 9, h.y + h.h - 9, 10, 10, C.ink);
+          // 僅 hover 時短字（選中唔再疊大標）
+          if (on) {
+            const short = (h.label || '').split('·')[0];
+            if (short) {
+              drawRect(ctx, h.x + 4, Math.max(8, h.y - 16), Math.min(72, 8 + short.length * 10), 12, C.ink);
+              drawPixelText(ctx, short, h.x + 6, Math.max(10, h.y - 14), C.cream);
+            }
+          }
         } else if (!isTable) {
-          // 主熱點：半透明框＋短標籤（常駐提示，易睇易點）
-          ctx.globalAlpha = 0.18;
-          drawRect(ctx, h.x, h.y, h.w, h.h, C.gold);
-          ctx.globalAlpha = 0.75;
-          drawRect(ctx, h.x, h.y, h.w, 1, C.cream);
-          drawRect(ctx, h.x, h.y + h.h - 1, h.w, 1, C.cream);
-          drawRect(ctx, h.x, h.y, 1, h.h, C.cream);
-          drawRect(ctx, h.x + h.w - 1, h.y, 1, h.h, C.cream);
-          ctx.globalAlpha = 0.9;
-          drawRect(ctx, h.x + 2, h.y + 2, 5, 5, C.gold);
-          const short = (h.label || '').split('·')[0];
-          if (short) drawPixelText(ctx, short, h.x + 8, Math.max(16, h.y - 20), C.inkSoft);
+          // 常駐：淡墨角＋1px 框，無大字
+          ctx.globalAlpha = 0.55;
+          drawRect(ctx, h.x, h.y, h.w, 1, C.inkSoft);
+          drawRect(ctx, h.x, h.y + h.h - 1, h.w, 1, C.inkSoft);
+          drawRect(ctx, h.x, h.y, 1, h.h, C.inkSoft);
+          drawRect(ctx, h.x + h.w - 1, h.y, 1, h.h, C.inkSoft);
+          ctx.globalAlpha = 0.85;
+          drawRect(ctx, h.x + 2, h.y + 2, 6, 6, C.cinnabar);
           ctx.globalAlpha = 1;
         } else {
-          ctx.globalAlpha = 0.35;
+          ctx.globalAlpha = 0.4;
           drawRect(ctx, h.x + 2, h.y + 2, 4, 4, C.jade);
           ctx.globalAlpha = 1;
         }
@@ -1293,7 +1308,7 @@
 
     return {
       mount, destroy, isMounted, playGuest, enqueueGuest,
-      setHotspotHandler, setTipHandler, setAmbientHeroes, setInnTitle,
+      setHotspotHandler, setSelectedHotspot, setTipHandler, setAmbientHeroes, setInnTitle,
       setAmbientChange, isNight, getTipMul, dayPhaseName, setRumor, greetXiaoer, showBubble, playSceneEvent, resolveSceneChoice, setHintHandler, setChoiceHandler,
       HOTSPOTS, getPhase: function () { return phase; },
       isScenePlaying: function () { return !!(sceneEvt && !sceneEvt.done); }
@@ -1339,28 +1354,28 @@
       return Math.max(3, Math.round(n / speedMul));
     }
 
-    /** v0.8.2 鏡頭：細震→中震分層；可選整數 zoom pulse（唔用非整數縮放） */
+    /** v0.9.1 鏡頭：細震→中震分層（全面約半至六成，KO／clash 都唔好太晃） */
     function bumpCamera(tier) {
       // tier: 'light' | 'mid' | 'heavy' | 'ko' | 'clash'
       if (tier === 'light') {
-        shakeFine = Math.max(shakeFine, 2.2);
-        shake = Math.max(shake, 2.8);
+        shakeFine = Math.max(shakeFine, 1.1);
+        shake = Math.max(shake, 1.4);
       } else if (tier === 'mid') {
-        shakeFine = Math.max(shakeFine, 3.5);
-        shake = Math.max(shake, 5.5);
-        zoomPulse = Math.max(zoomPulse, 6);
+        shakeFine = Math.max(shakeFine, 1.8);
+        shake = Math.max(shake, 2.8);
+        zoomPulse = Math.max(zoomPulse, 3);
       } else if (tier === 'heavy') {
-        shakeFine = Math.max(shakeFine, 4.5);
-        shake = Math.max(shake, 8.0);
-        zoomPulse = Math.max(zoomPulse, 9);
+        shakeFine = Math.max(shakeFine, 2.4);
+        shake = Math.max(shake, 4.0);
+        zoomPulse = Math.max(zoomPulse, 4);
       } else if (tier === 'clash') {
-        shakeFine = Math.max(shakeFine, 5.0);
-        shake = Math.max(shake, 7.2);
-        zoomPulse = Math.max(zoomPulse, 8);
+        shakeFine = Math.max(shakeFine, 2.5);
+        shake = Math.max(shake, 3.6);
+        zoomPulse = Math.max(zoomPulse, 4);
       } else if (tier === 'ko') {
-        shakeFine = Math.max(shakeFine, 5.5);
-        shake = Math.max(shake, 10.0);
-        zoomPulse = Math.max(zoomPulse, 12);
+        shakeFine = Math.max(shakeFine, 2.8);
+        shake = Math.max(shake, 5.0);
+        zoomPulse = Math.max(zoomPulse, 5);
       }
     }
 
@@ -2354,8 +2369,8 @@
       if (zoomPulse > 0) zoomPulse = Math.max(0, zoomPulse - (frozen ? 0.15 : 0.45));
       if (wrapEl) {
         // 中震：wrap 位移；細震：更高頻、更短
-        const amp = Math.min(16, shake * 1.7);
-        const fine = Math.min(5, shakeFine * 1.1);
+        const amp = Math.min(7, shake * 1.35);
+        const fine = Math.min(2.5, shakeFine * 0.95);
         const sx = (shake > 0 ? ((Math.round(shake * 2) % 2 === 0) ? amp : -amp) : 0)
           + (shakeFine > 0 ? ((tick % 2 === 0) ? fine : -fine) : 0);
         const sy = (shake > 0 ? ((Math.round(shake * 3) % 2 === 0) ? amp * 0.55 : -amp * 0.55) : 0)
@@ -2365,7 +2380,7 @@
 
       ctx.clearRect(0, 0, W, H);
       // 整數像素 zoom pulse：以場心為準，放大 0／2／4 px 等效（scale 用整數偏移裁切感）
-      const zPix = zoomPulse > 0 ? Math.min(8, Math.round(zoomPulse / 2) * 2) : 0;
+      const zPix = zoomPulse > 0 ? Math.min(4, Math.round(zoomPulse / 2) * 2) : 0;
       if (zPix > 0) {
         ctx.save();
         ctx.imageSmoothingEnabled = false;

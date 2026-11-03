@@ -1,4 +1,4 @@
-/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.9.0（青衣／浪人精修＋戰鬥教學／960×540） */
+/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.9.1（場景化預熱＋鏡頭減震＋r2／960×540） */
 :root {
   /* 嚴格色盤 — 禁止盤外色 */
   --ink: #1A1510;
@@ -891,6 +891,8 @@ body.hub-mode .app { max-width: 1100px; }
 .combat-stage-wrap .px-stage {
   aspect-ratio: 960 / 540;
 }
+.stage-caption-slim[hidden],
+.hub-stage-wrap .stage-caption { display: none !important; }
 .stage-caption {
   line-height: 1.4;
   padding: 10px 12px;
@@ -1571,4 +1573,57 @@ body.hub-mode .app { max-width: 1100px; }
   flex: 1 1 160px;
   font-size: 0.78rem;
   color: var(--ink-soft);
+}
+
+
+/* —— v0.9.1 介面場景化預熱：面板開 Hub 可見呼吸；舊分頁藏；戰鬥淡出 —— */
+body.sheet-open .sheet-backdrop {
+  /* 只遮面板側，左邊場景保持可見可點 */
+  left: auto !important;
+  right: 0 !important;
+  width: min(480px, 48vw) !important;
+  background: rgba(26, 21, 16, 0.18) !important;
+}
+body.sheet-open .hub-shell {
+  filter: none;
+  opacity: 1;
+}
+body.sheet-open .hub-quickbar {
+  opacity: 0.85;
+}
+/* 舊頂部分頁式 UI：主殼唔再露（只准 hub-menu 次要） */
+.app > .tabs:not(.hub-menu) {
+  display: none !important;
+}
+.hub-menu:not(.hidden) {
+  position: fixed;
+  z-index: 55;
+  left: 50%;
+  top: 52px;
+  transform: translateX(-50%);
+  width: min(520px, calc(100vw - 24px));
+  background: rgba(232, 213, 168, 0.94);
+  border: 3px solid var(--ink);
+  box-shadow: 4px 4px 0 rgba(26, 21, 16, 0.5);
+  padding: 8px;
+}
+.combat-overlay {
+  transition: opacity 0.22s steps(4, end), transform 0.22s steps(4, end);
+  opacity: 1;
+}
+.combat-overlay.combat-overlay-leave {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+}
+@media (max-width: 820px), (orientation: portrait) {
+  body.sheet-open .sheet-backdrop {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    top: auto !important;
+    bottom: 0 !important;
+    height: min(52vh, 460px) !important;
+    background: rgba(26, 21, 16, 0.22) !important;
+  }
 }
