@@ -3,18 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="description" content="俠客棧 — 武俠客棧經營 × 放置養成 × 自動即時戰鬥" />
+  <meta name="description" content="俠客棧 — 武俠客棧經營 × 放置養成 × 自動即時戰鬥 · 像素武俠風" />
   <title>俠客棧</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
-<body>
+<body class="pixel-theme">
   <div class="app">
-    <header class="topbar">
+    <header class="topbar px-frame">
       <div class="brand">俠客棧<small>客棧經營 · 放置養成 · 自動戰鬥</small></div>
       <div class="stats">
-        <span>銀兩 <b id="stat-silver">0</b></span>
-        <span>聲望 <b id="stat-rep">0</b></span>
-        <span id="stat-inn">Lv.1</span>
+        <span class="stat-chip">銀兩 <b id="stat-silver">0</b></span>
+        <span class="stat-chip">聲望 <b id="stat-rep">0</b></span>
+        <span class="stat-chip" id="stat-inn">Lv.1</span>
         <span class="save-ok" id="stat-save">自動存檔</span>
       </div>
       <div class="top-actions">
@@ -23,11 +26,11 @@
     </header>
 
     <nav class="tabs" role="tablist">
-      <button class="tab-btn active" type="button" data-tab="inn" role="tab">🏯 客棧</button>
-      <button class="tab-btn" type="button" data-tab="outposts" role="tab">🗺️ 據點</button>
-      <button class="tab-btn" type="button" data-tab="heroes" role="tab">⚔️ 俠客</button>
-      <button class="tab-btn" type="button" data-tab="combat" role="tab">🗡️ 戰鬥</button>
-      <button class="tab-btn" type="button" data-tab="log" role="tab">📜 日誌</button>
+      <button class="tab-btn active" type="button" data-tab="inn" role="tab"><span class="px-ico">🏯</span> 客棧</button>
+      <button class="tab-btn" type="button" data-tab="outposts" role="tab"><span class="px-ico">🗺️</span> 據點</button>
+      <button class="tab-btn" type="button" data-tab="heroes" role="tab"><span class="px-ico">⚔️</span> 俠客</button>
+      <button class="tab-btn" type="button" data-tab="combat" role="tab"><span class="px-ico">🗡️</span> 戰鬥</button>
+      <button class="tab-btn" type="button" data-tab="log" role="tab"><span class="px-ico">📜</span> 日誌</button>
     </nav>
 
     <main>
@@ -38,7 +41,7 @@
       <section id="panel-log" class="panel hidden" role="tabpanel"></section>
     </main>
 
-    <footer class="footer">俠客棧 v0.3 · 墨色江湖 · 本地存檔</footer>
+    <footer class="footer">俠客棧 v0.3.1 art · 像素武俠 · 本地存檔</footer>
   </div>
 
   <script src="js/data.js"></script>

@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v0.3：據點／設施／任務板）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v0.3.1 art：像素武俠風）
  */
 (function () {
   'use strict';
@@ -1078,6 +1078,100 @@
     });
   }
 
+
+  /* —— 像素頭像／圖示（assets/heroes/{id}.png 優先，否則 CSS/SVG placeholder） —— */
+  const HERO_PALETTES = {
+    qingyi:   { skin: '#e8c4a0', hair: '#1a2030', robe: '#2a6a6a', accent: '#4ecdc4', trim: '#1a4040' },
+    tiezhang: { skin: '#f0c8a8', hair: '#3a2010', robe: '#a04040', accent: '#7dcea0', trim: '#602020' },
+    langren:  { skin: '#d4a888', hair: '#1a1510', robe: '#3d3226', accent: '#c42b2b', trim: '#8a5a20' },
+    qinshi:   { skin: '#f2d2b0', hair: '#2a2030', robe: '#f0e8e0', accent: '#7a5a9a', trim: '#5a4060' },
+    enemy:    { skin: '#c09070', hair: '#1a1010', robe: '#5a3030', accent: '#a61b1b', trim: '#3a1818' },
+    default:  { skin: '#e8c4a0', hair: '#2a2218', robe: '#5c4030', accent: '#c9a227', trim: '#3d3226' }
+  };
+
+  function pixelFigureSvg(pal, weapon) {
+    const p = pal || HERO_PALETTES.default;
+    const w = weapon || p.accent;
+    // 16×16 crispEdges 像素人
+    return `<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" aria-hidden="true">
+      <rect width="16" height="16" fill="#2a5a48"/>
+      <rect x="5" y="1" width="6" height="2" fill="${p.hair}"/>
+      <rect x="4" y="3" width="8" height="3" fill="${p.hair}"/>
+      <rect x="5" y="4" width="6" height="3" fill="${p.skin}"/>
+      <rect x="6" y="5" width="1" height="1" fill="#1a1510"/>
+      <rect x="9" y="5" width="1" height="1" fill="#1a1510"/>
+      <rect x="4" y="7" width="8" height="5" fill="${p.robe}"/>
+      <rect x="4" y="7" width="8" height="1" fill="${p.trim}"/>
+      <rect x="3" y="8" width="1" height="3" fill="${p.skin}"/>
+      <rect x="12" y="8" width="1" height="3" fill="${p.skin}"/>
+      <rect x="13" y="6" width="1" height="6" fill="${w}"/>
+      <rect x="12" y="5" width="2" height="1" fill="${w}"/>
+      <rect x="5" y="12" width="2" height="3" fill="${p.trim}"/>
+      <rect x="9" y="12" width="2" height="3" fill="${p.trim}"/>
+      <rect x="7" y="9" width="2" height="2" fill="${p.accent}"/>
+    </svg>`;
+  }
+
+  function heroAvatarHtml(id, emoji, sizeClass) {
+    const hid = id || 'default';
+    const pal = HERO_PALETTES[hid] || HERO_PALETTES.default;
+    const cls = sizeClass ? ('px-avatar ' + sizeClass) : 'px-avatar';
+    const src = 'assets/heroes/' + hid + '.png';
+    return `<div class="${cls}" data-hero="${hid}">
+      <img class="px-portrait" src="${src}" alt="" width="64" height="64" loading="lazy"
+        onerror="this.classList.add('missing')" />
+      <div class="px-sprite" aria-hidden="true">${pixelFigureSvg(pal)}${emoji ? '' : ''}</div>
+    </div>`;
+  }
+
+  function enemyAvatarHtml(emoji) {
+    const pal = HERO_PALETTES.enemy;
+    return `<div class="px-avatar sm" data-hero="enemy">
+      <div class="px-sprite" aria-hidden="true">${pixelFigureSvg(pal, '#888')}</div>
+    </div>`;
+  }
+
+  function pxIcon(emoji) {
+    return `<span class="px-ico">${emoji || '•'}</span>`;
+  }
+
+  function innSceneHtml(innName) {
+    return `<div class="inn-scene" aria-hidden="true">
+      <svg viewBox="0 0 320 110" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" preserveAspectRatio="xMidYMid slice">
+        <rect width="320" height="60" fill="#7eb6d9"/>
+        <rect y="60" width="320" height="50" fill="#b89a6a"/>
+        <rect x="0" y="58" width="320" height="4" fill="#8a7a50"/>
+        <!-- 遠山 -->
+        <rect x="20" y="36" width="40" height="24" fill="#6a9a78"/>
+        <rect x="50" y="28" width="50" height="32" fill="#5a8a68"/>
+        <rect x="240" y="32" width="60" height="28" fill="#6a9a78"/>
+        <!-- 客棧主屋 -->
+        <rect x="90" y="48" width="140" height="42" fill="#5c4030"/>
+        <rect x="84" y="40" width="152" height="12" fill="#a61b1b"/>
+        <rect x="78" y="36" width="164" height="6" fill="#7a1010"/>
+        <rect x="100" y="28" width="120" height="10" fill="#a61b1b"/>
+        <rect x="110" y="22" width="100" height="8" fill="#7a1010"/>
+        <!-- 門窗 -->
+        <rect x="145" y="62" width="30" height="28" fill="#2a2218"/>
+        <rect x="110" y="66" width="22" height="16" fill="#c9a227"/>
+        <rect x="188" y="66" width="22" height="16" fill="#c9a227"/>
+        <!-- 燈籠 -->
+        <rect x="118" y="52" width="10" height="14" fill="#c42b2b"/>
+        <rect x="192" y="52" width="10" height="14" fill="#c42b2b"/>
+        <rect x="120" y="48" width="6" height="4" fill="#f5c518"/>
+        <rect x="194" y="48" width="6" height="4" fill="#f5c518"/>
+        <!-- 木牌 -->
+        <rect x="132" y="44" width="56" height="14" fill="#3d3226"/>
+        <rect x="134" y="46" width="52" height="10" fill="#8b2942"/>
+        <!-- 地磚點 -->
+        <rect x="40" y="92" width="8" height="4" fill="#9a8a60"/>
+        <rect x="70" y="96" width="8" height="4" fill="#9a8a60"/>
+        <rect x="250" y="94" width="8" height="4" fill="#9a8a60"/>
+      </svg>
+      <div class="inn-banner">${innName || '俠客棧'}</div>
+    </div>`;
+  }
+
   function favorBarHtml(favor, bond) {
     const next = nextBondTier(favor);
     const max = next ? next.min : 100;
@@ -1156,7 +1250,7 @@
       const can = !maxed && state.silver >= cost && state.reputation >= repNeed;
       return `<div class="facility-row">
         <div class="facility-info">
-          <b>${fac.emoji} ${fac.name}</b> <span class="pill">${lv}/${fac.maxLevel}</span>
+          <b>${pxIcon(fac.emoji)} ${fac.name}</b> <span class="pill">${lv}/${fac.maxLevel}</span>
           <div class="muted">${fac.desc}</div>
           <div class="muted">效果：${fac.effectLabel(lv)}</div>
         </div>
@@ -1170,7 +1264,8 @@
 
     el.innerHTML = `
       <div class="card ink-card">
-        <h2>🏯 ${inn.name}</h2>
+        ${innSceneHtml(inn.name)}
+        <h2>${pxIcon('🏯')} ${inn.name}</h2>
         <p class="muted">客棧乃江湖樞紐：賺錢、招募、休養生息、藏書練功。設施加成已計入收入與訓練。</p>
         <div class="stat-grid">
           <div><span class="label">收入倍率</span><b>×${(inn.incomeMul * cellarIncomeMul()).toFixed(2)}</b></div>
@@ -1185,12 +1280,12 @@
           </div>` : `<p class="muted">已達目前最高等級。</p>`}
       </div>
       <div class="card">
-        <h3>🏗️ 本棧設施</h3>
+        <h3>${pxIcon('🏗️')} 本棧設施</h3>
         <p class="muted">酒窖增收、練武場降費增益、醫館加快回血與戰後療傷。</p>
         <div class="facility-list">${facHtml}</div>
       </div>
       <div class="card">
-        <h3>📚 藏書閣／練功</h3>
+        <h3>${pxIcon('📚')} 藏書閣／練功</h3>
         <p class="muted">已收藏秘籍 ${state.unlockedManuals.length}/${MARTIAL_ARTS.length}</p>
         ${libHtml}
       </div>
@@ -1232,7 +1327,7 @@
       const unlocked = st && st.unlocked;
       const active = selectedOutpost === op.id;
       return `<button type="button" class="outpost-chip ${active ? 'active' : ''} ${unlocked ? '' : 'locked'}" data-select-op="${op.id}">
-        ${op.emoji} ${op.name}${unlocked ? '' : ' 🔒'}
+        ${pxIcon(op.emoji)} ${op.name}${unlocked ? '' : ' 🔒'}
       </button>`;
     }).join('');
 
@@ -1242,7 +1337,7 @@
     if (!st.unlocked) {
       const gate = canUnlockOutpost(op);
       detailHtml = `
-        <h3>${op.emoji} ${op.name}</h3>
+        <h3>${pxIcon(op.emoji)} ${op.name}</h3>
         <p class="lore">${op.desc}</p>
         <p>開設需：客棧 Lv.${op.unlock.innLevel}、聲望 ${op.unlock.reputation}、銀兩 ${op.unlock.silver}
           ${gate.ok ? ' ✅' : '（未達：' + gate.reasons.join('、') + '）'}</p>
@@ -1261,7 +1356,7 @@
         ? `駐守中：約 +${(op.garrisonIncome * (1 + (gRt.level - 1) * 0.05)).toFixed(1)} 兩/秒（酒窖加成另計）`
         : `無駐守：基礎 +${op.baseIncome}/秒`;
       detailHtml = `
-        <h3>${op.emoji} ${op.name}</h3>
+        <h3>${pxIcon(op.emoji)} ${op.name}</h3>
         <p class="lore">${op.desc}</p>
         <p class="muted">${incomeHint} · 駐守聲望機率 ${(op.garrisonRepChance * 100).toFixed(0)}%</p>
         <div class="garrison-row">
@@ -1277,7 +1372,7 @@
     // 設施摘要（本棧也顯示於據點頁）
     const facSummary = FACILITIES.map((f) => {
       const lv = facilityLevel(f.id);
-      return `<span class="tag">${f.emoji}${f.name} Lv.${lv}</span>`;
+      return `<span class="tag">${pxIcon(f.emoji)}${f.name} Lv.${lv}</span>`;
     }).join(' ');
 
     // 進行中任務
@@ -1291,7 +1386,7 @@
           const left = formatRemain(q.endsAt - now);
           const pct = Math.min(100, Math.round((1 - (q.endsAt - now) / (q.durationSec * 1000)) * 100));
           return `<div class="quest-row active">
-            <div><b>${q.emoji} ${q.name}</b> <span class="pill cinnabar">${q.kind}</span>
+            <div><b>${pxIcon(q.emoji)} ${q.name}</b> <span class="pill cinnabar">${q.kind}</span>
               <div class="muted">執行：${names} · 剩餘 ${left}</div>
               <div class="bar"><i style="width:${pct}%"></i></div>
             </div>
@@ -1315,7 +1410,7 @@
           }
           return `<div class="quest-row">
             <div class="quest-info">
-              <b>${q.emoji} ${q.name}</b> <span class="pill">${q.kind}</span>
+              <b>${pxIcon(q.emoji)} ${q.name}</b> <span class="pill">${q.kind}</span>
               <div class="muted">${q.desc}</div>
               <div class="muted">需 ${q.heroesNeed} 人 · 約 ${q.durationSec} 秒 · 獎勵 ${q.rewardSilver[0]}–${q.rewardSilver[1]} 兩／聲望 ${q.rewardRep[0]}–${q.rewardRep[1]}${q.manualChance > 0.1 ? ' · 偶獲秘籍' : ''}</div>
               <div class="quest-picks">${picks}</div>
@@ -1327,14 +1422,14 @@
 
     el.innerHTML = `
       <div class="card ink-card">
-        <h2>🗺️ 據點地圖</h2>
+        <h2>${pxIcon('🗺️')} 據點地圖</h2>
         <p class="muted">開設分舵、派駐俠客，穩定增收與聲望。</p>
         <div class="outpost-map">${mapHtml}</div>
         <div class="outpost-detail card-inner">${detailHtml}</div>
         <div class="facility-summary">本棧設施：${facSummary}</div>
       </div>
       <div class="card">
-        <h3>📋 聲望任務板</h3>
+        <h3>${pxIcon('📋')} 聲望任務板</h3>
         <p class="muted">每日自動刷新；亦可花 ${GAME.questRefreshCost} 兩立即刷新。委託為<strong>計時結算</strong>：派出後倒數結束自動發獎。</p>
         <div class="btn-row">
           <button class="btn tiny" id="btn-refresh-quests">刷新任務板（${GAME.questRefreshCost} 兩）</button>
@@ -1387,12 +1482,12 @@
       toastHtml = `<div class="card bond-toast"><h3>💬 ${bondToast.title}</h3><p>${bondToast.text}</p></div>`;
     }
 
-    let html = `${toastHtml}<div class="card"><h2>⚔️ 俠客名冊</h2>
+    let html = `${toastHtml}<div class="card"><h2>${pxIcon('⚔️')} 俠客名冊</h2>
       <p class="muted">欄位 ${Object.values(state.heroes).filter((h) => h.recruited).length}/${inn.heroSlots} · 出戰最多 ${GAME.maxParty} 人
         ${mods.gainBonus ? ` · 練武場：訓練費 ×${mods.costMul.toFixed(2)}、修為 +${mods.gainBonus}` : ''}</p>
       <div class="party-bar">出戰：${state.party.length ? state.party.map((id) => {
         const r = heroRuntime(id);
-        return r ? `<span class="tag">${r.emoji}${r.name}</span>` : '';
+        return r ? `<span class="tag">${pxIcon(r.emoji)}${r.name}</span>` : '';
       }).join('') : '<span class="muted">尚未編隊</span>'}</div>
     </div><div class="hero-grid">`;
 
@@ -1410,8 +1505,13 @@
             ].filter(Boolean).join('、')} ${gate.ok ? '✅' : '（未達）'}</p>`
           : '';
         html += `<div class="card hero-card locked">
-          <div class="hero-head">${t.emoji} <b>${t.name}</b> <span class="title">${t.title}</span></div>
-          <p class="lore">${t.lore}</p>
+          <div class="hero-head-row">
+            ${heroAvatarHtml(t.id, t.emoji)}
+            <div class="hero-head-text">
+              <div class="hero-head"><b>${t.name}</b> <span class="title">${t.title}</span></div>
+              <p class="lore">${t.lore}</p>
+            </div>
+          </div>
           ${reqLine}
           <p>招募費用：<b>${t.unlockCost}</b> 兩</p>
           <button class="btn" data-recruit="${t.id}" ${gate.ok ? '' : 'disabled'}>${gate.ok ? '招募' : '條件未足'}</button>
@@ -1440,10 +1540,15 @@
       }
 
       html += `<div class="card hero-card ${inParty ? 'in-party' : ''} ${rt.busy ? 'busy' : ''}">
-        <div class="hero-head">${rt.emoji} <b>${rt.name}</b> <span class="title">${rt.title}</span>
-          <span class="lv">Lv.${rt.level}</span></div>
-        <p class="lore">${rt.lore}</p>
-        ${status}
+        <div class="hero-head-row">
+          ${heroAvatarHtml(rt.id, rt.emoji)}
+          <div class="hero-head-text">
+            <div class="hero-head"><b>${rt.name}</b> <span class="title">${rt.title}</span>
+              <span class="lv">Lv.${rt.level}</span></div>
+            <p class="lore">${rt.lore}</p>
+            ${status}
+          </div>
+        </div>
         <div class="bars">
           <div class="bar-label">氣血 ${rt.hp}/${rt.maxHp}</div>
           <div class="bar"><i style="width:${hpPct}%"></i></div>
@@ -1486,7 +1591,7 @@
       ? state.party.map((id) => {
           const r = heroRuntime(id);
           if (!r) return '';
-          return `<span class="tag">${r.emoji}${r.name} HP${r.hp}/${r.maxHp}</span>`;
+          return `<span class="tag">${pxIcon(r.emoji)}${r.name} HP${r.hp}/${r.maxHp}</span>`;
         }).join('')
       : '<span class="muted">未編隊——請到「俠客」勾選出戰</span>';
 
@@ -1495,7 +1600,7 @@
 
     el.innerHTML = `
       <div class="card">
-        <h2>🗡️ 出巡剿匪</h2>
+        <h2>${pxIcon('🗡️')} 出巡剿匪</h2>
         <p class="muted">全自動即時戰鬥。羈絆同隊加成：${state.party.length >= 2 ? `「${bondInfo.tier.name}」攻擊 ×${bondInfo.mul.toFixed(2)}` : '需至少 2 人'}</p>
         <div class="party-bar">隊伍：${partyHtml}</div>
         <div class="wave-list" id="wave-list"></div>
@@ -1532,10 +1637,16 @@
       const pct = Math.max(0, Math.round((u.hp / u.maxHp) * 100));
       const dead = u.hp <= 0 ? ' dead' : '';
       const sh = u.shield > 0 ? ` · 盾${Math.round(u.shield)}` : '';
+      const av = cls === 'ally'
+        ? heroAvatarHtml(u.id, u.emoji, 'sm')
+        : enemyAvatarHtml(u.emoji);
       return `<div class="unit ${cls}${dead}">
-        <div class="u-name">${u.emoji} ${u.name}</div>
-        <div class="bar"><i style="width:${pct}%"></i></div>
-        <div class="u-hp">${Math.max(0, Math.round(u.hp))}/${u.maxHp}${sh}</div>
+        ${av}
+        <div class="unit-meta">
+          <div class="u-name">${u.name}</div>
+          <div class="bar"><i style="width:${pct}%"></i></div>
+          <div class="u-hp">${Math.max(0, Math.round(u.hp))}/${u.maxHp}${sh}</div>
+        </div>
       </div>`;
     }).join('');
     field.innerHTML = `
@@ -1558,7 +1669,7 @@
   function renderLog() {
     const el = $('panel-log');
     if (!el) return;
-    el.innerHTML = `<div class="card"><h2>📜 江湖日誌</h2>
+    el.innerHTML = `<div class="card"><h2>${pxIcon('📜')} 江湖日誌</h2>
       <div class="log-list">${state.log.map((e) =>
         `<div class="log-line ${e.kind}"><span class="t">${e.t}</span>${e.msg}</div>`
       ).join('') || '<p class="muted">尚無記錄</p>'}</div>

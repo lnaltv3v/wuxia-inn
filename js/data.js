@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v0.3
+ * v0.3.1 art
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '0.3.0',
+    version: '0.3.1',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1000,
     offlineCapHours: 8,

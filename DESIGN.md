@@ -1,4 +1,4 @@
-# 俠客棧 — 設計說明（v0.3）
+# 俠客棧 — 設計說明（v0.3.1 art）
 
 ## 定位
 武俠風格 **客棧經營 × 放置養成 × 自動即時戰鬥** 單頁遊戲。  
@@ -86,11 +86,21 @@
 - 客棧 Lv.≥2、聲望 ≥60、任已招募俠客好感 ≥40  
 - 銀兩 450  
 
+## 美術方向（v0.3.1）
+靈感接近《大俠立志傳》：**像素／點陣武俠風**。
+- 色調：墨色、硃紅、青綠、黃土／宣紙米
+- UI：直角像素邊框、點陣按鈕、方塊 HP／羈絆條、`image-rendering: pixelated`
+- 字體：標題 `ZCOOL KuaiLe`；少量拉丁／數字可用 `Press Start 2P`（Google Fonts CDN）；正文系統中文字體
+- 客棧頁頂部：SVG 像素客棧剪影（屋簷、燈籠、木牌）
+- 俠客：優先讀 `assets/heroes/{id}.png`；冇檔則 SVG 像素人 placeholder（調色盤分角色）
+- 戰鬥：像素頭像剪影＋塊狀血條；戰場草地／土色背景
+- emoji 保留，包在 `.px-ico` 像素框內（據點／設施／任務）
+
 ## 設計原則
 - **客棧 = hub**：資源與決策匯聚於此  
 - **放置優先**：掛機／離線有收入；戰鬥中暫停放置 tick（任務仍會結算）  
 - **戰鬥全自動**：玩家不點技能，只選人與選敵  
-- **美術自足**：CSS＋Unicode／emoji，無外部圖／CDN  
+- **美術可換皮**：CSS＋SVG placeholder；可選 CDN 像素字；PNG 放入 assets 即用  
 - **存檔相容**：同一 saveKey；`migrate()` 補 `outposts`、`facilities`、`questBoard`、`activeQuests` 等  
 
 ## v0.1 已完成
@@ -118,6 +128,14 @@
 - [x] 新「據點」分頁；客棧頁展示設施  
 - [x] 存檔 migrate 相容 v0.1／v0.2  
 
+## v0.3.1 art 已完成
+- [x] 像素邊框／點陣按鈕／墨硃青黃土色調  
+- [x] 客棧 SVG 場景剪影  
+- [x] 俠客像素頭像（PNG 路徑預留＋SVG fallback）  
+- [x] 戰鬥像素剪影＋塊狀 HP bar  
+- [x] 據點／設施／任務 emoji 像素框  
+- [x] footer 標 v0.3.1 art；玩法與存檔相容 v0.3  
+
 ## 仍待做（路線圖）
 ### v0.4 — 內容深度
 - Boss 戰與劇情章節  
@@ -134,12 +152,17 @@
   css/style.css
   js/data.js      # 俠客／敵人／武學／羈絆／據點／設施／任務常數
   js/combat.js    # 自動戰鬥（技能／護盾／羈絆倍率）
-  js/game.js      # 主循環、migrate、UI、存檔
+  js/game.js      # 主循環、migrate、UI、存檔、像素頭像
+  assets/
+    heroes/{id}.png   # 可選俠客立繪（qingyi／tiezhang／langren／qinshi）
+    ui/               # 可選 UI 圖
+    README.md
   DESIGN.md
 ```
 
 ## 已知限制
 - 無音效／無劇情過場動畫  
+- 正式像素立繪尚未放入 assets（現為 SVG placeholder）  
 - 無狀態異常抗性／站位系統  
 - 僅本地存檔  
 - 掉落為隨機，未做保底計數  
