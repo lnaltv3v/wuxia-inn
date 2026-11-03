@@ -1,20 +1,34 @@
-/* 俠客棧 — 像素／點陣武俠風（大俠立志傳調性）v0.4 */
+/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.4.1 style（見 ART.md） */
 :root {
-  --paper: #e8d5a8;
-  --paper-light: #f4e6c4;
-  --paper-dark: #d4bc8a;
-  --ink: #1a1510;
-  --ink-soft: #3d3226;
-  --cinnabar: #a61b1b;
-  --cinnabar-bright: #c42b2b;
-  --gold: #c9a227;
-  --loess: #b8860b;
-  --jade: #2f6b4f;
-  --jade-bright: #3d8f66;
-  --mist: rgba(26, 21, 16, 0.1);
-  --wood: #5c4030;
-  --wood-light: #8b6914;
+  /* 嚴格色盤 — 禁止盤外色 */
+  --ink: #1A1510;
+  --ink-soft: #3D3226;
+  --night: #2A2218;
+  --frame: #5A4A32;
+  --paper: #E8D5A8;
+  --paper-light: #F4E6C4;
+  --paper-dark: #D4BC8A;
+  --cream: #FFF8EE;
+  --cinnabar: #A61B1B;
+  --cinnabar-bright: #C42B2B;
+  --blood: #8B2942;
+  --gold: #C9A227;
+  --loess: #B8860B;
+  --jade: #2F6B4F;
+  --jade-bright: #3D8F66;
+  --wood: #5C4030;
+  --wood-light: #8B6914;
+  --sky: #6A9AB8;
+  --mtn: #4A7A58;
+  --mist: #8A7A60;
+  --skin: #E8C4A0;
+  --skin-dark: #C09070;
+  --teal: #2A6A6A;
+  --teal-bright: #4A9A9A;
+  --robe-red: #A04040;
+  --violet: #5A4060;
   --pixel: 2px;
+  --avatar: 64px;
   --font-pixel: "Press Start 2P", monospace;
   --font-title: "ZCOOL KuaiLe", "PingFang HK", "Microsoft JhengHei", cursive;
   --font-body: "PingFang HK", "Noto Sans TC", "Microsoft JhengHei", "Heiti TC", sans-serif;
@@ -31,29 +45,31 @@ html, body {
       0deg,
       transparent,
       transparent 3px,
-      rgba(26, 21, 16, 0.015) 3px,
-      rgba(26, 21, 16, 0.015) 4px
+      var(--paper-dark) 3px,
+      var(--paper-dark) 4px
     ),
-    radial-gradient(ellipse at 15% 0%, #faf0d8 0%, transparent 55%),
-    radial-gradient(ellipse at 85% 100%, #d9c48a 0%, transparent 50%),
-    linear-gradient(180deg, #efe0b8 0%, var(--paper) 40%, #dcc890 100%);
+    linear-gradient(180deg, var(--paper-light) 0%, var(--paper) 45%, var(--paper-dark) 100%);
   color: var(--ink);
   font-family: var(--font-body);
   line-height: 1.55;
   image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
 }
 
-/* 宣紙點陣噪點 */
+/* 宣紙點陣噪點（硬點，無半透明抗鋸齒） */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: 0.06;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' fill='%231a1510'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%231a1510'/%3E%3C/svg%3E");
-  background-size: 4px 4px;
+  opacity: 1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='1' height='1' fill='%23D4BC8A'/%3E%3Crect x='4' y='4' width='1' height='1' fill='%23D4BC8A'/%3E%3C/svg%3E");
+  background-size: 8px 8px;
   z-index: 0;
   image-rendering: pixelated;
+  mix-blend-mode: multiply;
+  opacity: 0.35;
 }
 
 .app {
@@ -69,9 +85,9 @@ body::before {
   border: 3px solid var(--ink);
   border-radius: 0 !important;
   box-shadow:
-    inset 2px 2px 0 rgba(255, 246, 224, 0.35),
-    inset -2px -2px 0 rgba(0, 0, 0, 0.25),
-    4px 4px 0 rgba(26, 21, 16, 0.45);
+    inset 2px 2px 0 var(--paper-light),
+    inset -2px -2px 0 var(--ink-soft),
+    4px 4px 0 var(--ink);
 }
 
 .px-ico {
@@ -82,7 +98,7 @@ body::before {
   height: 1.45em;
   border: 2px solid var(--ink);
   background: var(--paper-light);
-  box-shadow: inset 1px 1px 0 #fff6e0, 1px 1px 0 var(--ink);
+  box-shadow: inset 1px 1px 0 var(--cream), 1px 1px 0 var(--ink);
   font-size: 0.85em;
   line-height: 1;
   vertical-align: -0.15em;
@@ -99,8 +115,7 @@ body::before {
   justify-content: space-between;
   padding: 12px 16px;
   background:
-    repeating-linear-gradient(90deg, #2a2218 0 6px, #241c14 6px 12px),
-    linear-gradient(180deg, #3a2e22, #1a1510);
+    repeating-linear-gradient(90deg, var(--night) 0 6px, var(--ink) 6px 12px);
   color: var(--paper);
 }
 
@@ -108,15 +123,15 @@ body::before {
   font-family: var(--font-title);
   font-size: 1.55rem;
   letter-spacing: 0.12em;
-  color: #f0d9a8;
-  text-shadow: 2px 2px 0 #000, -1px 0 0 var(--cinnabar);
+  color: var(--paper-light);
+  text-shadow: 2px 2px 0 var(--ink), -1px 0 0 var(--cinnabar);
 }
 .brand small {
   display: block;
   font-family: var(--font-body);
   font-size: 0.68rem;
   letter-spacing: 0.08em;
-  color: #c4a878;
+  color: var(--mist);
   margin-top: 4px;
   text-shadow: none;
 }
@@ -130,14 +145,14 @@ body::before {
 .stat-chip {
   display: inline-block;
   padding: 3px 8px;
-  border: 2px solid #5a4a32;
-  background: #2a2218;
-  box-shadow: inset 1px 1px 0 #4a3b2a;
+  border: 2px solid var(--frame);
+  background: var(--night);
+  box-shadow: inset 1px 1px 0 var(--frame);
   font-family: var(--font-body);
 }
 .stats span b,
-.stat-chip b { color: #f5c518; font-family: var(--font-pixel); font-size: 0.62rem; }
-.stats .save-ok.ok { color: #7dcea0; }
+.stat-chip b { color: var(--gold); font-family: var(--font-pixel); font-size: 0.62rem; }
+.stats .save-ok.ok { color: var(--jade-bright); }
 .top-actions { display: flex; gap: 8px; }
 
 /* 分頁 */
@@ -167,9 +182,9 @@ body::before {
 .tab-btn:active { transform: translate(2px, 2px); box-shadow: none; }
 .tab-btn.active {
   background: var(--cinnabar);
-  color: #fff8ee;
+  color: var(--cream);
   border-color: var(--ink);
-  text-shadow: 1px 1px 0 #5a0a0a;
+  text-shadow: 1px 1px 0 var(--ink);
 }
 
 .panel { animation: fade 0.2s steps(4); }
@@ -186,24 +201,25 @@ body::before {
   padding: 14px 16px;
   margin-bottom: 12px;
   box-shadow:
-    inset 2px 2px 0 rgba(255, 255, 255, 0.35),
-    4px 4px 0 rgba(26, 21, 16, 0.35);
+    inset 2px 2px 0 var(--cream),
+    4px 4px 0 var(--ink);
 }
 .ink-card {
-  background:
-    linear-gradient(135deg, rgba(166, 27, 27, 0.1), transparent 42%),
-    var(--paper-light);
-  border-color: var(--ink);
+  background: var(--paper-light);
+  border-color: var(--cinnabar);
+  box-shadow:
+    inset 2px 2px 0 var(--cream),
+    4px 4px 0 var(--ink);
 }
 .card h2, .card h3 {
   font-family: var(--font-title);
   margin: 0 0 8px;
   letter-spacing: 0.06em;
 }
-.muted { color: #6b5a45; font-size: 0.92rem; }
-.lore { font-style: italic; color: #5a4a38; font-size: 0.9rem; }
+.muted { color: var(--mist); font-size: 0.92rem; }
+.lore { font-style: italic; color: var(--ink-soft); font-size: 0.9rem; }
 .tip {
-  background: rgba(201, 162, 39, 0.12);
+  background: var(--paper-dark);
   padding: 8px 10px;
   border: 2px solid var(--loess);
   border-left: 6px solid var(--gold);
@@ -219,15 +235,15 @@ body::before {
 }
 .stat-grid.compact { grid-template-columns: repeat(2, 1fr); }
 .stat-grid > div {
-  border: 2px solid #8a7355;
-  background: rgba(255, 250, 240, 0.65);
+  border: 2px solid var(--frame);
+  background: var(--paper-light);
   padding: 6px 8px;
-  box-shadow: inset 1px 1px 0 #fff;
+  box-shadow: inset 1px 1px 0 var(--cream);
 }
 .stat-grid .label {
   display: block;
   font-size: 0.72rem;
-  color: #7a6a55;
+  color: var(--mist);
   font-family: var(--font-body);
 }
 .stat-grid b { font-size: 1.05rem; font-family: var(--font-title); }
@@ -235,14 +251,14 @@ body::before {
 .upgrade-box {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 3px dashed #8a7355;
+  border-top: 3px dashed var(--frame);
 }
 
 /* 按鈕 — 點陣感 */
 .btn {
   appearance: none;
   border: 3px solid var(--ink);
-  background: linear-gradient(180deg, #f5e6c8 0%, #e2c896 100%);
+  background: var(--paper-light);
   background-size: 100% 100%;
   color: var(--ink);
   padding: 8px 14px;
@@ -254,7 +270,7 @@ body::before {
   image-rendering: pixelated;
   transition: none;
 }
-.btn:hover { filter: brightness(1.06); }
+.btn:hover { background: var(--paper-light); }
 .btn:active:not(:disabled) {
   transform: translate(3px, 3px);
   box-shadow: none;
@@ -262,34 +278,33 @@ body::before {
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  filter: grayscale(0.35);
+  
 }
 .btn.primary {
-  background: linear-gradient(180deg, var(--cinnabar-bright), var(--cinnabar));
-  color: #fff8f0;
-  text-shadow: 1px 1px 0 #5a0a0a;
+  background: var(--cinnabar);
+  color: var(--cream);
+  text-shadow: 1px 1px 0 var(--ink);
 }
+.btn.primary:hover { background: var(--cinnabar-bright); }
 .btn.danger {
-  background: linear-gradient(180deg, #5a4a3a, #3d3226);
-  color: #f0e0c8;
+  background: var(--ink-soft);
+  color: var(--paper-light);
 }
 .btn.tiny { padding: 5px 8px; font-size: 0.78rem; box-shadow: 2px 2px 0 var(--ink); }
 .btn.tiny:active:not(:disabled) { transform: translate(2px, 2px); }
 .btn-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 
-/* —— 客棧像素場景 —— */
+/* —— 客棧像素場景（純 SVG／CSS，見 ART.md；不讀寫實 banner） —— */
 .inn-scene {
   position: relative;
   margin: -4px -6px 12px;
-  height: 128px;
+  height: 112px;
   overflow: hidden;
   border: 3px solid var(--ink);
-  background:
-    linear-gradient(180deg, rgba(20,16,12,0.25) 0%, rgba(20,16,12,0.05) 40%, rgba(20,16,12,0.35) 100%),
-    url('../assets/ui/inn-banner.png') center/cover no-repeat,
-    linear-gradient(180deg, #7eb6d9 0%, #a8d4e8 55%, #c9b896 55%, #b89a6a 100%);
+  background: var(--sky);
   image-rendering: pixelated;
-  box-shadow: inset 0 -4px 0 rgba(0,0,0,0.15);
+  image-rendering: crisp-edges;
+  box-shadow: inset 0 -4px 0 var(--ink-soft);
 }
 .inn-scene svg {
   width: 100%;
@@ -300,31 +315,33 @@ body::before {
 .inn-scene .inn-banner {
   position: absolute;
   left: 50%;
-  top: 58%;
+  top: 62%;
   transform: translate(-50%, -50%);
   font-family: var(--font-title);
-  font-size: 1.15rem;
-  color: #f5e6c8;
-  text-shadow: 2px 2px 0 #1a1510;
+  font-size: 1.1rem;
+  color: var(--cream);
+  text-shadow: 2px 2px 0 var(--ink);
   letter-spacing: 0.2em;
   pointer-events: none;
   white-space: nowrap;
 }
 
-/* —— 俠客像素頭像 —— */
+/* —— 俠客像素頭像（64×64 顯示 · 32×32 原生 SVG） —— */
 .px-avatar {
   position: relative;
   flex-shrink: 0;
-  width: 56px;
-  height: 56px;
+  width: var(--avatar);
+  height: var(--avatar);
   border: 3px solid var(--ink);
-  background: #3a5a4a;
-  box-shadow: inset 2px 2px 0 rgba(255,255,255,0.15), 2px 2px 0 rgba(0,0,0,0.35);
+  background: var(--mtn);
+  box-shadow: inset 2px 2px 0 var(--jade-bright), 2px 2px 0 var(--ink);
   image-rendering: pixelated;
+  image-rendering: crisp-edges;
   overflow: hidden;
 }
 .px-avatar.sm { width: 40px; height: 40px; border-width: 2px; }
 .px-avatar.lg { width: 72px; height: 72px; }
+/* 合規 PNG 預留：預設隱藏；僅 USE_COMPLIANT_PORTRAITS 時顯示 */
 .px-portrait {
   position: absolute;
   inset: 0;
@@ -332,9 +349,12 @@ body::before {
   height: 100%;
   object-fit: cover;
   image-rendering: pixelated;
+  image-rendering: crisp-edges;
   z-index: 2;
   background: transparent;
+  display: none;
 }
+.px-portrait.on { display: block; }
 .px-portrait.missing { display: none !important; }
 .px-sprite {
   position: absolute;
@@ -353,7 +373,6 @@ body::before {
 }
 .px-sprite .px-emoji-fallback {
   font-size: 1.4rem;
-  filter: contrast(1.1);
 }
 
 .hero-card .hero-head-row {
@@ -372,11 +391,11 @@ body::before {
 .hero-card.in-party {
   border-color: var(--cinnabar);
   box-shadow:
-    inset 2px 2px 0 rgba(255, 255, 255, 0.35),
-    0 0 0 3px rgba(166, 27, 27, 0.35),
-    4px 4px 0 rgba(26, 21, 16, 0.35);
+    inset 2px 2px 0 var(--cream),
+    0 0 0 3px var(--cinnabar-bright),
+    4px 4px 0 var(--ink);
 }
-.hero-card.locked { opacity: 0.9; background: #ebe0cc; }
+.hero-card.locked { opacity: 0.92; background: var(--paper-dark); }
 .hero-head {
   display: flex;
   flex-wrap: wrap;
@@ -390,7 +409,7 @@ body::before {
   background: var(--ink);
   color: var(--paper);
   padding: 2px 8px;
-  border: 2px solid #5a4a32;
+  border: 2px solid var(--frame);
   border-radius: 0;
   font-size: 0.72rem;
   font-family: var(--font-pixel);
@@ -400,26 +419,26 @@ body::before {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #2a2218;
-  color: #f0e0c8;
+  background: var(--night);
+  color: var(--paper-light);
   padding: 2px 8px;
-  border: 2px solid #5a4a32;
+  border: 2px solid var(--frame);
   border-radius: 0;
   font-size: 0.82rem;
 }
 
 /* HP／羈絆條 — 像素塊 */
 .bars { margin: 8px 0; }
-.bar-label { font-size: 0.75rem; color: #6b5a45; }
+.bar-label { font-size: 0.75rem; color: var(--mist); }
 .bar {
   height: 12px;
   background:
-    repeating-linear-gradient(90deg, #2a2218 0 3px, #3d3226 3px 6px);
+    repeating-linear-gradient(90deg, var(--night) 0 3px, var(--ink-soft) 3px 6px);
   border: 2px solid var(--ink);
   border-radius: 0;
   overflow: hidden;
   margin-top: 2px;
-  box-shadow: inset 1px 1px 0 #1a1510;
+  box-shadow: inset 1px 1px 0 var(--ink);
 }
 .bar i {
   display: block;
@@ -429,17 +448,17 @@ body::before {
   border-radius: 0;
   transition: width 0.15s steps(8);
   image-rendering: pixelated;
-  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.25), inset 0 2px 0 rgba(255,255,255,0.15);
+  box-shadow: inset 0 -2px 0 var(--ink), inset 0 2px 0 var(--jade-bright);
 }
 .unit.enemy .bar i {
-  background: repeating-linear-gradient(90deg, var(--cinnabar) 0 4px, #e85d5d 4px 8px);
+  background: repeating-linear-gradient(90deg, var(--cinnabar) 0 4px, var(--cinnabar-bright) 4px 8px);
 }
 .bar.bond i {
-  background: repeating-linear-gradient(90deg, #8b2942 0 4px, #c42b2b 4px 8px, #e8a0a0 8px 12px);
+  background: repeating-linear-gradient(90deg, var(--blood) 0 4px, var(--cinnabar-bright) 4px 8px, var(--paper-dark) 8px 12px);
 }
 .bar-label.tiny { font-size: 0.7rem; opacity: 0.85; }
 .bond-bars { margin-top: 6px; }
-.unit.dead { opacity: 0.4; filter: grayscale(0.8); }
+.unit.dead { opacity: 0.45; background: var(--paper-dark); }
 
 /* 戰鬥 */
 .wave-list { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
@@ -450,13 +469,12 @@ body::before {
   gap: 2px;
   padding: 10px 12px;
 }
-.wave-btn span { font-size: 0.8rem; color: #5a4a38; }
+.wave-btn span { font-size: 0.8rem; color: var(--ink-soft); }
 .wave-btn.locked { opacity: 0.55; }
 
 .battle-card {
-  background:
-    linear-gradient(180deg, rgba(46, 80, 60, 0.12), transparent 40%),
-    var(--paper-light);
+  background: var(--paper-light);
+  border-color: var(--jade);
 }
 .battle-field {
   display: flex;
@@ -467,17 +485,16 @@ body::before {
   min-height: 120px;
   padding: 10px;
   background:
-    repeating-linear-gradient(0deg, transparent 0 7px, rgba(26,21,16,0.04) 7px 8px),
-    linear-gradient(180deg, #6a9a78 0%, #4a7a58 40%, #8a7a50 40%, #6a5a38 100%);
+    linear-gradient(180deg, var(--mtn) 0%, var(--mtn) 42%, var(--loess) 42%, var(--wood) 100%);
   border: 3px solid var(--ink);
   border-radius: 0;
   image-rendering: pixelated;
-  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.1);
+  box-shadow: inset 2px 2px 0 var(--jade-bright);
 }
 .side { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 130px; }
 .vs {
   font-size: 1.4rem;
-  color: #fff8ee;
+  color: var(--cream);
   font-family: var(--font-title);
   align-self: center;
   text-shadow: 2px 2px 0 var(--ink), 0 0 0 var(--cinnabar);
@@ -498,11 +515,11 @@ body::before {
   border: 3px solid var(--ink);
   border-radius: 0;
   padding: 6px 8px;
-  box-shadow: 2px 2px 0 rgba(0,0,0,0.35);
+  box-shadow: 2px 2px 0 var(--ink);
 }
 .unit .unit-meta { flex: 1; min-width: 0; }
 .u-name { font-size: 0.88rem; font-weight: 600; font-family: var(--font-title); }
-.u-hp { font-size: 0.72rem; color: #6b5a45; font-family: var(--font-pixel); letter-spacing: -0.02em; }
+.u-hp { font-size: 0.72rem; color: var(--mist); font-family: var(--font-pixel); letter-spacing: -0.02em; }
 
 .combat-log, .log-list {
   max-height: 260px;
@@ -510,24 +527,24 @@ body::before {
   margin-top: 10px;
   font-size: 0.85rem;
   font-family: var(--font-body);
-  border: 2px solid #8a7355;
-  background: rgba(255, 250, 240, 0.55);
+  border: 2px solid var(--frame);
+  background: var(--paper-light);
   padding: 4px;
 }
 .clog, .log-line {
   padding: 4px 6px;
-  border-bottom: 2px solid rgba(0,0,0,0.06);
+  border-bottom: 2px solid var(--paper-dark);
 }
 .clog.skill, .log-line.level { color: var(--cinnabar); font-weight: 600; }
 .clog.win, .log-line.win, .log-line.earn { color: var(--jade); }
-.clog.lose, .log-line.lose, .log-line.warn { color: #8b2942; }
-.clog.system, .log-line.system { color: #5a4a8a; }
-.clog.ally { color: #2a4a6a; }
-.clog.enemy { color: #6a3a2a; }
+.clog.lose, .log-line.lose, .log-line.warn { color: var(--blood); }
+.clog.system, .log-line.system { color: var(--violet); }
+.clog.ally { color: var(--teal); }
+.clog.enemy { color: var(--robe-red); }
 .log-line .t {
   display: inline-block;
   min-width: 64px;
-  color: #9a8a70;
+  color: var(--mist);
   margin-right: 6px;
   font-size: 0.72rem;
   font-family: var(--font-pixel);
@@ -537,7 +554,7 @@ body::before {
   text-align: center;
   margin-top: 18px;
   font-size: 0.75rem;
-  color: #8a7a60;
+  color: var(--mist);
   font-family: var(--font-title);
   letter-spacing: 0.1em;
 }
@@ -549,22 +566,21 @@ body::before {
   padding: 2px 7px;
   border-radius: 0;
   border: 2px solid var(--ink);
-  background: #d9cbb0;
-  color: #3d3226;
+  background: var(--paper-dark);
+  color: var(--ink-soft);
   margin-right: 3px;
   vertical-align: middle;
 }
-.pill.jade { background: var(--jade); color: #f0fff4; }
-.pill.cinnabar { background: var(--cinnabar); color: #fff8f0; }
+.pill.jade { background: var(--jade); color: var(--cream); }
+.pill.cinnabar { background: var(--cinnabar); color: var(--cream); }
 
 .skill-name { font-size: 0.88rem; color: var(--cinnabar); }
 .event-row { margin-top: 6px; font-size: 0.82rem; line-height: 1.7; }
 
 .bond-toast {
   border-color: var(--cinnabar);
-  background:
-    linear-gradient(135deg, rgba(166, 27, 27, 0.12), transparent 50%),
-    var(--paper-light);
+  background: var(--paper-light);
+  box-shadow: inset 4px 0 0 var(--cinnabar), 4px 4px 0 var(--ink);
   animation: fade 0.25s steps(4);
 }
 .bond-toast h3 { color: var(--cinnabar); }
@@ -583,9 +599,9 @@ body::before {
   padding: 4px 8px;
   border: 3px solid var(--ink);
   border-radius: 0;
-  background: #fffaf0;
+  background: var(--cream);
   font-family: var(--font-body);
-  box-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+  box-shadow: 2px 2px 0 var(--ink);
 }
 
 .manual-list { display: flex; flex-direction: column; gap: 8px; }
@@ -596,21 +612,21 @@ body::before {
   align-items: center;
   justify-content: space-between;
   padding: 8px 10px;
-  border: 3px solid #8a7355;
+  border: 3px solid var(--frame);
   border-radius: 0;
-  background: rgba(255, 250, 240, 0.75);
+  background: var(--paper-light);
 }
-.manual-row.owned { border-color: #2f6b4f; }
+.manual-row.owned { border-color: var(--jade); }
 .manual-row.equipped {
   border-color: var(--cinnabar);
-  box-shadow: 0 0 0 2px rgba(166, 27, 27, 0.2);
+  box-shadow: 0 0 0 2px var(--cinnabar);
 }
 .manual-info { flex: 1; min-width: 160px; }
 
 .log-line.bond, .clog.skill { color: var(--cinnabar); }
-.log-line.favor { color: #8b2942; }
-.log-line.skill { color: #5a3a8a; }
-.log-line.train { color: #4a5a3a; }
+.log-line.favor { color: var(--blood); }
+.log-line.skill { color: var(--violet); }
+.log-line.train { color: var(--jade); }
 
 /* v0.3 據點／設施／任務 */
 .outpost-map {
@@ -637,14 +653,14 @@ body::before {
 .outpost-chip:active { transform: translate(2px, 2px); box-shadow: none; }
 .outpost-chip.active {
   background: var(--cinnabar);
-  color: #fff8ee;
+  color: var(--cream);
 }
 .outpost-chip.locked { opacity: 0.65; }
 .outpost-detail {
   margin-top: 8px;
   padding: 12px;
-  background: rgba(26, 21, 16, 0.05);
-  border: 3px dashed #8a7355;
+  background: var(--paper-dark);
+  border: 3px dashed var(--frame);
   border-radius: 0;
 }
 .card-inner { margin-top: 4px; }
@@ -672,9 +688,9 @@ body::before {
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  border: 3px solid #8a7355;
+  border: 3px solid var(--frame);
   border-radius: 0;
-  background: rgba(255, 250, 240, 0.75);
+  background: var(--paper-light);
 }
 .facility-row {
   align-items: center;
@@ -692,7 +708,8 @@ body::before {
 }
 .quest-row.active {
   border-color: var(--cinnabar);
-  background: linear-gradient(135deg, rgba(166, 27, 27, 0.1), transparent 55%), rgba(255, 250, 240, 0.95);
+  background: var(--paper-light);
+  box-shadow: inset 4px 0 0 var(--cinnabar);
 }
 .quest-picks {
   display: flex;
@@ -720,7 +737,7 @@ body::before {
   .vs { transform: none; align-self: center; }
   .outpost-chip { flex: 1 1 40%; justify-content: center; font-size: 0.85rem; padding: 8px 6px; }
   .quest-row { flex-direction: column; }
-  .inn-scene { height: 88px; }
+  .inn-scene { height: 96px; }
   .inn-scene .inn-banner { font-size: 0.95rem; }
 }
 
@@ -736,10 +753,10 @@ body::before {
   pointer-events: none;
 }
 .float-toast {
-  background: linear-gradient(180deg, #faf0d8, var(--paper));
+  background: var(--paper-light);
   border: 3px solid var(--ink);
   padding: 12px 14px;
-  box-shadow: 4px 4px 0 rgba(26, 21, 16, 0.45);
+  box-shadow: 4px 4px 0 var(--ink);
   animation: toast-in 0.25s steps(4, end);
 }
 .float-toast b {
@@ -749,7 +766,7 @@ body::before {
   margin-bottom: 4px;
 }
 .float-toast p { margin: 0; font-size: 0.92rem; color: var(--ink-soft); }
-.float-toast.achieve { border-color: var(--gold); background: linear-gradient(135deg, #fff4c8, var(--paper)); }
+.float-toast.achieve { border-color: var(--gold); background: var(--paper-light); }
 .float-toast.story { border-color: var(--jade); }
 .float-toast.boss { border-color: var(--cinnabar); }
 @keyframes toast-in {
@@ -761,7 +778,7 @@ body::before {
 .story-card.locked { opacity: 0.78; }
 .story-card.focus {
   border-color: var(--cinnabar);
-  box-shadow: 4px 4px 0 rgba(166, 27, 27, 0.35);
+  box-shadow: 4px 4px 0 var(--cinnabar);
 }
 .story-head {
   display: flex;
@@ -773,10 +790,10 @@ body::before {
 .story-lines {
   margin: 10px 0;
   padding: 10px 12px;
-  border: 3px solid #8a7355;
+  border: 3px solid var(--frame);
   background:
-    repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(26,21,16,0.03) 3px, rgba(26,21,16,0.03) 4px),
-    rgba(255, 250, 240, 0.9);
+    repeating-linear-gradient(0deg, transparent, transparent 3px, var(--paper-dark) 3px, var(--paper-dark) 4px),
+    var(--paper-light);
 }
 .story-line {
   display: grid;
@@ -798,12 +815,13 @@ body::before {
   gap: 10px;
   align-items: flex-start;
   padding: 10px 12px;
-  border: 3px solid #8a7355;
-  background: rgba(255, 250, 240, 0.75);
+  border: 3px solid var(--frame);
+  background: var(--paper-light);
 }
 .achieve-row.got {
   border-color: var(--jade);
-  background: linear-gradient(135deg, rgba(47, 107, 79, 0.12), transparent 55%), rgba(255, 250, 240, 0.95);
+  background: var(--paper-light);
+  box-shadow: inset 4px 0 0 var(--jade);
 }
 .achieve-ico {
   width: 2rem;
@@ -822,7 +840,8 @@ body::before {
 .boss-btn {
   text-align: left;
   border-color: var(--cinnabar) !important;
-  background: linear-gradient(135deg, rgba(166, 27, 27, 0.12), transparent 60%), var(--paper-light) !important;
+  background: var(--paper-light) !important;
+  box-shadow: inset 4px 0 0 var(--cinnabar), 3px 3px 0 var(--ink);
 }
 .boss-btn.cleared {
   border-color: var(--jade) !important;
@@ -831,8 +850,8 @@ body::before {
 .boss-list { margin-bottom: 8px; }
 
 .log-line.story { color: var(--jade); }
-.log-line.achieve { color: #8a6a10; }
-.log-line.bond { color: #8b2942; }
+.log-line.achieve { color: var(--loess); }
+.log-line.bond { color: var(--blood); }
 
 @media (max-width: 560px) {
   .story-line { grid-template-columns: 1fr; }

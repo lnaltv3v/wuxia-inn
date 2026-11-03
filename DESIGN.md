@@ -1,4 +1,4 @@
-# 俠客棧 — 設計說明（v0.4）
+# 俠客棧 — 設計說明（v0.4.1 style）
 
 ## 定位
 武俠風格 **客棧經營 × 放置養成 × 自動即時戰鬥** 單頁遊戲。  
@@ -115,26 +115,31 @@
 - 客棧 Lv.≥2、聲望 ≥60、任已招募俠客好感 ≥40  
 - 銀兩 450  
 
-## 美術方向（自 v0.3.1 延續）
-靈感接近《大俠立志傳》：**像素／點陣武俠風**。
-- 色調：墨色、硃紅、青綠、黃土／宣紙米  
-- UI：直角像素邊框、點陣按鈕、方塊 HP／羈絆條、`image-rendering: pixelated`  
-- 字體：標題 `ZCOOL KuaiLe`；少量拉丁／數字可用 `Press Start 2P`（Google Fonts CDN）；正文系統中文字體  
-- 客棧頁頂部：SVG 像素客棧剪影  
-- 俠客：優先讀 `assets/heroes/{id}.png`；冇檔則 SVG 像素人 placeholder  
-- 戰鬥：像素頭像剪影＋塊狀血條；Boss 按鈕硃紅強調  
-- 劇情對話：像素框對話面板；成就 toast 底部浮現  
-- emoji 保留，包在 `.px-ico` 像素框內  
+## 美術方向 — 墨點江湖（Ink-Pixel Inn）
+**獨有風格體系**，規範全文見 **[ART.md](./ART.md)**（v0.4.1 style）。  
+不再混用《大俠立志傳》高清像素立繪或寫實 banner。
+
+摘要：
+- 頭像：32×32 SVG `crispEdges` → 顯示 64×64；`image-rendering: pixelated`  
+- 場景：320×180 SVG 客棧；嚴格 22+ 色盤（墨／硃／宣紙／青綠／土黄…）  
+- UI：直角墨框、硬投影、色塊血條；禁止柔邊抗鋸齒與盤外色  
+- 俠客：預設生成像素剪影（每角色武器／道具可辨）；合規 PNG 就緒前不讀 `assets/heroes/*.png`  
+- 舊高清稿封存於 `assets/heroes/_legacy/`、`assets/ui/_legacy/`  
 
 ## 設計原則
 - **客棧 = hub**：資源與決策匯聚於此  
 - **放置優先**：掛機／離線有收入；戰鬥中暫停放置 tick（任務仍會結算）  
 - **戰鬥全自動**：玩家不點技能，只選人與選敵／Boss  
-- **美術可換皮**：CSS＋SVG placeholder；PNG 放入 assets 即用  
+- **美術跟 ART.md**：CSS＋SVG 墨點剪影；僅合規 32/64 盤內色 PNG 可啟用  
 - **存檔相容**：同一 saveKey；`migrate()` 補 `storyRead`、`bossesDefeated`、`achievements` 等  
 
 ## v0.1–v0.3.1 已完成
 （略：經營／羈絆武學／據點設施任務／像素美術——見 git 歷史）
+
+## v0.4.1 style 已完成
+- [x] `ART.md` 墨點江湖規範（色盤／密度／禁止項）  
+- [x] CSS 色變數與硬邊 UI 對齊 ART  
+- [x] SVG 32×32 角色剪影＋320×180 客棧場景；legacy 高清移出執行路徑  
 
 ## v0.4 已完成
 - [x] 3 章劇情（對話面板＋條件解鎖＋閱覽獎勵）  
@@ -145,6 +150,7 @@
 
 ## 仍待做（路線圖）
 ### v0.5+
+- 合規 64×64 俠客／Boss PNG（跟 ART.md 色盤重畫）  
 - 季節／慶典活動  
 - 匯出／匯入存檔字串  
 - 合擊技、專屬結局線（羈絆延伸）  
@@ -158,17 +164,20 @@
   css/style.css
   js/data.js      # 俠客／敵人／武學／劇情／Boss／成就／據點等常數
   js/combat.js    # 自動戰鬥（技能／護盾／羈絆／Boss 縮放）
-  js/game.js      # 主循環、migrate、UI、存檔、劇情／成就
+  js/game.js      # 主循環、migrate、UI、存檔、劇情／成就、像素剪影
   assets/
-    heroes/{id}.png
+    heroes/          # 合規頭像（目前空，用 SVG）
+    heroes/_legacy/  # 封存非合規高清稿
     ui/
+    ui/_legacy/
     README.md
+  ART.md          # 墨點江湖美術規範（權威）
   DESIGN.md
 ```
 
 ## 已知限制
 - 無音效／無劇情過場動畫（對話為靜態面板）  
-- Boss 無專屬立繪（沿用像素人／emoji 風格）  
+- Boss／俠客尚無合規 32/64 PNG 立繪（現用 SVG 墨點剪影）  
 - 無狀態異常抗性／站位系統  
 - 僅本地存檔  
 - 普通掉落為隨機，未做保底計數（Boss 首次秘籍為保底）  

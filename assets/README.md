@@ -1,22 +1,22 @@
-# 美術資源預留路徑（俠客棧 v0.3.1 art）
+# 美術資源 — 墨點江湖（Ink-Pixel Inn）
 
-放入對應 PNG 後會自動覆蓋像素 placeholder（`image-rendering: pixelated`）。
+權威規範：**[/ART.md](../ART.md)**。不合規素材勿放入執行路徑。
 
-## 俠客立繪／頭像
-| 路徑 | 對應 |
-|------|------|
-| `assets/heroes/qingyi.png` | 青衣劍客 |
-| `assets/heroes/tiezhang.png` | 鐵掌醫女 |
-| `assets/heroes/langren.png` | 浪人刀客 |
-| `assets/heroes/qinshi.png` | 琴心師太 |
+## 俠客頭像（合規後）
+| 路徑 | 對應 | 規格 |
+|------|------|------|
+| `heroes/qingyi.png` | 青衣劍客 | 32×32 或 64×64、盤內色、透明底、硬邊 |
+| `heroes/tiezhang.png` | 鐵掌醫女 | 同上 |
+| `heroes/langren.png` | 浪人刀客 | 同上 |
+| `heroes/qinshi.png` | 琴心師太 | 同上 |
 
-建議：正方形 64×64 或 128×128 像素風 PNG，透明底。
+目前目錄為空：遊戲用 `js/game.js` 內 **SVG 像素剪影**。  
+高清舊稿在 `heroes/_legacy/`，執行期不讀取。
 
-## UI（可選後續）
+合規 PNG 放入後，將 `USE_COMPLIANT_PORTRAITS` 改為 `true`。
+
+## UI
 | 路徑 | 用途 |
 |------|------|
-| `assets/ui/inn-banner.png` | 客棧招牌／場景（未接線，場景目前為 SVG） |
-| `assets/ui/frame.png` | 通用邊框 |
-| `assets/ui/lantern.png` | 燈籠 |
-
-冇檔時：俠客用 SVG 像素人（依 id 換色），emoji 包在 `.px-ico` 像素框內。
+| `ui/` | 合規 UI 點陣（可選） |
+| `ui/_legacy/inn-banner.png` | 舊寫實感 banner（已停用；場景為 SVG） |

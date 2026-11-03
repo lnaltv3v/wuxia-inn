@@ -1358,36 +1358,87 @@
   }
 
 
-  /* —— 像素頭像／圖示（assets/heroes/{id}.png 優先，否則 CSS/SVG placeholder） —— */
+  /* —— 墨點江湖像素頭像／場景（ART.md；預設不用 _legacy 高清 PNG） —— */
+  const USE_COMPLIANT_PORTRAITS = false; // 合規 32/64 PNG 就緒後改 true
+
   const HERO_PALETTES = {
-    qingyi:   { skin: '#e8c4a0', hair: '#1a2030', robe: '#2a6a6a', accent: '#4ecdc4', trim: '#1a4040' },
-    tiezhang: { skin: '#f0c8a8', hair: '#3a2010', robe: '#a04040', accent: '#7dcea0', trim: '#602020' },
-    langren:  { skin: '#d4a888', hair: '#1a1510', robe: '#3d3226', accent: '#c42b2b', trim: '#8a5a20' },
-    qinshi:   { skin: '#f2d2b0', hair: '#2a2030', robe: '#f0e8e0', accent: '#7a5a9a', trim: '#5a4060' },
-    enemy:    { skin: '#c09070', hair: '#1a1010', robe: '#5a3030', accent: '#a61b1b', trim: '#3a1818' },
-    default:  { skin: '#e8c4a0', hair: '#2a2218', robe: '#5c4030', accent: '#c9a227', trim: '#3d3226' }
+    qingyi:   { skin: '#E8C4A0', hair: '#1A1510', robe: '#2A6A6A', accent: '#4A9A9A', trim: '#1A1510', bg: '#4A7A58' },
+    tiezhang: { skin: '#E8C4A0', hair: '#3D3226', robe: '#A04040', accent: '#3D8F66', trim: '#5C4030', bg: '#4A7A58' },
+    langren:  { skin: '#C09070', hair: '#1A1510', robe: '#3D3226', accent: '#C42B2B', trim: '#8B6914', bg: '#2A2218' },
+    qinshi:   { skin: '#E8C4A0', hair: '#1A1510', robe: '#F4E6C4', accent: '#5A4060', trim: '#5A4060', bg: '#2F6B4F' },
+    enemy:    { skin: '#C09070', hair: '#1A1510', robe: '#8B2942', accent: '#A61B1B', trim: '#3D3226', bg: '#2A2218' },
+    default:  { skin: '#E8C4A0', hair: '#2A2218', robe: '#5C4030', accent: '#C9A227', trim: '#3D3226', bg: '#4A7A58' }
   };
 
-  function pixelFigureSvg(pal, weapon) {
+  /** 32×32 crispEdges 剪影：每角色武器／道具不同 */
+  function pixelFigureSvg(pal, heroId) {
     const p = pal || HERO_PALETTES.default;
-    const w = weapon || p.accent;
-    // 16×16 crispEdges 像素人
-    return `<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" aria-hidden="true">
-      <rect width="16" height="16" fill="#2a5a48"/>
-      <rect x="5" y="1" width="6" height="2" fill="${p.hair}"/>
-      <rect x="4" y="3" width="8" height="3" fill="${p.hair}"/>
-      <rect x="5" y="4" width="6" height="3" fill="${p.skin}"/>
-      <rect x="6" y="5" width="1" height="1" fill="#1a1510"/>
-      <rect x="9" y="5" width="1" height="1" fill="#1a1510"/>
-      <rect x="4" y="7" width="8" height="5" fill="${p.robe}"/>
-      <rect x="4" y="7" width="8" height="1" fill="${p.trim}"/>
-      <rect x="3" y="8" width="1" height="3" fill="${p.skin}"/>
-      <rect x="12" y="8" width="1" height="3" fill="${p.skin}"/>
-      <rect x="13" y="6" width="1" height="6" fill="${w}"/>
-      <rect x="12" y="5" width="2" height="1" fill="${w}"/>
-      <rect x="5" y="12" width="2" height="3" fill="${p.trim}"/>
-      <rect x="9" y="12" width="2" height="3" fill="${p.trim}"/>
-      <rect x="7" y="9" width="2" height="2" fill="${p.accent}"/>
+    const id = heroId || 'default';
+    const bg = p.bg || '#4A7A58';
+    // 共用：頭／身
+    let extra = '';
+    if (id === 'qingyi') {
+      // 長劍在右
+      extra = `
+      <rect x="26" y="8" width="2" height="18" fill="${p.accent}"/>
+      <rect x="25" y="7" width="4" height="2" fill="#C9A227"/>
+      <rect x="24" y="16" width="2" height="2" fill="${p.skin}"/>`;
+    } else if (id === 'tiezhang') {
+      // 雙掌前伸＋藥袋
+      extra = `
+      <rect x="4" y="14" width="3" height="3" fill="${p.skin}"/>
+      <rect x="25" y="14" width="3" height="3" fill="${p.skin}"/>
+      <rect x="14" y="18" width="4" height="3" fill="${p.accent}"/>
+      <rect x="15" y="17" width="2" height="1" fill="#C9A227"/>`;
+    } else if (id === 'langren') {
+      // 大刀斜置
+      extra = `
+      <rect x="22" y="6" width="3" height="16" fill="${p.accent}"/>
+      <rect x="21" y="5" width="5" height="2" fill="#8B6914"/>
+      <rect x="23" y="20" width="2" height="4" fill="#5C4030"/>
+      <rect x="10" y="12" width="12" height="2" fill="${p.trim}"/>`;
+    } else if (id === 'qinshi') {
+      // 古琴橫抱
+      extra = `
+      <rect x="6" y="16" width="16" height="3" fill="${p.accent}"/>
+      <rect x="7" y="15" width="14" height="1" fill="#1A1510"/>
+      <rect x="8" y="17" width="1" height="1" fill="#C9A227"/>
+      <rect x="12" y="17" width="1" height="1" fill="#C9A227"/>
+      <rect x="16" y="17" width="1" height="1" fill="#C9A227"/>
+      <rect x="20" y="17" width="1" height="1" fill="#C9A227"/>`;
+    } else if (id === 'enemy') {
+      extra = `
+      <rect x="24" y="10" width="3" height="12" fill="#8A7A60"/>
+      <rect x="23" y="9" width="5" height="2" fill="#A61B1B"/>
+      <rect x="12" y="8" width="8" height="2" fill="#A61B1B"/>`;
+    } else {
+      extra = `<rect x="26" y="10" width="2" height="10" fill="${p.accent}"/>`;
+    }
+
+    return `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" aria-hidden="true">
+      <rect width="32" height="32" fill="${bg}"/>
+      <rect x="0" y="26" width="32" height="6" fill="#5C4030"/>
+      <rect x="0" y="25" width="32" height="1" fill="#8B6914"/>
+      <!-- 髮 -->
+      <rect x="10" y="2" width="12" height="3" fill="${p.hair}"/>
+      <rect x="9" y="5" width="14" height="4" fill="${p.hair}"/>
+      <!-- 臉 -->
+      <rect x="11" y="6" width="10" height="7" fill="${p.skin}"/>
+      <rect x="13" y="9" width="2" height="2" fill="#1A1510"/>
+      <rect x="18" y="9" width="2" height="2" fill="#1A1510"/>
+      <!-- 袍 -->
+      <rect x="9" y="13" width="14" height="10" fill="${p.robe}"/>
+      <rect x="9" y="13" width="14" height="2" fill="${p.trim}"/>
+      <rect x="14" y="16" width="4" height="3" fill="${p.accent}"/>
+      <!-- 臂 -->
+      <rect x="6" y="14" width="3" height="7" fill="${p.robe}"/>
+      <rect x="23" y="14" width="3" height="7" fill="${p.robe}"/>
+      <rect x="6" y="20" width="3" height="2" fill="${p.skin}"/>
+      <rect x="23" y="20" width="3" height="2" fill="${p.skin}"/>
+      <!-- 腿 -->
+      <rect x="11" y="23" width="4" height="6" fill="${p.trim}"/>
+      <rect x="17" y="23" width="4" height="6" fill="${p.trim}"/>
+      ${extra}
     </svg>`;
   }
 
@@ -1395,18 +1446,22 @@
     const hid = id || 'default';
     const pal = HERO_PALETTES[hid] || HERO_PALETTES.default;
     const cls = sizeClass ? ('px-avatar ' + sizeClass) : 'px-avatar';
-    const src = 'assets/heroes/' + hid + '.png';
-    return `<div class="${cls}" data-hero="${hid}">
-      <img class="px-portrait" src="${src}" alt="" width="64" height="64" loading="lazy"
-        onerror="this.classList.add('missing')" />
-      <div class="px-sprite" aria-hidden="true">${pixelFigureSvg(pal)}${emoji ? '' : ''}</div>
+    let img = '';
+    if (USE_COMPLIANT_PORTRAITS) {
+      const src = 'assets/heroes/' + hid + '.png';
+      img = `<img class="px-portrait on" src="${src}" alt="" width="64" height="64" loading="lazy"
+        onerror="this.classList.add('missing'); this.classList.remove('on');" />`;
+    }
+    return `<div class="${cls}" data-hero="${hid}" title="${hid}">
+      ${img}
+      <div class="px-sprite" aria-hidden="true">${pixelFigureSvg(pal, hid)}</div>
     </div>`;
   }
 
   function enemyAvatarHtml(emoji) {
     const pal = HERO_PALETTES.enemy;
     return `<div class="px-avatar sm" data-hero="enemy">
-      <div class="px-sprite" aria-hidden="true">${pixelFigureSvg(pal, '#888')}</div>
+      <div class="px-sprite" aria-hidden="true">${pixelFigureSvg(pal, 'enemy')}</div>
     </div>`;
   }
 
@@ -1415,37 +1470,44 @@
   }
 
   function innSceneHtml(innName) {
+    // 320×180 邏輯格，盤內色硬塊客棧
     return `<div class="inn-scene" aria-hidden="true">
-      <svg viewBox="0 0 320 110" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" preserveAspectRatio="xMidYMid slice">
-        <rect width="320" height="60" fill="#7eb6d9"/>
-        <rect y="60" width="320" height="50" fill="#b89a6a"/>
-        <rect x="0" y="58" width="320" height="4" fill="#8a7a50"/>
+      <svg viewBox="0 0 320 180" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" preserveAspectRatio="xMidYMid slice">
+        <rect width="320" height="100" fill="#6A9AB8"/>
+        <rect y="100" width="320" height="80" fill="#B8860B"/>
+        <rect y="96" width="320" height="6" fill="#8B6914"/>
         <!-- 遠山 -->
-        <rect x="20" y="36" width="40" height="24" fill="#6a9a78"/>
-        <rect x="50" y="28" width="50" height="32" fill="#5a8a68"/>
-        <rect x="240" y="32" width="60" height="28" fill="#6a9a78"/>
-        <!-- 客棧主屋 -->
-        <rect x="90" y="48" width="140" height="42" fill="#5c4030"/>
-        <rect x="84" y="40" width="152" height="12" fill="#a61b1b"/>
-        <rect x="78" y="36" width="164" height="6" fill="#7a1010"/>
-        <rect x="100" y="28" width="120" height="10" fill="#a61b1b"/>
-        <rect x="110" y="22" width="100" height="8" fill="#7a1010"/>
+        <rect x="8" y="58" width="56" height="42" fill="#4A7A58"/>
+        <rect x="48" y="44" width="64" height="56" fill="#2F6B4F"/>
+        <rect x="220" y="52" width="72" height="48" fill="#4A7A58"/>
+        <rect x="268" y="40" width="44" height="60" fill="#2F6B4F"/>
+        <!-- 屋身 -->
+        <rect x="88" y="78" width="144" height="62" fill="#5C4030"/>
+        <rect x="80" y="68" width="160" height="14" fill="#A61B1B"/>
+        <rect x="72" y="62" width="176" height="8" fill="#8B2942"/>
+        <rect x="104" y="50" width="112" height="14" fill="#A61B1B"/>
+        <rect x="112" y="42" width="96" height="10" fill="#8B2942"/>
         <!-- 門窗 -->
-        <rect x="145" y="62" width="30" height="28" fill="#2a2218"/>
-        <rect x="110" y="66" width="22" height="16" fill="#c9a227"/>
-        <rect x="188" y="66" width="22" height="16" fill="#c9a227"/>
+        <rect x="146" y="100" width="28" height="40" fill="#1A1510"/>
+        <rect x="108" y="104" width="24" height="18" fill="#C9A227"/>
+        <rect x="188" y="104" width="24" height="18" fill="#C9A227"/>
+        <rect x="112" y="108" width="16" height="2" fill="#1A1510"/>
+        <rect x="118" y="104" width="2" height="18" fill="#1A1510"/>
+        <rect x="192" y="108" width="16" height="2" fill="#1A1510"/>
+        <rect x="198" y="104" width="2" height="18" fill="#1A1510"/>
         <!-- 燈籠 -->
-        <rect x="118" y="52" width="10" height="14" fill="#c42b2b"/>
-        <rect x="192" y="52" width="10" height="14" fill="#c42b2b"/>
-        <rect x="120" y="48" width="6" height="4" fill="#f5c518"/>
-        <rect x="194" y="48" width="6" height="4" fill="#f5c518"/>
+        <rect x="116" y="84" width="12" height="16" fill="#C42B2B"/>
+        <rect x="192" y="84" width="12" height="16" fill="#C42B2B"/>
+        <rect x="118" y="80" width="8" height="4" fill="#C9A227"/>
+        <rect x="194" y="80" width="8" height="4" fill="#C9A227"/>
         <!-- 木牌 -->
-        <rect x="132" y="44" width="56" height="14" fill="#3d3226"/>
-        <rect x="134" y="46" width="52" height="10" fill="#8b2942"/>
-        <!-- 地磚點 -->
-        <rect x="40" y="92" width="8" height="4" fill="#9a8a60"/>
-        <rect x="70" y="96" width="8" height="4" fill="#9a8a60"/>
-        <rect x="250" y="94" width="8" height="4" fill="#9a8a60"/>
+        <rect x="130" y="72" width="60" height="16" fill="#3D3226"/>
+        <rect x="134" y="76" width="52" height="8" fill="#8B2942"/>
+        <!-- 地磚 -->
+        <rect x="32" y="148" width="12" height="6" fill="#8B6914"/>
+        <rect x="64" y="156" width="12" height="6" fill="#8B6914"/>
+        <rect x="240" y="152" width="12" height="6" fill="#8B6914"/>
+        <rect x="280" y="160" width="12" height="6" fill="#8B6914"/>
       </svg>
       <div class="inn-banner">${innName || '俠客棧'}</div>
     </div>`;
