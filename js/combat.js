@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 自動即時戰鬥（v0.4.2：onAction 舞台事件、閃避、Boss／武學／羈絆）
+ * 俠客棧 — 自動即時戰鬥（v0.5.1：onAction 含招架、閃避、Boss／武學／羈絆）
  */
 (function (global) {
   'use strict';
@@ -211,14 +211,23 @@
       if (attacker.weaken > 0) attacker.weaken = Math.max(0, attacker.weaken - 0.03);
 
       if (!didHealOnly) {
-        // 偶爾閃避（技能較難閃；約 10%／技能 4%）
+        // 偶爾閃避／招架（技能較難躲；約 10%／技能 4%）
         const dodgeChance = usedSkill ? 0.04 : 0.10;
         if (Math.random() < dodgeChance) {
-          log(`${target.emoji}${target.name} 側身閃過 ${attacker.name} 的招！`, 'info');
-          emitAction({
-            kind: 'miss', attackerId: attacker.id, targetId: target.id,
-            skillName: skillName, side: attacker.side, damage: 0
-          });
+          const doParry = Math.random() < 0.45;
+          if (doParry) {
+            log(`${target.emoji}${target.name} 提勁招架 ${attacker.name} 的招！`, 'info');
+            emitAction({
+              kind: 'parry', attackerId: attacker.id, targetId: target.id,
+              skillName: skillName, side: attacker.side, damage: 0
+            });
+          } else {
+            log(`${target.emoji}${target.name} 側身閃過 ${attacker.name} 的招！`, 'info');
+            emitAction({
+              kind: 'miss', attackerId: attacker.id, targetId: target.id,
+              skillName: skillName, side: attacker.side, damage: 0
+            });
+          }
         } else {
           const dmg = calcDamage(attacker, target, skillMul);
           applyDamage(target, dmg);

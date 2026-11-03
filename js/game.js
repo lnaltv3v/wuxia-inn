@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v0.5.0-hub：場景 hub · 墨點江湖）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v0.5.1：場景加深 · 戰鬥質感 · 墨點江湖）
  */
 (function () {
   'use strict';
@@ -1680,7 +1680,17 @@
     }
     if (WuxiaStages.Inn.setHotspotHandler) {
       WuxiaStages.Inn.setHotspotHandler((openId) => {
+        if (openId === 'table') return;
         setTab(openId);
+      });
+    }
+    if (WuxiaStages.Inn.setTipHandler) {
+      WuxiaStages.Inn.setTipHandler((amt) => {
+        const n = Math.max(0, Math.round(amt || 0));
+        if (!n) return;
+        state.silver += n;
+        pushLog('雅座賞銀 +' + n + ' 兩。', 'earn');
+        updateTopbar();
       });
     }
   }
@@ -2101,6 +2111,14 @@
     const prevLog = $('combat-log') ? $('combat-log').innerHTML : '';
     const prevField = $('battle-field') ? $('battle-field').innerHTML : '';
 
+    // 保留戰鬥 Canvas，避免 UI 重繪打斷動畫狀態機
+    const oldHost = $('combat-stage-host');
+    let preservedStage = null;
+    if (oldHost && oldHost.firstChild) {
+      preservedStage = oldHost.firstChild;
+      oldHost.removeChild(preservedStage);
+    }
+
     const bossCards = BOSS_ENCOUNTERS.map((b) => {
       const unlocked = isBossUnlocked(b.id);
       const defeated = isBossDefeated(b.id);
@@ -2124,7 +2142,7 @@
     el.innerHTML = `
       <div class="card battle-card stage-first">
         <h3>${pxIcon('🗡️')} 戰場舞台</h3>
-        <p class="muted tiny-tip">左右對峙像素舞台：衝刺揮砍、閃避側移、技能特效、震屏擊退。數值仍由自動戰鬥驅動。</p>
+        <p class="muted tiny-tip">400×180 像素舞台：蓄勢斬擊、受擊擊退、招架／閃避、技能軌跡、震屏。數值仍由自動戰鬥驅動。</p>
         <div id="combat-stage-host" class="stage-host combat-stage-host" aria-label="戰鬥舞台"></div>
         <div id="battle-field" class="battle-field battle-field-compact">${battle ? prevField : '<p class="muted">尚未交鋒——選敵開打後舞台會動起來</p>'}</div>
         <div id="combat-log" class="combat-log combat-log-compact">${prevLog}</div>
@@ -2142,6 +2160,10 @@
         </div>
       </div>
     `;
+    const newHost = $('combat-stage-host');
+    if (preservedStage && newHost) {
+      newHost.appendChild(preservedStage);
+    }
     const list = $('wave-list');
     waves.forEach((w) => {
       const locked = state.innLevel < w.minInnLevel;
@@ -2159,7 +2181,6 @@
     if (flee) flee.onclick = stopBattle;
     ensureCombatStage();
     if (!battle && WuxiaStages && WuxiaStages.Combat && WuxiaStages.Combat.isMounted()) {
-      // 閒置時畫空場
       WuxiaStages.Combat.sync([]);
     }
   }
