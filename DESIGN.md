@@ -1,4 +1,4 @@
-# 俠客棧 — 設計說明（v0.5.1）
+# 俠客棧 — 設計說明（v0.5.3）
 
 ## 產品定位（上市方向）
 目標做成**可上市**的武俠經營遊戲，模式對齊《大俠立志傳》：**場景驅動**，而非文字 Tab 網頁模擬。
@@ -40,7 +40,7 @@
 1. **場景內放置經營**：客人自動上門（舞台演出斟茶／付款）→ 銀兩／聲望  
 2. **養成**：訓練俠客 → 等級、好感／羈絆  
 3. **羈絆／武學／招募／出巡／據點／設施／任務／劇情／Boss／成就／升級客棧**（邏輯同 v0.4）  
-4. **存檔**：`migrate()` 補欄位；version 寫入 `0.5.1`
+4. **存檔**：`migrate()` 補欄位；version 寫入 `0.5.3`
 
 ```
 客人上門（Hub 演出）──► 銀兩 ──► 場景熱點決策（養成／建設／出巡）
@@ -132,11 +132,11 @@
 - 銀兩 450  
 
 
-## 舞台系統（v0.5.1）
+## 舞台系統（v0.5.3）
 | 舞台 | 實作 | 表現 |
 |------|------|------|
-| **客棧 Hub** | `js/stages.js` → `WuxiaStages.Inn` Canvas **480×270** | 大廳＋熱點；**雅座**催單／小費；大門開合；日夜／燈火色溫；接客狀態機 `idle→enter→serve→pay→leave`；`setTipHandler` |
-| 戰鬥對峙 | `WuxiaStages.Combat` Canvas **400×180**（overlay 清晰放大） | 蓄勢／斬出／回收；受擊多幀；**招架**；技能短軌跡；震屏擊退調校 |
+| **客棧 Hub** | `js/stages.js` → `WuxiaStages.Inn` Canvas **480×270** | **分層場景**（wall／floor／furniture／counter／lanterns）；**小二＋俠客 spritesheet**（idle／walk／serve）；大門偏左熱點；雅座催單／小費；日夜罩；接客狀態機；對白泡泡／傳聞 |
+| 戰鬥對峙 | `WuxiaStages.Combat` Canvas **400×180** | 俠客 sheet 之 **attack／hurt／parry**；Boss 戰鬥剪影；慢 `combatTickMs`；技能軌跡／震屏 |
 
 - 戰鬥數值由 `combat.js` 驅動；`onAction` 含 `hit`／`skill`／`miss`／`parry`／`heal`／`shield`／`ko`  
 - Hub 常駐 `#hub-stage-host`；`renderCombat` **保留**舞台 DOM，避免重繪斷動畫  
@@ -144,7 +144,8 @@
 
 ## 美術方向 — 墨點江湖（Ink-Pixel Inn）
 規範全文見 **[ART.md](./ART.md)**。  
-頭像 32×32→64×64；Hub 場景 480×270；禁止混用高清寫實立繪。
+頭像 32×32→64×64；Hub 場景 480×270；禁止混用高清寫實立繪。  
+音效規範見 **[AUDIO.md](./AUDIO.md)**（自製 ogg＋`js/audio.js`）。
 
 ## 設計原則
 - **客棧大廳 = 唯一主介面**（大俠立志傳式場景 hub）  
@@ -154,7 +155,22 @@
 - **存檔相容**
 
 ## 版本進度
-### v0.5.1（本輪 polish）
+### v0.5.3-sprites-hub（本輪）
+- [x] Hub 改用 `assets/scenes/` 分層（家具／燈籠／櫃檯密度）  
+- [x] 小二／四俠客 `assets/sprites/` 精靈表接入（idle／walk／serve）  
+- [x] 戰鬥用 attack／hurt／parry 幀＋Boss 剪影；保留慢節奏（tickMs 1200／combatTickMs 1000）  
+- [x] 輕量趣味：小二招呼泡泡、今日江湖傳聞（日誌＋Hub 泡泡；不改存檔結構）  
+- [x] 音效 API 不擴充（既有掛接保留，優先級暫緩打磨）  
+- [x] DESIGN／footer／`GAME.version` → **0.5.3**
+
+### v0.5.2-audio-pace
+- [x] 接入 `WuxiaAudio`：Hub／戰鬥 SFX＋BGM（日夜／開戰／返棧）  
+- [x] `GAME.combatTickMs` 400→**1000**；`tickMs` 1000→**1200**  
+- [x] 戰鬥 lunge／hurt／parry 動畫與 hit flash 拉長，配合慢 tick  
+- [x] 接客狀態機階段時長放慢；腳步偶發  
+- [x] DESIGN／footer／`GAME.version` → 0.5.2  
+
+### v0.5.1 polish
 - [x] 雅座熱點：催單加速接客／小費演出（銀兩入帳）  
 - [x] 大門開合與進出更明顯；日夜／燈火色溫緩變  
 - [x] 戰鬥舞台升至 **400×180**；攻擊／受擊多幀；招架姿態；技能軌跡；震屏擊退調校  
@@ -170,9 +186,9 @@
 - 劇情／Boss／成就、墨點江湖規範、接客／戰鬥舞台初版、據點設施任務等（見 git）
 
 ## 仍待做（路線圖）
-- Hub 多層樓／房間門；更豐富坐客 AI 與點菜流程  
-- 逐幀精靈表（非單剪影變形）、音效／音樂  
-- Boss 專屬剪影／入場演出；季節慶典  
+- Hub 多層樓／房間門；客人 spritesheet；更豐富坐客 AI 與點菜流程  
+- 音效細修／更多 SFX（用戶暫緩，稍後再做）  
+- Boss 入場演出；季節慶典；UI 圖示齊套  
 - 匯出／匯入存檔；合擊技；更多章節與內容密度  
 - 打包殼（Electron／Capacitor）與商店上架、付費／內購設計  
 
@@ -184,16 +200,21 @@
   js/data.js
   js/combat.js
   js/stages.js        # Hub 480×270 ＋ Combat 舞台
+  js/audio.js         # WuxiaAudio（Web Audio；見 AUDIO.md）
   js/game.js          # 導航改為場景／疊層
-  assets/...
+  assets/audio/       # sfx／bgm 自製 ogg（暫緩打磨）
+  assets/scenes/      # Hub 分層 480×270
+  assets/sprites/     # 俠客／小二 sheet＋Boss 剪影
+  tools/gen_ink_pixel_assets.py
   ART.md
+  AUDIO.md
   DESIGN.md
 ```
 
 ## 已知限制
-- Hub 熱點為矩形區，尚無精細碰撞／拖拽；角色仍為程式剪影非精靈表  
-- 戰鬥物理感為時間軸擊退＋震屏，非真實剛體碰撞  
-- 無音效；劇情仍為靜態對話面板  
+- Hub 熱點為矩形區，尚無精細碰撞／拖拽；進場客人仍為剪影（小二／俠客已用 sheet）  
+- 戰鬥物理感為時間軸擊退＋震屏，非真實剛體碰撞；普通敵人無獨立 sheet  
+- 音效已掛接但暫緩打磨；劇情仍為靜態對話面板  
 - 僅本地存檔；無真正多人；距可上市仍缺內容量與打包上架  
 
 ## 如何開啟

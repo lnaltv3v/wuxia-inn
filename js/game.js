@@ -1,11 +1,11 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v0.5.1：場景加深 · 戰鬥質感 · 墨點江湖）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v0.5.3：分層 Hub／精靈表 · 傳聞氣氛 · 慢節奏）
  */
 (function () {
   'use strict';
 
   const {
-    GAME, INN_LEVELS, GUESTS, HERO_TEMPLATES, ENEMY_WAVES, TRAIN,
+    GAME, INN_LEVELS, GUESTS, RUMORS, HERO_TEMPLATES, ENEMY_WAVES, TRAIN,
     MARTIAL_ARTS, BOND_EVENTS, LIBRARY,
     OUTPOSTS, FACILITIES, QUEST_TEMPLATES,
     STORY_CHAPTERS, BOSS_ENCOUNTERS, ACHIEVEMENTS,
@@ -25,7 +25,61 @@
   let selectedOutpost = 'main';
   let uiToast = null; // { title, text, kind }
   let storyFocus = null; // chapter id being read
+  let lastHubBgm = null;
+  let lastRumorAt = Date.now();
+  let lastGreetAt = Date.now();
+  let uiClickArmed = true;
 
+  function hasAudio() {
+    return typeof WuxiaAudio !== 'undefined' && WuxiaAudio;
+  }
+
+  function audioUnlock() {
+    if (!hasAudio()) return;
+    try { WuxiaAudio.unlock(); } catch (e) { /* ignore */ }
+  }
+
+  function audioPlay(id, opts) {
+    if (!hasAudio() || !id) return;
+    try { WuxiaAudio.play(id, opts); } catch (e) { /* ignore */ }
+  }
+
+  function audioSetBgm(id) {
+    if (!hasAudio()) return;
+    try { WuxiaAudio.setBgm(id); } catch (e) { /* ignore */ }
+  }
+
+  function audioPlayAction(kind) {
+    if (!hasAudio() || !kind) return;
+    const map = WuxiaAudio.ACTION_MAP || {};
+    const ids = map[kind] || [];
+    ids.forEach((id) => audioPlay(id));
+  }
+
+  function hubBgmId(isNight) {
+    return isNight ? 'bgm_inn_night' : 'bgm_inn_day';
+  }
+
+  function refreshHubBgm(force) {
+    if (!hasAudio()) return;
+    if (battle) return;
+    let night = false;
+    if (globalThis.WuxiaStages && WuxiaStages.Inn && typeof WuxiaStages.Inn.isNight === 'function') {
+      night = !!WuxiaStages.Inn.isNight();
+    }
+    const id = hubBgmId(night);
+    if (force || lastHubBgm !== id) {
+      lastHubBgm = id;
+      audioSetBgm(id);
+    }
+  }
+
+  function audioUiClick() {
+    if (!uiClickArmed) return;
+    uiClickArmed = false;
+    audioPlay('ui_click', { volume: 0.55 });
+    setTimeout(() => { uiClickArmed = true; }, 180);
+  }
 
   function makeHeroState(t, level) {
     const lv = level || 1;
@@ -637,12 +691,42 @@
     settleQuests();
   }
 
+
+  const XIAOER_GREETS = [
+    '客官裏面請，熱茶現煮！',
+    '今日雅座尚有空位。',
+    '外間風大，進來歇歇腳罷。',
+    '小店粗茶淡飯，莫嫌棄。',
+    '聽聞江湖不平事，可問櫃上。'
+  ];
+
+  function maybeHubFlavor() {
+    if (battle) return;
+    const now = Date.now();
+    if (!globalThis.WuxiaStages || !WuxiaStages.Inn) return;
+    // 每約 45s 一則傳聞
+    if (now - lastRumorAt > 45000) {
+      lastRumorAt = now;
+      const list = (typeof RUMORS !== 'undefined' && RUMORS && RUMORS.length) ? RUMORS : ['江湖平靜，茶香正好。'];
+      const rumor = list[Math.floor(Math.random() * list.length)];
+      if (WuxiaStages.Inn.setRumor) WuxiaStages.Inn.setRumor(rumor);
+      pushLog('【江湖傳聞】' + rumor, 'system');
+      const hint = document.getElementById('hub-hint');
+      if (hint && !battle) hint.textContent = '傳聞：' + rumor;
+    } else if (now - lastGreetAt > 28000 && Math.random() < 0.35) {
+      lastGreetAt = now;
+      const line = XIAOER_GREETS[Math.floor(Math.random() * XIAOER_GREETS.length)];
+      if (WuxiaStages.Inn.greetXiaoer) WuxiaStages.Inn.greetXiaoer(line);
+    }
+  }
+
   function gameTick() {
     if (battle) {
       settleQuests();
       return;
     }
     processTicks(1);
+    maybeHubFlavor();
     const clinic = clinicMods();
     const regenRate = 0.02 + clinic.regenBonus;
     Object.keys(state.heroes).forEach((id) => {
@@ -1255,9 +1339,12 @@
     } else {
       pushLog(rewardOpts.isBoss ? 'Boss 戰失利，俠客帶傷而回……' : '出巡失利，俠客帶傷而回……', 'lose');
     }
+    audioPlay(result === 'win' ? 'victory' : 'defeat');
     battle = null;
     save();
     renderAll();
+    lastHubBgm = null;
+    refreshHubBgm(true);
   }
 
   function startPatrol(waveId) {
@@ -1306,6 +1393,8 @@
     if (combatLogEl) combatLogEl.innerHTML = '';
     activeTab = 'combat';
     setTab('combat');
+    audioUnlock();
+    audioSetBgm('bgm_combat');
     battle = createBattle(allies, enemies, {
       tickMs: GAME.combatTickMs,
       onLog(msg, kind) {
@@ -1315,6 +1404,7 @@
         renderBattleUnits(snap.units);
       },
       onAction(evt) {
+        if (evt && evt.kind) audioPlayAction(evt.kind);
         if (globalThis.WuxiaStages && WuxiaStages.Combat && WuxiaStages.Combat.isMounted()) {
           WuxiaStages.Combat.playAction(evt);
         }
@@ -1342,6 +1432,8 @@
     battle = null;
     pushLog('你鳴金收兵，隊伍撤回客棧。', 'system');
     renderCombat();
+    lastHubBgm = null;
+    refreshHubBgm(true);
   }
 
   // ——— UI ———
@@ -1446,6 +1538,10 @@
       if (btn.dataset.tab === 'combat') btn.classList.remove('active');
     });
     ensureHubStage();
+    if (!battle) {
+      lastHubBgm = null;
+      refreshHubBgm(true);
+    }
     return true;
   }
 
@@ -1689,10 +1785,22 @@
         const n = Math.max(0, Math.round(amt || 0));
         if (!n) return;
         state.silver += n;
+        audioPlay('coin');
         pushLog('雅座賞銀 +' + n + ' 兩。', 'earn');
         updateTopbar();
       });
     }
+    if (WuxiaStages.Inn.setAmbientChange) {
+      WuxiaStages.Inn.setAmbientChange((isNight) => {
+        if (battle) return;
+        const id = hubBgmId(!!isNight);
+        if (lastHubBgm !== id) {
+          lastHubBgm = id;
+          audioSetBgm(id);
+        }
+      });
+    }
+    refreshHubBgm(false);
   }
 
   /** @deprecated 相容別名 */
@@ -2348,16 +2456,23 @@
 
     document.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
+        audioUiClick();
         setTab(btn.dataset.tab);
       });
     });
 
     document.querySelectorAll('.hub-qbtn').forEach((btn) => {
-      btn.addEventListener('click', () => setTab(btn.dataset.open));
+      btn.addEventListener('click', () => {
+        audioUiClick();
+        setTab(btn.dataset.open);
+      });
     });
 
     const btnMenu = $('btn-hub-menu');
-    if (btnMenu) btnMenu.addEventListener('click', () => toggleMenu());
+    if (btnMenu) btnMenu.addEventListener('click', () => {
+      audioUiClick();
+      toggleMenu();
+    });
 
     const btnClose = $('btn-sheet-close');
     if (btnClose) btnClose.addEventListener('click', () => setTab('hub'));
@@ -2383,15 +2498,25 @@
       pushLog('手動存檔完成。', 'system');
     });
 
+    // 音效：首次手勢 unlock；預載；Hub BGM
+    document.addEventListener('pointerdown', () => {
+      audioUnlock();
+      refreshHubBgm(true);
+    }, { once: true });
+    if (hasAudio()) {
+      try { WuxiaAudio.preload(); } catch (e) { /* ignore */ }
+    }
+
     renderAll();
     tickTimer = setInterval(gameTick, GAME.tickMs);
-    setInterval(() => { updateTopbar(); save(true); }, 15000);
+    setInterval(() => { updateTopbar(); save(true); refreshHubBgm(false); }, 15000);
 
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) save(true);
       else {
         applyOffline();
         renderAll();
+        refreshHubBgm(false);
       }
     });
     window.addEventListener('beforeunload', () => save(true));

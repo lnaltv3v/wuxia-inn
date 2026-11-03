@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 自動即時戰鬥（v0.5.1：onAction 含招架、閃避、Boss／武學／羈絆）
+ * 俠客棧 — 自動即時戰鬥（v0.5.3：onAction 含招架、閃避、Boss／武學／羈絆）
  */
 (function (global) {
   'use strict';

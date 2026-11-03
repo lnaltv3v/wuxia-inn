@@ -1,6 +1,6 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.5.1）
- * Hub 480×270：雅座／門／日夜色溫；戰鬥 400×180：多幀攻受、招架、技能軌跡
+ * 俠客棧 — 墨點江湖舞台（v0.5.3：分層 Hub＋精靈表＋慢節奏戰鬥）
+ * Hub 480×270：場景分層、小二／俠客 spritesheet；戰鬥 400×180：attack／hurt／parry 幀
  */
 (function (global) {
   'use strict';
@@ -43,6 +43,62 @@
     default:  { robe: C.wood, accent: C.gold, skin: C.skin, hair: C.ink }
   };
 
+  const FRAME = 32;
+  const ANIM = {
+    idle:   [0, 1],
+    walk:   [2, 3, 4, 5],
+    serve:  [6, 7, 8],
+    attack: [9, 10, 11, 12],
+    hurt:   [13, 14],
+    parry:  [15, 16, 17]
+  };
+
+  const SHEET_IDS = ['qingyi', 'tiezhang', 'langren', 'qinshi', 'xiaoer'];
+  const LAYER_ORDER = ['hub_wall', 'hub_floor', 'hub_furniture', 'hub_counter'];
+  const LAYER_TOP = ['hub_lanterns'];
+
+  const Assets = {
+    sheets: {},
+    bosses: {},
+    layers: {},
+    ready: false,
+    failed: false
+  };
+
+  function loadImg(src) {
+    return new Promise(function (resolve) {
+      const img = new Image();
+      img.decoding = 'async';
+      img.onload = function () { resolve(img); };
+      img.onerror = function () { resolve(null); };
+      img.src = src;
+    });
+  }
+
+  function bootAssets() {
+    const jobs = [];
+    SHEET_IDS.forEach(function (id) {
+      jobs.push(loadImg('assets/sprites/' + id + '.png').then(function (img) {
+        if (img) Assets.sheets[id] = img;
+      }));
+    });
+    ['boss_heifeng', 'boss_xieyi'].forEach(function (id) {
+      jobs.push(loadImg('assets/sprites/' + id + '_combat.png').then(function (img) {
+        if (img) Assets.bosses[id] = img;
+      }));
+    });
+    LAYER_ORDER.concat(LAYER_TOP).forEach(function (name) {
+      jobs.push(loadImg('assets/scenes/' + name + '.png').then(function (img) {
+        if (img) Assets.layers[name] = img;
+      }));
+    });
+    Promise.all(jobs).then(function () {
+      Assets.ready = !!(Assets.layers.hub_wall && Assets.sheets.xiaoer);
+      Assets.failed = !Assets.ready;
+    });
+  }
+  bootAssets();
+
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 
   function drawRect(ctx, x, y, w, h, color) {
@@ -61,7 +117,36 @@
     return '#' + ((1 << 24) + (r << 16) + (g << 8) + bl).toString(16).slice(1);
   }
 
-  /** 極簡 12×16 剪影小人（墨點江湖） */
+  function animFrame(name, tick, speed) {
+    const frames = ANIM[name] || ANIM.idle;
+    const sp = speed || 8;
+    return frames[Math.floor(tick / sp) % frames.length];
+  }
+
+  function drawSheetFrame(ctx, img, frameIndex, dx, dy, opts) {
+    if (!img) return false;
+    const o = opts || {};
+    const scale = o.scale || 1;
+    const flip = !!o.flip;
+    const dw = FRAME * scale;
+    const dh = FRAME * scale;
+    const sx = (frameIndex | 0) * FRAME;
+    const ox = Math.round(dx);
+    const oy = Math.round(dy);
+    ctx.save();
+    if (o.alpha != null) ctx.globalAlpha = o.alpha;
+    if (flip) {
+      ctx.translate(ox + dw, oy);
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, sx, 0, FRAME, FRAME, 0, 0, dw, dh);
+    } else {
+      ctx.drawImage(img, sx, 0, FRAME, FRAME, ox, oy, dw, dh);
+    }
+    ctx.restore();
+    return true;
+  }
+
+  /** 極簡 12×16 剪影小人（素材未載入時後備） */
   function drawFigure(ctx, x, y, pal, opts) {
     const o = opts || {};
     const scale = o.scale || 1;
@@ -73,7 +158,7 @@
     const ox = Math.round(x);
     const oy = Math.round(y);
     const s = scale;
-    const pose = o.pose || 'idle'; // idle | parry | strike
+    const pose = o.pose || 'idle';
 
     drawRect(ctx, ox + 2 * s, oy + 15 * s, 8 * s, 2 * s, C.ink);
     drawRect(ctx, ox + 3 * s, oy + 0 * s, 6 * s, 2 * s, hair);
@@ -159,11 +244,23 @@
     ctx.fillText(String(text), Math.round(x), Math.round(y));
   }
 
-  // ——— 客棧 Hub 舞台（v0.5.1 · 480×270） ———
+  function drawBubble(ctx, text, x, y, life) {
+    if (!text || life <= 0) return;
+    const t = String(text);
+    const tw = Math.min(200, 8 + t.length * 6);
+    const bx = Math.round(clamp(x - tw / 2, 4, 480 - tw - 4));
+    const by = Math.round(clamp(y, 4, 240));
+    ctx.globalAlpha = clamp(life, 0, 1);
+    drawRect(ctx, bx, by, tw, 14, C.night);
+    drawRect(ctx, bx + 1, by + 1, tw - 2, 12, C.paper);
+    drawPixelText(ctx, t, bx + 4, by + 3, C.ink);
+    ctx.globalAlpha = 1;
+  }
+
+  // ——— 客棧 Hub 舞台（v0.5.3 · 480×270） ———
   const InnStage = (function () {
     const W = 480;
     const H = 270;
-    /** 狀態機：idle → enter → serve → pay → leave → idle */
     const PHASES = { idle: 1, enter: 1, serve: 1, pay: 1, leave: 1 };
 
     let canvas = null;
@@ -181,8 +278,8 @@
     let coinAlpha = 0;
     let floatLabel = null;
     let staffArm = 0;
-    let guestX = 450;
-    let guestY = 168;
+    let guestX = 40;
+    let guestY = 175;
     let guestStride = 0;
     let idleBlink = 0;
     let hoverId = null;
@@ -192,25 +289,40 @@
     let innTitle = '俠客棧';
     let walkerPhase = 0;
     let seatedGuests = [];
-    let doorOpen = 0; // 0..1
+    let doorOpen = 0;
     let tipBurst = null;
     let accelerateFlash = 0;
+    let ambientHandler = null;
+    let lastNightFlag = null;
+    let lastFootstepAt = 0;
+    let bubble = null; // { text, x, y, life }
+    let rumorText = '';
+    let xiaoer = { x: 200, y: 150, tx: 200, ty: 150, mode: 'idle', tick: 0, flip: false };
+    const PHASE_MS = { enter: 1800, serve: 1800, pay: 1400, leave: 1600 };
 
+    // 場景錨點對齊 assets/scenes/README（大門偏左）
     const HOTSPOTS = [
-      { id: 'counter',  label: '櫃檯·經營',  x: 150, y: 145, w: 180, h: 55, open: 'inn' },
-      { id: 'heroes',   label: '俠客席·養成', x: 20,  y: 175, w: 110, h: 70, open: 'heroes' },
-      { id: 'door',     label: '大門·出巡',  x: 428, y: 90,  w: 52,  h: 115, open: 'combat' },
-      { id: 'board',    label: '告示·江湖',  x: 355, y: 55,  w: 55,  h: 50, open: 'story' },
-      { id: 'map',      label: '地圖·據點',  x: 20,  y: 55,  w: 70,  h: 55, open: 'outposts' },
-      { id: 'books',    label: '書架·藏書',  x: 300, y: 55,  w: 45,  h: 55, open: 'inn' },
-      { id: 'tableA',   label: '雅座·小費',  x: 28,  y: 188, w: 95,  h: 50, open: 'table' },
-      { id: 'tableB',   label: '雅座·加急',  x: 118, y: 210, w: 90,  h: 48, open: 'table' },
-      { id: 'tableC',   label: '雅座·小費',  x: 218, y: 192, w: 95,  h: 50, open: 'table' }
+      { id: 'door',     label: '大門·出巡',  x: 8,   y: 95,  w: 55,  h: 60, open: 'combat' },
+      { id: 'counter',  label: '櫃檯·經營',  x: 155, y: 149, w: 180, h: 71, open: 'inn' },
+      { id: 'heroes',   label: '俠客席·養成', x: 48,  y: 178, w: 100, h: 70, open: 'heroes' },
+      { id: 'board',    label: '告示·江湖',  x: 420, y: 40,  w: 52,  h: 90, open: 'story' },
+      { id: 'map',      label: '地圖·據點',  x: 48,  y: 112, w: 55,  h: 42, open: 'outposts' },
+      { id: 'books',    label: '書架·藏書',  x: 210, y: 38,  w: 50,  h: 48, open: 'inn' },
+      { id: 'tableA',   label: '雅座·小費',  x: 50,  y: 195, w: 90,  h: 48, open: 'table' },
+      { id: 'tableB',   label: '雅座·加急',  x: 200, y: 210, w: 90,  h: 48, open: 'table' },
+      { id: 'tableC',   label: '雅座·小費',  x: 320, y: 190, w: 95,  h: 55, open: 'table' }
+    ];
+
+    const XIAOER_WAYPOINTS = [
+      { x: 190, y: 148 }, // 櫃檯後
+      { x: 90, y: 188 },
+      { x: 240, y: 200 },
+      { x: 340, y: 185 },
+      { x: 280, y: 155 }
     ];
 
     function mount(host) {
       if (!host) return;
-      // 已掛載且仍在 DOM：只確保 loop，避免 UI 重繪拆動畫
       if (canvas && canvas.isConnected && running && host.contains(canvas.closest('.stage-wrap') || canvas)) {
         return;
       }
@@ -264,6 +376,52 @@
       ambientHeroes = Array.isArray(ids) && ids.length ? ids.slice(0, 4) : ['qingyi'];
     }
     function setInnTitle(name) { innTitle = name || '俠客棧'; }
+    function setAmbientChange(fn) { ambientHandler = typeof fn === 'function' ? fn : null; }
+
+    function showBubble(text, x, y, life) {
+      bubble = { text: text, x: x == null ? 220 : x, y: y == null ? 120 : y, life: life == null ? 1 : life };
+    }
+
+    function setRumor(text) {
+      rumorText = text || '';
+      if (rumorText) showBubble('傳聞：' + rumorText, 240, 28, 1.2);
+    }
+
+    function greetXiaoer(line) {
+      const msg = line || '客官裏面請！';
+      showBubble(msg, xiaoer.x + 16, xiaoer.y - 18, 1.15);
+      setCaption('小二：' + msg);
+    }
+
+    function playHubSfx(phaseKey) {
+      if (typeof WuxiaAudio === 'undefined' || !WuxiaAudio) return;
+      try {
+        const map = WuxiaAudio.HUB_MAP || {};
+        const ids = map[phaseKey] || [];
+        ids.forEach(function (id) { WuxiaAudio.play(id); });
+      } catch (e) { /* ignore */ }
+    }
+
+    function playSfx(id, opts) {
+      if (typeof WuxiaAudio === 'undefined' || !WuxiaAudio || !id) return;
+      try { WuxiaAudio.play(id, opts); } catch (e) { /* ignore */ }
+    }
+
+    function isNightNow(now) {
+      const df = dayFactor(now != null ? now : performance.now());
+      return df >= 0.55 && df < 0.92;
+    }
+
+    function isNight() { return isNightNow(performance.now()); }
+
+    function maybeEmitAmbient(now) {
+      const night = isNightNow(now);
+      if (lastNightFlag === night) return;
+      lastNightFlag = night;
+      if (ambientHandler) {
+        try { ambientHandler(night); } catch (e) { /* ignore */ }
+      }
+    }
 
     function canvasPos(evt) {
       const rect = canvas.getBoundingClientRect();
@@ -311,18 +469,16 @@
       handleHotspot(h);
     }
 
-    /** 雅座：接客中則加速；閒置則小費演出 */
     function onTableInteract(h) {
       const cx = h.x + h.w / 2;
       const cy = h.y + 8;
       if (phase === 'enter' || phase === 'serve') {
-        // 加速：把本階段推近結束
         const elapsed = performance.now() - t0;
-        const target = phase === 'enter' ? 1100 : 1200;
+        const target = phase === 'enter' ? PHASE_MS.enter : PHASE_MS.serve;
         t0 = performance.now() - Math.max(elapsed, target - 180);
         accelerateFlash = 18;
         floatLabel = { text: '加急上菜!', x: cx - 20, y: cy, life: 1 };
-        setCaption('雅座催單——店員加快斟茶…');
+        setCaption('雅座催單——小二加快斟茶…');
         return;
       }
       if (phase === 'pay') {
@@ -333,7 +489,6 @@
         setCaption('雅座加賞 ' + tip + ' 兩');
         return;
       }
-      // idle / leave：坐客小費
       const tip = 1 + Math.floor(Math.random() * 3);
       tipBurst = { x: cx, y: cy, life: 28, max: 28, amt: tip };
       floatLabel = { text: '+' + tip + '賞', x: cx - 8, y: cy - 12, life: 1 };
@@ -361,7 +516,7 @@
       guestName = job.guest.name || '過路客';
       guestKind = job.guest.kind || 'meal';
       payAmt = job.pay || 0;
-      guestX = 460;
+      guestX = 28;
       guestY = 168;
       guestStride = 0;
       staffArm = 0;
@@ -370,164 +525,87 @@
       phase = 'enter';
       doorOpen = 1;
       t0 = performance.now();
+      lastFootstepAt = 0;
+      playHubSfx('enter');
       setCaption(guestName + ' 推門進場…');
+      showBubble('客官裏面請！', xiaoer.x + 10, xiaoer.y - 16, 1);
+      xiaoer.mode = 'serve';
+      xiaoer.tx = 200;
+      xiaoer.ty = 150;
     }
 
     function seedSeated() {
       seatedGuests = [
-        { x: 55, y: 200, robe: C.mist },
-        { x: 95, y: 208, robe: C.inkSoft },
-        { x: 250, y: 205, robe: C.wood }
+        { x: 70, y: 200, robe: C.mist, sheet: null },
+        { x: 110, y: 208, robe: C.inkSoft, sheet: null },
+        { x: 340, y: 200, robe: C.wood, sheet: null }
       ];
     }
 
-    function drawTable(tx, ty, tw) {
-      drawRect(ctx, tx, ty, tw, 10, C.wood);
-      drawRect(ctx, tx, ty, tw, 2, C.woodLight);
-      drawRect(ctx, tx + 4, ty + 10, 4, 8, C.inkSoft);
-      drawRect(ctx, tx + tw - 8, ty + 10, 4, 8, C.inkSoft);
-      drawRect(ctx, tx - 10, ty + 4, 8, 6, C.woodLight);
-      drawRect(ctx, tx + tw + 2, ty + 4, 8, 6, C.woodLight);
-      // 茶杯點
-      drawRect(ctx, tx + tw / 2 - 2, ty - 3, 4, 3, C.cream);
-      drawRect(ctx, tx + tw / 2 - 1, ty - 4, 2, 1, C.cinnabarBright);
-    }
-
     function dayFactor(now) {
-      // 約 90 秒一循環：0 清晨 → 0.35 正午 → 0.7 黃昏 → 1 深夜
       return (now / 90000) % 1;
     }
 
-    function drawBg(now) {
+    function skyTintFactor(now) {
       const df = dayFactor(now);
       let skyT = 0;
       if (df < 0.25) skyT = df / 0.25 * 0.3;
       else if (df < 0.55) skyT = 0.3 + (df - 0.25) / 0.3 * 0.4;
       else if (df < 0.75) skyT = 0.7 + (df - 0.55) / 0.2 * 0.3;
       else skyT = 1 - (df - 0.75) / 0.25 * 0.85;
+      return skyT;
+    }
 
+    function drawBgLayers(now) {
+      const hasLayers = Assets.layers.hub_wall && Assets.layers.hub_floor;
+      if (!hasLayers) {
+        drawBgFallback(now);
+        return false;
+      }
+      LAYER_ORDER.forEach(function (name) {
+        const img = Assets.layers[name];
+        if (img) ctx.drawImage(img, 0, 0);
+      });
+      // 門開合：左門加暗／亮
+      if (doorOpen > 0.2) {
+        ctx.globalAlpha = 0.35 * doorOpen;
+        drawRect(ctx, 14, 108, 36, 42, C.cream);
+        ctx.globalAlpha = 1;
+      } else {
+        ctx.globalAlpha = 0.25;
+        drawRect(ctx, 14, 108, 36, 42, C.night);
+        ctx.globalAlpha = 1;
+      }
+      // 匾額標題條（覆蓋字畫區上方中央）
+      const tw = Math.min(160, 16 + innTitle.length * 14);
+      drawRect(ctx, (W - tw) / 2, 4, tw, 12, C.inkSoft);
+      drawRect(ctx, (W - tw) / 2 + 2, 6, tw - 4, 8, C.blood);
+      drawPixelText(ctx, innTitle, (W - tw) / 2 + 8, 6, C.cream);
+      return true;
+    }
+
+    function drawLanternsAndNight(now) {
+      const img = Assets.layers.hub_lanterns;
+      if (img) ctx.drawImage(img, 0, 0);
+      const skyT = skyTintFactor(now);
+      if (skyT > 0.55) {
+        ctx.globalAlpha = (skyT - 0.55) * 0.28;
+        drawRect(ctx, 0, 0, W, H, C.night);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    function drawBgFallback(now) {
+      const skyT = skyTintFactor(now);
       const skyCol = lerpColor(C.sky, C.night, clamp((skyT - 0.35) / 0.65, 0, 1));
       const wallCol = lerpColor(C.wood, C.night, clamp((skyT - 0.5) / 0.5 * 0.35, 0, 0.35));
-      const lanternGlow = skyT > 0.55 ? 1 : 0.35 + skyT * 0.4;
-
       drawRect(ctx, 0, 0, W, 100, wallCol);
       drawRect(ctx, 0, 0, W, 22, C.night);
       drawRect(ctx, 0, 96, W, 6, C.inkSoft);
-      drawRect(ctx, 0, 98, W, 2, C.woodLight);
-
-      // 左窗
       drawRect(ctx, 28, 32, 54, 42, skyCol);
-      drawRect(ctx, 32, 52, 20, 22, C.mtn);
-      drawRect(ctx, 48, 44, 24, 30, C.jade);
-      drawRect(ctx, 28, 32, 54, 2, C.ink);
-      drawRect(ctx, 28, 72, 54, 2, C.ink);
-      drawRect(ctx, 28, 32, 2, 42, C.ink);
-      drawRect(ctx, 80, 32, 2, 42, C.ink);
-      drawRect(ctx, 54, 32, 2, 42, C.ink);
-      drawRect(ctx, 28, 52, 54, 2, C.ink);
-
-      // 右窗（近門）
-      drawRect(ctx, 380, 32, 40, 42, skyCol);
-      drawRect(ctx, 384, 50, 18, 24, C.mtn);
-      drawRect(ctx, 380, 32, 40, 2, C.ink);
-      drawRect(ctx, 380, 72, 40, 2, C.ink);
-      drawRect(ctx, 380, 32, 2, 42, C.ink);
-      drawRect(ctx, 418, 32, 2, 42, C.ink);
-
-      // 燈籠＋夜光暈
-      [[120, 26], [220, 26], [320, 26]].forEach(function (p) {
-        if (lanternGlow > 0.6) {
-          ctx.globalAlpha = 0.25 * lanternGlow;
-          drawRect(ctx, p[0] - 4, p[1] + 4, 20, 22, C.gold);
-          ctx.globalAlpha = 1;
-        }
-        drawRect(ctx, p[0], p[1], 12, 16, lanternGlow > 0.7 ? C.cinnabarBright : C.cinnabar);
-        drawRect(ctx, p[0] + 2, p[1] - 2, 8, 2, C.gold);
-        drawRect(ctx, p[0] + 4, p[1] + 16, 4, 4, C.gold);
-        if (lanternGlow > 0.75) {
-          drawRect(ctx, p[0] + 3, p[1] + 5, 6, 4, C.cream);
-        }
-      });
-
-      drawRect(ctx, 24, 58, 62, 48, '#D4BC8A');
-      drawRect(ctx, 28, 62, 54, 40, C.mtn);
-      drawRect(ctx, 34, 70, 16, 10, C.jade);
-      drawRect(ctx, 52, 78, 20, 12, C.loess);
-      drawRect(ctx, 24, 54, 62, 4, C.inkSoft);
-
-      drawRect(ctx, 302, 58, 42, 48, C.wood);
-      drawRect(ctx, 306, 62, 8, 18, C.blood);
-      drawRect(ctx, 316, 64, 8, 16, C.teal);
-      drawRect(ctx, 326, 62, 8, 18, C.violet);
-      drawRect(ctx, 306, 84, 34, 4, C.woodLight);
-      drawRect(ctx, 306, 92, 34, 4, C.woodLight);
-
-      drawRect(ctx, 358, 58, 50, 46, C.woodLight);
-      drawRect(ctx, 362, 62, 42, 38, C.paper);
-      drawRect(ctx, 366, 66, 34, 3, C.inkSoft);
-      drawRect(ctx, 366, 72, 28, 3, C.mist);
-      drawRect(ctx, 366, 78, 30, 3, C.cinnabar);
-      drawRect(ctx, 366, 84, 22, 3, C.inkSoft);
-
-      const tw = Math.min(160, 16 + innTitle.length * 14);
-      drawRect(ctx, (W - tw) / 2, 6, tw, 14, C.inkSoft);
-      drawRect(ctx, (W - tw) / 2 + 2, 8, tw - 4, 10, C.blood);
-
       drawRect(ctx, 0, 102, W, H - 102, C.loess);
-      for (let i = 0; i < 14; i++) {
-        drawRect(ctx, 10 + i * 34, 112 + (i % 3) * 8, 16, 3, C.woodLight);
-      }
-
-      drawTable(40, 195, 70);
-      drawTable(230, 200, 70);
-      drawTable(130, 220, 60);
-
       drawRect(ctx, 150, 155, 180, 36, C.wood);
-      drawRect(ctx, 150, 155, 180, 5, C.woodLight);
-      drawRect(ctx, 150, 186, 180, 5, C.inkSoft);
-      drawRect(ctx, 220, 148, 14, 10, C.teal);
-      drawRect(ctx, 224, 144, 6, 4, C.tealBright);
-      drawRect(ctx, 245, 152, 8, 5, C.paperLight);
-      drawRect(ctx, 260, 152, 8, 5, C.paperLight);
-      drawRect(ctx, 170, 148, 16, 10, C.gold);
-      drawRect(ctx, 172, 150, 12, 6, C.loess);
-
-      // 大門：開合更明顯
-      const openPx = Math.round(doorOpen * 18);
-      // 門外夜景／天光
-      drawRect(ctx, 432, 102, 48, 110, skyCol);
-      if (skyT > 0.6) {
-        ctx.globalAlpha = 0.4;
-        drawRect(ctx, 436, 110, 40, 90, C.night);
-        ctx.globalAlpha = 1;
-      } else {
-        drawRect(ctx, 440, 130, 14, 40, C.mtn);
-        drawRect(ctx, 456, 140, 12, 30, C.jade);
-      }
-      // 門扇（左右拉開）
-      drawRect(ctx, 432 - openPx, 102, 24, 110, C.night);
-      drawRect(ctx, 436 - openPx, 106, 18, 102, C.inkSoft);
-      drawRect(ctx, 456 + openPx, 102, 24, 110, C.night);
-      drawRect(ctx, 458 + openPx, 106, 18, 102, C.inkSoft);
-      if (doorOpen < 0.4) {
-        drawRect(ctx, 452, 148, 6, 14, C.gold);
-      } else {
-        // 門檻光
-        drawRect(ctx, 448, 200, 12, 6, C.gold);
-        ctx.globalAlpha = 0.35;
-        drawRect(ctx, 444, 180, 20, 30, C.cream);
-        ctx.globalAlpha = 1;
-      }
-      // 門楣
-      drawRect(ctx, 428, 96, 52, 8, C.woodLight);
-      drawRect(ctx, 430, 90, 48, 6, C.inkSoft);
-
-      // 夜間整體微暗罩（地板以上牆面）
-      if (skyT > 0.65) {
-        ctx.globalAlpha = (skyT - 0.65) * 0.35;
-        drawRect(ctx, 0, 22, W, 80, C.night);
-        ctx.globalAlpha = 1;
-      }
+      drawRect(ctx, 12, 102, 48, 55, C.night);
     }
 
     function drawHotspotHints() {
@@ -559,6 +637,53 @@
       return null;
     }
 
+    function updateXiaoer(now) {
+      xiaoer.tick += 1;
+      if (phase === 'serve') {
+        xiaoer.mode = 'serve';
+        xiaoer.tx = 205;
+        xiaoer.ty = 150;
+      } else if (phase === 'enter') {
+        xiaoer.mode = 'walk';
+        xiaoer.tx = 120;
+        xiaoer.ty = 160;
+      } else if (xiaoer.tick % 220 === 0) {
+        const wp = XIAOER_WAYPOINTS[Math.floor(Math.random() * XIAOER_WAYPOINTS.length)];
+        xiaoer.tx = wp.x;
+        xiaoer.ty = wp.y;
+        xiaoer.mode = 'walk';
+      } else if (Math.abs(xiaoer.x - xiaoer.tx) < 2 && Math.abs(xiaoer.y - xiaoer.ty) < 2) {
+        if (xiaoer.mode === 'walk') {
+          xiaoer.mode = Math.random() < 0.45 ? 'serve' : 'idle';
+        }
+      }
+      const dx = xiaoer.tx - xiaoer.x;
+      const dy = xiaoer.ty - xiaoer.y;
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+        xiaoer.x += clamp(dx, -0.9, 0.9);
+        xiaoer.y += clamp(dy, -0.7, 0.7);
+        xiaoer.flip = dx < 0;
+        if (xiaoer.mode !== 'serve') xiaoer.mode = 'walk';
+      }
+    }
+
+    function drawActor(sheetId, x, y, animName, tick, opts) {
+      const o = opts || {};
+      const sheet = Assets.sheets[sheetId];
+      const fi = animFrame(animName, tick, o.speed || (animName === 'walk' ? 7 : 10));
+      if (sheet && drawSheetFrame(ctx, sheet, fi, x, y, { scale: o.scale || 1, flip: o.flip, alpha: o.alpha })) {
+        return;
+      }
+      const pal = HERO_COLORS[sheetId] || HERO_COLORS.default;
+      drawFigure(ctx, x + 8, y + 4, pal, {
+        weapon: weaponFor(sheetId),
+        stride: animName === 'walk' ? (Math.floor(tick / 8) % 2) : 0,
+        pose: animName === 'serve' ? 'idle' : 'idle',
+        arm: animName === 'serve' ? 1 : 0,
+        scale: o.scale || 1.1
+      });
+    }
+
     function loop(now) {
       if (!running || !ctx || !canvas || !canvas.isConnected) return;
       raf = requestAnimationFrame(loop);
@@ -566,52 +691,78 @@
       idleBlink = (idleBlink + 1) % 90;
       walkerPhase = (walkerPhase + 1) % 240;
       if (accelerateFlash > 0) accelerateFlash -= 1;
+      if (bubble) {
+        bubble.life -= 0.008;
+        if (bubble.life <= 0) bubble = null;
+      }
 
-      // —— 狀態機 ——
+      maybeEmitAmbient(now);
+      updateXiaoer(now);
+
       if (phase === 'enter') {
-        doorOpen = clamp(1 - Math.abs(elapsed - 400) / 700, 0.15, 1);
-        guestX = 460 - Math.min(1, elapsed / 1100) * 200;
+        const dur = PHASE_MS.enter;
+        doorOpen = clamp(1 - Math.abs(elapsed - dur * 0.35) / (dur * 0.55), 0.15, 1);
+        guestX = 28 + Math.min(1, elapsed / dur) * 200;
         guestY = 168;
-        guestStride = Math.floor(elapsed / 120) % 2;
-        if (elapsed >= 1100) {
+        guestStride = Math.floor(elapsed / 160) % 2;
+        if (elapsed - lastFootstepAt > 320 && elapsed < dur * 0.85) {
+          lastFootstepAt = elapsed;
+          playSfx('footstep', { volume: 0.45 });
+        }
+        if (elapsed >= dur) {
           phase = 'serve';
           t0 = now;
-          guestX = 260;
+          guestX = 228;
+          guestY = 188;
           guestStride = 0;
           doorOpen = 0.08;
-          setCaption('店員斟茶遞水…');
+          playHubSfx('sit');
+          playHubSfx('serve');
+          setCaption('小二斟茶遞水…');
+          showBubble('請用茶。', xiaoer.x + 8, xiaoer.y - 14, 0.9);
         }
       } else if (phase === 'serve') {
+        const dur = PHASE_MS.serve;
         doorOpen = Math.max(0, doorOpen - 0.02);
-        staffArm = Math.floor(elapsed / 180) % 2;
-        if (elapsed >= 1200) {
+        staffArm = Math.floor(elapsed / 220) % 2;
+        xiaoer.mode = 'serve';
+        if (elapsed >= dur) {
           phase = 'pay';
           t0 = now;
           staffArm = 0;
           coinAlpha = 1;
           coinY = 0;
           floatLabel = { text: '+' + payAmt + '兩', x: 250, y: 130, life: 1 };
+          playHubSfx('pay');
           setCaption(guestName + ' 付銀 ' + payAmt + ' 兩');
         }
       } else if (phase === 'pay') {
-        coinY = Math.min(28, elapsed / 18);
-        coinAlpha = clamp(1 - elapsed / 900, 0, 1);
+        const dur = PHASE_MS.pay;
+        coinY = Math.min(28, elapsed / 22);
+        coinAlpha = clamp(1 - elapsed / (dur * 0.9), 0, 1);
         if (floatLabel) {
-          floatLabel.y = (floatLabel.y0 != null ? floatLabel.y0 : 130) - elapsed / 40;
-          floatLabel.life = clamp(1 - elapsed / 1000, 0, 1);
+          floatLabel.y = (floatLabel.y0 != null ? floatLabel.y0 : 130) - elapsed / 50;
+          floatLabel.life = clamp(1 - elapsed / dur, 0, 1);
         }
-        if (elapsed >= 1000) {
+        if (elapsed >= dur) {
           phase = 'leave';
           t0 = now;
           floatLabel = null;
           doorOpen = 0.9;
+          lastFootstepAt = 0;
+          playHubSfx('leave');
           setCaption(guestName + ' 推門告辭');
         }
       } else if (phase === 'leave') {
-        doorOpen = clamp(0.3 + Math.sin(Math.min(1, elapsed / 1000) * Math.PI) * 0.7, 0.2, 1);
-        guestX = 260 + Math.min(1, elapsed / 1000) * 210;
-        guestStride = Math.floor(elapsed / 120) % 2;
-        if (elapsed >= 1000) startNext();
+        const dur = PHASE_MS.leave;
+        doorOpen = clamp(0.3 + Math.sin(Math.min(1, elapsed / dur) * Math.PI) * 0.7, 0.2, 1);
+        guestX = 228 - Math.min(1, elapsed / dur) * 200;
+        guestStride = Math.floor(elapsed / 160) % 2;
+        if (elapsed - lastFootstepAt > 320 && elapsed < dur * 0.85) {
+          lastFootstepAt = elapsed;
+          playSfx('footstep', { volume: 0.4 });
+        }
+        if (elapsed >= dur) startNext();
       } else {
         doorOpen = Math.max(0, doorOpen - 0.03);
         if (floatLabel) {
@@ -627,7 +778,7 @@
       }
 
       ctx.clearRect(0, 0, W, H);
-      drawBg(now);
+      const layered = drawBgLayers(now);
 
       if (accelerateFlash > 0) {
         ctx.globalAlpha = accelerateFlash / 30;
@@ -635,31 +786,26 @@
         ctx.globalAlpha = 1;
       }
 
+      // 坐客（剪影：無客人 sheet）
       seatedGuests.forEach(function (g) {
         drawFigure(ctx, g.x, g.y, { robe: g.robe, accent: C.gold, skin: C.skin, hair: C.inkSoft }, { scale: 1 });
       });
 
-      const staffPal = HERO_COLORS.staff;
-      const staffX = phase === 'serve' ? 188 + staffArm * 2 : 182;
-      drawFigure(ctx, staffX, 128, staffPal, {
-        weapon: phase === 'serve' ? 'tray' : null,
-        arm: staffArm,
-        scale: 1.15
-      });
+      // 小二
+      const xeAnim = xiaoer.mode === 'walk' ? 'walk' : (xiaoer.mode === 'serve' ? 'serve' : 'idle');
+      drawActor('xiaoer', xiaoer.x, xiaoer.y, xeAnim, xiaoer.tick, { flip: xiaoer.flip, scale: 1 });
 
+      // 俠客閒逛
       ambientHeroes.forEach(function (hid, i) {
-        const pal = HERO_COLORS[hid] || HERO_COLORS.default;
-        const baseX = 30 + i * 28;
-        const walk = Math.sin((walkerPhase + i * 40) / 30) * 18;
-        const stride = Math.floor((walkerPhase + i * 20) / 20) % 2;
-        const y = 178 + (i % 2) * 6;
-        drawFigure(ctx, baseX + walk, y, pal, {
-          weapon: weaponFor(hid),
-          stride: stride,
-          scale: 1.1
-        });
+        const baseX = 55 + i * 36;
+        const walk = Math.sin((walkerPhase + i * 40) / 30) * 22;
+        const x = baseX + walk;
+        const y = 175 + (i % 2) * 8;
+        const flipping = Math.cos((walkerPhase + i * 40) / 30) < 0;
+        drawActor(hid, x, y, 'walk', walkerPhase + i * 12, { flip: flipping, scale: 1 });
       });
 
+      // 進場客人（剪影）
       if (phase !== 'idle') {
         const robe = guestKind === 'stay' ? C.inkSoft : C.mist;
         drawFigure(ctx, guestX, guestY, { robe: robe, accent: C.gold, skin: C.skin, hair: C.inkSoft }, {
@@ -667,9 +813,10 @@
           scale: 1.15
         });
       } else if (idleBlink < 25) {
-        // 門外剪影暗示有人經過
-        drawRect(ctx, 448, 175, 10, 22, C.inkSoft);
+        drawRect(ctx, 18, 150, 10, 22, C.inkSoft);
       }
+
+      if (layered) drawLanternsAndNight(now);
 
       if ((phase === 'pay' || tipBurst) && coinAlpha > 0) {
         const cx = tipBurst ? tipBurst.x : 270;
@@ -692,12 +839,15 @@
         ctx.globalAlpha = 1;
       }
 
+      if (bubble) drawBubble(ctx, bubble.text, bubble.x, bubble.y, bubble.life);
+
       drawHotspotHints();
     }
 
     return {
       mount, destroy, isMounted, playGuest, enqueueGuest,
       setHotspotHandler, setTipHandler, setAmbientHeroes, setInnTitle,
+      setAmbientChange, isNight, setRumor, greetXiaoer, showBubble,
       HOTSPOTS, getPhase: function () { return phase; }
     };
   })();
@@ -715,6 +865,7 @@
     let fx = [];
     let shake = 0;
     let anims = {};
+    let tick = 0;
 
     function weaponFor(id) {
       if (id === 'qingyi') return 'sword';
@@ -747,7 +898,6 @@
       if (canvas && canvas.isConnected && running && host.contains(canvas.closest('.stage-wrap') || canvas)) {
         return;
       }
-      // 若 host 內已有我們的 wrap（被父層重新插入），重綁引用
       const existing = host.querySelector('.combat-stage-wrap canvas.px-stage');
       if (existing && existing.width === W) {
         wrapEl = existing.closest('.stage-wrap');
@@ -815,6 +965,11 @@
       enemies.forEach((u, i) => {
         const prev = units.find((p) => p.id === u.id);
         const slot = eSlots[i];
+        let heroId = 'enemy';
+        if (u.id && String(u.id).indexOf('boss_heifeng') >= 0) heroId = 'boss_heifeng';
+        else if (u.id && String(u.id).indexOf('boss_xieyi') >= 0) heroId = 'boss_xieyi';
+        else if (u.name && u.name.indexOf('黑風寨主') >= 0) heroId = 'boss_heifeng';
+        else if (u.name && u.name.indexOf('邪醫') >= 0) heroId = 'boss_xieyi';
         next.push({
           id: u.id,
           name: u.name,
@@ -822,7 +977,7 @@
           hp: u.hp,
           maxHp: u.maxHp,
           shield: u.shield || 0,
-          heroId: 'enemy',
+          heroId: heroId,
           x: prev && !anims[u.id] ? prev.x : slot.x,
           y: slot.y,
           ox: slot.x,
@@ -841,15 +996,15 @@
 
       if (evt.kind === 'heal' || evt.kind === 'shield') {
         if (atk) {
-          fx.push({ kind: 'text', text: evt.kind === 'heal' ? ('+' + (evt.heal || 0)) : '盾', x: atk.x + 4, y: atk.y - 8, life: 20, max: 20, color: C.jadeBright });
-          atk.flash = 6;
+          fx.push({ kind: 'text', text: evt.kind === 'heal' ? ('+' + (evt.heal || 0)) : '盾', x: atk.x + 4, y: atk.y - 8, life: 36, max: 36, color: C.jadeBright });
+          atk.flash = 14;
         }
         if (evt.skillName) {
-          fx.push({ kind: 'burst', x: (atk ? atk.x : 40) + 6, y: (atk ? atk.y : 80) + 4, life: 12, max: 12, color: C.jade });
+          fx.push({ kind: 'burst', x: (atk ? atk.x : 40) + 6, y: (atk ? atk.y : 80) + 4, life: 22, max: 22, color: C.jade });
           if (atk) {
             fx.push({
               kind: 'trail', x0: atk.x + 6, y0: atk.y + 6, x1: atk.x + 6, y1: atk.y - 10,
-              life: 12, max: 12, color: C.jadeBright
+              life: 22, max: 22, color: C.jadeBright
             });
           }
         }
@@ -858,11 +1013,10 @@
 
       if (atk && (evt.kind === 'hit' || evt.kind === 'skill' || evt.kind === 'miss' || evt.kind === 'parry')) {
         const dir = atk.side === 'ally' ? 1 : -1;
-        // 多幀攻擊：蓄勢→斬出→回收
-        anims[atk.id] = { kind: 'lunge', t: 0, dur: 16, dir: dir };
+        anims[atk.id] = { kind: 'lunge', t: 0, dur: 48, dir: dir };
         if (evt.skillName) {
-          fx.push({ kind: 'burst', x: atk.x + 6, y: atk.y + 4, life: 14, max: 14, color: evt.kind === 'skill' ? C.cinnabarBright : C.gold });
-          fx.push({ kind: 'text', text: evt.skillName, x: atk.x - 4, y: atk.y - 14, life: 22, max: 22, color: C.cream });
+          fx.push({ kind: 'burst', x: atk.x + 6, y: atk.y + 4, life: 24, max: 24, color: evt.kind === 'skill' ? C.cinnabarBright : C.gold });
+          fx.push({ kind: 'text', text: evt.skillName, x: atk.x - 4, y: atk.y - 14, life: 40, max: 40, color: C.cream });
         }
         if (tgt && (evt.kind === 'hit' || evt.kind === 'skill')) {
           fx.push({
@@ -871,41 +1025,40 @@
             y0: atk.y + 6,
             x1: tgt.x + 6,
             y1: tgt.y + 6,
-            life: 12, max: 12,
+            life: 22, max: 22,
             color: evt.kind === 'skill' ? C.cinnabarBright : C.cream
           });
         }
       }
 
       if (evt.kind === 'miss' && tgt) {
-        anims[tgt.id] = { kind: 'dodge', t: 0, dur: 14, dir: tgt.side === 'ally' ? -1 : 1 };
-        fx.push({ kind: 'text', text: '閃', x: tgt.x + 2, y: tgt.y - 6, life: 16, max: 16, color: C.sky });
+        anims[tgt.id] = { kind: 'dodge', t: 0, dur: 32, dir: tgt.side === 'ally' ? -1 : 1 };
+        fx.push({ kind: 'text', text: '閃', x: tgt.x + 2, y: tgt.y - 6, life: 30, max: 30, color: C.sky });
         return;
       }
 
       if (evt.kind === 'parry' && tgt) {
-        anims[tgt.id] = { kind: 'parry', t: 0, dur: 14, dir: tgt.side === 'ally' ? -1 : 1 };
-        tgt.flash = 5;
-        fx.push({ kind: 'text', text: '架', x: tgt.x + 2, y: tgt.y - 6, life: 16, max: 16, color: C.gold });
-        fx.push({ kind: 'slash', x: tgt.x, y: tgt.y + 2, life: 8, max: 8, color: C.gold });
+        anims[tgt.id] = { kind: 'parry', t: 0, dur: 40, dir: tgt.side === 'ally' ? -1 : 1 };
+        tgt.flash = 12;
+        fx.push({ kind: 'text', text: '架', x: tgt.x + 2, y: tgt.y - 6, life: 30, max: 30, color: C.gold });
+        fx.push({ kind: 'slash', x: tgt.x, y: tgt.y + 2, life: 16, max: 16, color: C.gold });
         shake = Math.max(shake, 1.5);
         return;
       }
 
       if ((evt.kind === 'hit' || evt.kind === 'skill') && tgt) {
         const dmg = evt.damage || 0;
-        // 多幀受擊：頓挫→擊退→回位
-        anims[tgt.id] = { kind: 'hit', t: 0, dur: 14, dir: tgt.side === 'ally' ? -1 : 1, heavy: evt.kind === 'skill' };
-        tgt.flash = 10;
-        fx.push({ kind: 'text', text: '-' + dmg, x: tgt.x + 2, y: tgt.y - 4, life: 24, max: 24, color: C.cinnabarBright });
-        fx.push({ kind: 'slash', x: tgt.x + 4, y: tgt.y + 4, life: 10, max: 10, color: C.cream });
+        anims[tgt.id] = { kind: 'hit', t: 0, dur: 42, dir: tgt.side === 'ally' ? -1 : 1, heavy: evt.kind === 'skill' };
+        tgt.flash = 18;
+        fx.push({ kind: 'text', text: '-' + dmg, x: tgt.x + 2, y: tgt.y - 4, life: 42, max: 42, color: C.cinnabarBright });
+        fx.push({ kind: 'slash', x: tgt.x + 4, y: tgt.y + 4, life: 18, max: 18, color: C.cream });
         shake = Math.max(shake, evt.kind === 'skill' ? 5.5 : 3.2);
       }
 
       if (evt.kind === 'ko' && tgt) {
-        fx.push({ kind: 'text', text: '倒', x: tgt.x + 2, y: tgt.y - 8, life: 26, max: 26, color: C.blood });
+        fx.push({ kind: 'text', text: '倒', x: tgt.x + 2, y: tgt.y - 8, life: 44, max: 44, color: C.blood });
         shake = Math.max(shake, 6);
-        anims[tgt.id] = { kind: 'hit', t: 0, dur: 18, dir: tgt.side === 'ally' ? -1 : 1, heavy: true };
+        anims[tgt.id] = { kind: 'hit', t: 0, dur: 44, dir: tgt.side === 'ally' ? -1 : 1, heavy: true };
       }
     }
 
@@ -924,6 +1077,13 @@
       drawRect(ctx, 194, 100, 10, 2, C.ink);
     }
 
+    function poseToAnim(pose) {
+      if (pose === 'strike') return 'attack';
+      if (pose === 'hurt') return 'hurt';
+      if (pose === 'parry') return 'parry';
+      return 'idle';
+    }
+
     function drawUnit(u) {
       const pal = palFor(u);
       let dx = u.x;
@@ -932,26 +1092,31 @@
       let arm = 0;
       let flash = u.flash > 0;
       let pose = 'idle';
+      let animName = 'idle';
+      let frameOverride = null;
       if (an) {
         const p = an.t / an.dur;
         if (an.kind === 'lunge') {
-          // 幀：0–25% 蓄勢後拉、25–55% 斬出、55–100% 回收
           if (p < 0.25) {
             const w = p / 0.25;
             dx = u.ox - an.dir * 8 * w;
             arm = 0;
             pose = 'idle';
+            frameOverride = ANIM.attack[0];
           } else if (p < 0.55) {
             const sp = (p - 0.25) / 0.3;
             dx = u.ox + an.dir * (8 + 20 * sp);
             arm = 1;
             pose = 'strike';
+            frameOverride = ANIM.attack[1 + Math.min(2, Math.floor(sp * 3))];
           } else {
             const rp = (p - 0.55) / 0.45;
             dx = u.ox + an.dir * 28 * (1 - rp);
             arm = rp < 0.4 ? 1 : 0;
             pose = rp < 0.35 ? 'strike' : 'idle';
+            frameOverride = rp < 0.35 ? ANIM.attack[3] : ANIM.idle[0];
           }
+          animName = poseToAnim(pose);
         } else if (an.kind === 'hit') {
           const heavy = an.heavy ? 1.35 : 1;
           if (p < 0.2) {
@@ -969,25 +1134,60 @@
             dx = u.ox + an.dir * 15 * (1 - back) * heavy;
             pose = 'hurt';
           }
+          animName = 'hurt';
+          frameOverride = ANIM.hurt[p < 0.5 ? 0 : 1];
         } else if (an.kind === 'dodge') {
           const amp = Math.sin(p * Math.PI);
           dx = u.ox + an.dir * 14 * amp;
           dy = u.oy - 6 * amp;
+          animName = 'walk';
         } else if (an.kind === 'parry') {
           const amp = Math.sin(p * Math.PI);
           dx = u.ox + an.dir * 4 * amp;
           pose = 'parry';
           flash = p > 0.2 && p < 0.55;
+          animName = 'parry';
+          frameOverride = ANIM.parry[Math.min(2, Math.floor(p * 3))];
         }
+      } else {
+        frameOverride = ANIM.idle[Math.floor(tick / 18) % 2];
       }
+
       if (u.dead) ctx.globalAlpha = 0.35;
-      drawFigure(ctx, dx, dy, pal, {
-        weapon: weaponFor(u.heroId),
-        arm: arm,
-        flash: flash,
-        pose: pose,
-        scale: 1.15
-      });
+
+      const flip = u.side === 'enemy';
+      const sheet = Assets.sheets[u.heroId];
+      const bossImg = Assets.bosses[u.heroId];
+      let drew = false;
+      if (sheet) {
+        const fi = frameOverride != null ? frameOverride : animFrame(animName, tick, 8);
+        drew = drawSheetFrame(ctx, sheet, fi, dx - 4, dy - 4, {
+          scale: 1.15,
+          flip: flip,
+          alpha: flash ? 0.85 : (u.dead ? 0.35 : 1)
+        });
+      } else if (bossImg) {
+        ctx.save();
+        if (flash) ctx.globalAlpha = 0.85;
+        if (flip) {
+          ctx.translate(dx + 28, dy - 2);
+          ctx.scale(-1, 1);
+          ctx.drawImage(bossImg, 0, 0, 32, 32, 0, 0, 36, 36);
+        } else {
+          ctx.drawImage(bossImg, 0, 0, 32, 32, dx - 4, dy - 2, 36, 36);
+        }
+        ctx.restore();
+        drew = true;
+      }
+      if (!drew) {
+        drawFigure(ctx, dx, dy, pal, {
+          weapon: weaponFor(u.heroId),
+          arm: arm,
+          flash: flash,
+          pose: pose,
+          scale: 1.15
+        });
+      }
       ctx.globalAlpha = 1;
 
       const bw = 32;
@@ -998,7 +1198,7 @@
       if (u.shield > 0) {
         drawRect(ctx, dx - 8, dy - 10, Math.min(bw, 4 + Math.round(u.shield / u.maxHp * bw)), 2, C.sky);
       }
-      drawPixelText(ctx, u.name.slice(0, 4), dx - 6, dy + 20, C.cream);
+      drawPixelText(ctx, u.name.slice(0, 4), dx - 6, dy + 28, C.cream);
     }
 
     function drawTrail(f) {
@@ -1018,6 +1218,7 @@
     function loop() {
       if (!running || !ctx || !canvas || !canvas.isConnected) return;
       raf = requestAnimationFrame(loop);
+      tick += 1;
 
       Object.keys(anims).forEach((id) => {
         anims[id].t += 1;
@@ -1032,10 +1233,10 @@
       });
       fx = fx.filter((f) => {
         f.life -= 1;
-        if (f.kind === 'text') f.y -= 0.7;
+        if (f.kind === 'text') f.y -= 0.45;
         return f.life > 0;
       });
-      if (shake > 0) shake = Math.max(0, shake - 0.28);
+      if (shake > 0) shake = Math.max(0, shake - 0.16);
       if (wrapEl) {
         const amp = Math.min(8, shake * 1.4);
         const sx = shake > 0 ? (Math.round(shake * 2) % 2 === 0 ? amp : -amp) : 0;
@@ -1083,6 +1284,7 @@
   global.WuxiaStages = {
     Inn: InnStage,
     Combat: CombatStage,
-    COLORS: C
+    COLORS: C,
+    Assets: Assets
   };
 })(typeof window !== 'undefined' ? window : globalThis);

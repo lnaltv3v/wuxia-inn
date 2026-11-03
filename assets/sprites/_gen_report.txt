@@ -1,0 +1,17 @@
+# Ink-Pixel Inn asset gen report v1.1
+
+SPRITE qingyi: size=(576, 32) opaque=6169 oob=0 empty_frames=[] oob_cols={}
+SPRITE tiezhang: size=(576, 32) opaque=6376 oob=0 empty_frames=[] oob_cols={}
+SPRITE langren: size=(576, 32) opaque=6478 oob=0 empty_frames=[] oob_cols={}
+SPRITE qinshi: size=(576, 32) opaque=6171 oob=0 empty_frames=[] oob_cols={}
+SPRITE xiaoer: size=(576, 32) opaque=6181 oob=0 empty_frames=[] oob_cols={}
+BOSS heifeng: size=(32, 32) opaque=425 oob=0 oob_cols={}
+BOSS xieyi: size=(32, 32) opaque=342 oob=0 oob_cols={}
+GUEST sit: size=(128, 32) opaque=1374 oob=0 oob_cols={}
+SCENE hub_floor.png: size=(480, 270) opaque=58560 oob=0 oob_cols=[]
+SCENE hub_wall.png: size=(480, 270) opaque=72000 oob=0 oob_cols=[]
+SCENE hub_counter.png: size=(480, 270) opaque=10485 oob=0 oob_cols=[]
+SCENE hub_furniture.png: size=(480, 270) opaque=16185 oob=0 oob_cols=[]
+SCENE hub_lanterns.png: size=(480, 270) opaque=2366 oob=0 oob_cols=[]
+SCENE hub_composed.png: size=(480, 270) opaque=129600 oob=0 oob_cols=[]
+PREVIEWS: refreshed under assets/_preview/

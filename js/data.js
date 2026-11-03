@@ -1,17 +1,17 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v0.5.1
+ * v0.5.3
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '0.5.1',
+    version: '0.5.3',
     saveKey: 'wuxia-inn-save-v1',
-    tickMs: 1000,
+    tickMs: 1200,
     offlineCapHours: 8,
-    combatTickMs: 400,
+    combatTickMs: 1000,
     dropManualChance: 0.32,
     maxParty: 3,
     questRefreshCost: 25,       // 手動刷新任務板銀兩
@@ -35,6 +35,21 @@
     { id: 'knight', name: '遊俠', weight: 12, payMin: 8, payMax: 18, kind: 'stay' },
     { id: 'noble', name: '富紳', weight: 8, payMin: 15, payMax: 35, kind: 'stay' }
   ];
+
+  /** 今日江湖傳聞（Hub 氣氛／日誌輕量內容，不改存檔結構） */
+  const RUMORS = [
+    '青石鎮夜市又見黑衣人閃過屋脊。',
+    '有人說邊關哨站外有怪風，像黑風寨餘黨。',
+    '鐵掌門舊識寄來藥方，醫館或許用得上。',
+    '琴心師太曾於月下撫琴退賊，江湖仍傳。',
+    '行商誇本棧茶香，願多住一晚。',
+    '告示欄貼了尋人帖，酬銀不菲。',
+    '酒窖陳釀開封，今晚客似更多。',
+    '有遊俠於門前比劍，未傷和氣便散。',
+    '聽說邪醫毒霧散於南邊河谷，切莫獨行。',
+    '小二夢見客滿盈門——或許是個好兆頭。'
+  ];
+
 
   /**
    * 據點／分舵
@@ -674,6 +689,7 @@
     GAME,
     INN_LEVELS,
     GUESTS,
+    RUMORS,
     HERO_TEMPLATES,
     ENEMY_WAVES,
     TRAIN,
