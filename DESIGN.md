@@ -1,4 +1,4 @@
-# 俠客棧 — 設計說明（v0.5.3）
+# 俠客棧 — 設計說明（v0.5.4）
 
 ## 產品定位（上市方向）
 目標做成**可上市**的武俠經營遊戲，模式對齊《大俠立志傳》：**場景驅動**，而非文字 Tab 網頁模擬。
@@ -40,7 +40,7 @@
 1. **場景內放置經營**：客人自動上門（舞台演出斟茶／付款）→ 銀兩／聲望  
 2. **養成**：訓練俠客 → 等級、好感／羈絆  
 3. **羈絆／武學／招募／出巡／據點／設施／任務／劇情／Boss／成就／升級客棧**（邏輯同 v0.4）  
-4. **存檔**：`migrate()` 補欄位；version 寫入 `0.5.3`
+4. **存檔**：`migrate()` 補欄位；version 寫入 `0.5.4`
 
 ```
 客人上門（Hub 演出）──► 銀兩 ──► 場景熱點決策（養成／建設／出巡）
@@ -132,10 +132,10 @@
 - 銀兩 450  
 
 
-## 舞台系統（v0.5.3）
+## 舞台系統（v0.5.4）
 | 舞台 | 實作 | 表現 |
 |------|------|------|
-| **客棧 Hub** | `js/stages.js` → `WuxiaStages.Inn` Canvas **480×270** | **分層場景**（wall／floor／furniture／counter／lanterns）；**小二＋俠客 spritesheet**（idle／walk／serve）；大門偏左熱點；雅座催單／小費；日夜罩；接客狀態機；對白泡泡／傳聞 |
+| **客棧 Hub** | `js/stages.js` → `WuxiaStages.Inn` Canvas **480×270** | **分層場景 v1.1**（約 12 枱＋28 凳）；**小二** idle／walk／serve／**wipe**；**guest_sit** 坐客；俠客 sheet；雅座催單／小費；日夜罩；接客狀態機；傳聞 |
 | 戰鬥對峙 | `WuxiaStages.Combat` Canvas **400×180** | 俠客 sheet 之 **attack／hurt／parry**；Boss 戰鬥剪影；慢 `combatTickMs`；技能軌跡／震屏 |
 
 - 戰鬥數值由 `combat.js` 驅動；`onAction` 含 `hit`／`skill`／`miss`／`parry`／`heal`／`shield`／`ko`  
@@ -155,7 +155,14 @@
 - **存檔相容**
 
 ## 版本進度
-### v0.5.3-sprites-hub（本輪）
+### v0.5.4-art-v1.1（本輪）
+- [x] 接入美術加厚版 v1.1：`xiaoer` 幀 9–12＝**wipe 抹枱**（戰鬥唔用呢段當攻擊）  
+- [x] Hub 小二 AI 循環 idle／walk／serve／wipe；坐客用 `guest_sit`（5 位有色）  
+- [x] 重載 denser Hub 分層（約 12 枱＋28 凳）；熱點仍跟 scenes README  
+- [x] 納入更新後 `xiaoer.png`／生成腳本／preview；音效暫緩  
+- [x] DESIGN／footer／`GAME.version` → **0.5.4**
+
+### v0.5.3-sprites-hub
 - [x] Hub 改用 `assets/scenes/` 分層（家具／燈籠／櫃檯密度）  
 - [x] 小二／四俠客 `assets/sprites/` 精靈表接入（idle／walk／serve）  
 - [x] 戰鬥用 attack／hurt／parry 幀＋Boss 剪影；保留慢節奏（tickMs 1200／combatTickMs 1000）  
@@ -186,7 +193,7 @@
 - 劇情／Boss／成就、墨點江湖規範、接客／戰鬥舞台初版、據點設施任務等（見 git）
 
 ## 仍待做（路線圖）
-- Hub 多層樓／房間門；客人 spritesheet；更豐富坐客 AI 與點菜流程  
+- Hub 多層樓／房間門；進場客人亦改 spritesheet；更豐富坐客 AI 與點菜流程  
 - 音效細修／更多 SFX（用戶暫緩，稍後再做）  
 - Boss 入場演出；季節慶典；UI 圖示齊套  
 - 匯出／匯入存檔；合擊技；更多章節與內容密度  

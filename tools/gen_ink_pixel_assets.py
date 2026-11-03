@@ -617,31 +617,45 @@ def xiaoer_body(img, ox, oy, pose):
             px(img, 27 + bx + arm_ext, ty + 1, LOESS)
     elif pose.get("wipe_phase") is not None:
         wp = pose["wipe_phase"]
-        # wipe cloth in right hand, sweeping across table height
+        # lean over implied table: left hand brace + rag in right (not a tray)
+        fill_rect(img, 3 + bx, ty + 7, 9 + bx, ty + 10, WOOD)
+        fill_rect(img, 2 + bx, ty + 9, 6 + bx, ty + 11, SKIN)
+        # table edge hint under wipe (wood plank strip)
+        hline(img, 12 + bx, 31, ty + 12, WOOD_L)
+        hline(img, 12 + bx, 31, ty + 13, WOOD)
         fill_rect(img, 16 + bx, ty + 2, 22 + bx, ty + 6, WOOD)
         fill_rect(img, 20 + bx, ty + 3, 24 + bx, ty + 6, SKIN)
-        # cloth position arcs: reach → sweep mid → far → recover
-        if wp == 0:
-            fill_rect(img, 15 + bx, ty + 8, 22 + bx, ty + 11, PAPER_L)
-            hline(img, 15 + bx, 22 + bx, ty + 8, INK)
-            px(img, 16 + bx, ty + 9, CREAM)
-        elif wp == 1:
-            fill_rect(img, 18 + bx, ty + 7, 27 + bx, ty + 10, PAPER_L)
-            hline(img, 18 + bx, 27 + bx, ty + 7, INK)
-            px(img, 24 + bx, ty + 8, CREAM)
-            px(img, 20 + bx, ty + 9, MIST)  # damp streak
-        elif wp == 2:
-            fill_rect(img, 20 + bx, ty + 6, 31 + bx, ty + 9, PAPER_L)
-            hline(img, 20 + bx, 31 + bx, ty + 6, INK)
-            px(img, 28 + bx, ty + 7, CREAM)
-            px(img, 25 + bx, ty + 8, MIST)
-            px(img, 22 + bx, ty + 8, MIST)
-        else:
-            fill_rect(img, 16 + bx, ty + 8, 23 + bx, ty + 11, PAPER_L)
-            hline(img, 16 + bx, 23 + bx, ty + 8, INK)
-            # left hand brace on table
-            fill_rect(img, 4 + bx, ty + 6, 9 + bx, ty + 9, WOOD)
-            fill_rect(img, 3 + bx, ty + 8, 7 + bx, ty + 10, SKIN)
+        # rag: hanging flaps + damp MIST — silhouette ≠ tray/teapot
+        if wp == 0:  # gather rag near body
+            fill_rect(img, 18 + bx, ty + 7, 24 + bx, ty + 10, CREAM)
+            fill_rect(img, 19 + bx, ty + 10, 22 + bx, ty + 13, PAPER_L)  # hang down
+            hline(img, 18 + bx, 24 + bx, ty + 7, INK)
+            px(img, 20 + bx, ty + 11, MIST)
+            px(img, 23 + bx, ty + 8, PAPER)
+        elif wp == 1:  # sweep mid
+            fill_rect(img, 20 + bx, ty + 6, 28 + bx, ty + 9, CREAM)
+            fill_rect(img, 22 + bx, ty + 9, 26 + bx, ty + 12, PAPER_L)
+            hline(img, 20 + bx, 28 + bx, ty + 6, INK)
+            px(img, 24 + bx, ty + 7, MIST)
+            px(img, 26 + bx, ty + 8, MIST)
+            px(img, 27 + bx, ty + 10, PAPER)
+            px(img, 21 + bx, ty + 8, CREAM)
+        elif wp == 2:  # far sweep
+            fill_rect(img, 22 + bx, ty + 5, 31 + bx, ty + 8, CREAM)
+            fill_rect(img, 25 + bx, ty + 8, 30 + bx, ty + 12, PAPER_L)
+            hline(img, 22 + bx, 31 + bx, ty + 5, INK)
+            px(img, 28 + bx, ty + 6, MIST)
+            px(img, 26 + bx, ty + 7, MIST)
+            px(img, 29 + bx, ty + 9, MIST)
+            px(img, 30 + bx, ty + 11, PAPER)
+            px(img, 24 + bx, ty + 6, CREAM)
+        else:  # recover / shake rag
+            fill_rect(img, 17 + bx, ty + 6, 23 + bx, ty + 9, CREAM)
+            fill_rect(img, 18 + bx, ty + 9, 21 + bx, ty + 13, PAPER_L)
+            hline(img, 17 + bx, 23 + bx, ty + 6, INK)
+            px(img, 19 + bx, ty + 11, MIST)
+            px(img, 22 + bx, ty + 7, PAPER)
+            px(img, 20 + bx, ty + 8, CREAM)
     elif pose.get("parry"):
         shake = pose.get("shake", 0)
         # raise tray as shield

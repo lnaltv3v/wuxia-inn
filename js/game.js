@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v0.5.3：分層 Hub／精靈表 · 傳聞氣氛 · 慢節奏）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v0.5.4：xiaoer wipe／guest_sit／加密度 Hub）
  */
 (function () {
   'use strict';

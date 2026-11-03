@@ -4,7 +4,7 @@ SPRITE qingyi: size=(576, 32) opaque=6169 oob=0 empty_frames=[] oob_cols={}
 SPRITE tiezhang: size=(576, 32) opaque=6376 oob=0 empty_frames=[] oob_cols={}
 SPRITE langren: size=(576, 32) opaque=6478 oob=0 empty_frames=[] oob_cols={}
 SPRITE qinshi: size=(576, 32) opaque=6171 oob=0 empty_frames=[] oob_cols={}
-SPRITE xiaoer: size=(576, 32) opaque=6181 oob=0 empty_frames=[] oob_cols={}
+SPRITE xiaoer: size=(576, 32) opaque=6396 oob=0 empty_frames=[] oob_cols={}
 BOSS heifeng: size=(32, 32) opaque=425 oob=0 oob_cols={}
 BOSS xieyi: size=(32, 32) opaque=342 oob=0 oob_cols={}
 GUEST sit: size=(128, 32) opaque=1374 oob=0 oob_cols={}

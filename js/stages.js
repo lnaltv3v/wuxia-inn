@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.5.3：分層 Hub＋精靈表＋慢節奏戰鬥）
+ * 俠客棧 — 墨點江湖舞台（v0.5.4：xiaoer wipe／加密度 Hub／guest_sit）
  * Hub 480×270：場景分層、小二／俠客 spritesheet；戰鬥 400×180：attack／hurt／parry 幀
  */
 (function (global) {
@@ -48,7 +48,8 @@
     idle:   [0, 1],
     walk:   [2, 3, 4, 5],
     serve:  [6, 7, 8],
-    attack: [9, 10, 11, 12],
+    attack: [9, 10, 11, 12], // 俠客攻擊；xiaoer 同幀位＝wipe（見下）
+    wipe:   [9, 10, 11, 12], // 僅 xiaoer：抹枱（唔係 attack）
     hurt:   [13, 14],
     parry:  [15, 16, 17]
   };
@@ -300,7 +301,7 @@
     let lastFootstepAt = 0;
     let bubble = null; // { text, x, y, life }
     let rumorText = '';
-    let xiaoer = { x: 200, y: 150, tx: 200, ty: 150, mode: 'idle', tick: 0, flip: false };
+    let xiaoer = { x: 200, y: 150, tx: 200, ty: 150, mode: 'idle', tick: 0, flip: false, actionTicks: 0 };
     const PHASE_MS = { enter: 1800, serve: 1800, pay: 1400, leave: 1600 };
 
     // 場景錨點對齊 assets/scenes/README（大門偏左）
@@ -538,10 +539,13 @@
     }
 
     function seedSeated() {
+      // 對齊 denser furniture（約桌心偏下）；顏色由 guest_sit 幀 0–3 輪換
       seatedGuests = [
-        { x: 70, y: 200, robe: C.mist, sheet: null },
-        { x: 110, y: 208, robe: C.inkSoft, sheet: null },
-        { x: 340, y: 200, robe: C.wood, sheet: null }
+        { x: 62, y: 198, robe: C.teal },
+        { x: 118, y: 206, robe: C.robeRed },
+        { x: 228, y: 214, robe: C.inkSoft },
+        { x: 318, y: 200, robe: C.violet },
+        { x: 372, y: 208, robe: C.mist }
       ];
     }
 
@@ -646,18 +650,35 @@
         xiaoer.mode = 'serve';
         xiaoer.tx = 205;
         xiaoer.ty = 150;
+        xiaoer.actionTicks = 0;
       } else if (phase === 'enter') {
         xiaoer.mode = 'walk';
         xiaoer.tx = 120;
         xiaoer.ty = 160;
+        xiaoer.actionTicks = 0;
       } else if (xiaoer.tick % 220 === 0) {
         const wp = XIAOER_WAYPOINTS[Math.floor(Math.random() * XIAOER_WAYPOINTS.length)];
         xiaoer.tx = wp.x;
         xiaoer.ty = wp.y;
         xiaoer.mode = 'walk';
+        xiaoer.actionTicks = 0;
       } else if (Math.abs(xiaoer.x - xiaoer.tx) < 2 && Math.abs(xiaoer.y - xiaoer.ty) < 2) {
         if (xiaoer.mode === 'walk') {
-          xiaoer.mode = Math.random() < 0.45 ? 'serve' : 'idle';
+          // 到位後循環：idle／serve／wipe（抹枱用幀 9–12，唔當 attack）
+          const r = Math.random();
+          if (r < 0.38) xiaoer.mode = 'wipe';
+          else if (r < 0.72) xiaoer.mode = 'serve';
+          else xiaoer.mode = 'idle';
+          xiaoer.actionTicks = 0;
+        } else if (xiaoer.mode === 'wipe' || xiaoer.mode === 'serve' || xiaoer.mode === 'idle') {
+          xiaoer.actionTicks = (xiaoer.actionTicks || 0) + 1;
+          if (xiaoer.actionTicks > 100 && Math.random() < 0.02) {
+            const wp = XIAOER_WAYPOINTS[Math.floor(Math.random() * XIAOER_WAYPOINTS.length)];
+            xiaoer.tx = wp.x;
+            xiaoer.ty = wp.y;
+            xiaoer.mode = 'walk';
+            xiaoer.actionTicks = 0;
+          }
         }
       }
       const dx = xiaoer.tx - xiaoer.x;
@@ -666,7 +687,8 @@
         xiaoer.x += clamp(dx, -0.9, 0.9);
         xiaoer.y += clamp(dy, -0.7, 0.7);
         xiaoer.flip = dx < 0;
-        if (xiaoer.mode !== 'serve') xiaoer.mode = 'walk';
+        // 移動中一律 walk；唔好把 wipe／serve 當攻擊播
+        if (phase !== 'serve') xiaoer.mode = 'walk';
       }
     }
 
@@ -789,7 +811,7 @@
         ctx.globalAlpha = 1;
       }
 
-      // 坐客（剪影：無客人 sheet）
+      // 坐客：guest_sit 幀 0–3（青／紅／褐／紫）
       seatedGuests.forEach(function (g, gi) {
         const gsheet = Assets.sheets.guest_sit;
         if (gsheet) {
@@ -800,9 +822,15 @@
         }
       });
 
-      // 小二
-      const xeAnim = xiaoer.mode === 'walk' ? 'walk' : (xiaoer.mode === 'serve' ? 'serve' : 'idle');
-      drawActor('xiaoer', xiaoer.x, xiaoer.y, xeAnim, xiaoer.tick, { flip: xiaoer.flip, scale: 1 });
+      // 小二：idle／walk／serve／wipe（wipe＝幀 9–12，唔當 attack）
+      const xeAnim = xiaoer.mode === 'walk' ? 'walk'
+        : (xiaoer.mode === 'serve' ? 'serve'
+          : (xiaoer.mode === 'wipe' ? 'wipe' : 'idle'));
+      drawActor('xiaoer', xiaoer.x, xiaoer.y, xeAnim, xiaoer.tick, {
+        flip: xiaoer.flip,
+        scale: 1,
+        speed: xeAnim === 'wipe' ? 9 : undefined
+      });
 
       // 俠客閒逛
       ambientHeroes.forEach(function (hid, i) {
