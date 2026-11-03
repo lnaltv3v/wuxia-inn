@@ -70,13 +70,20 @@
     <div id="combat-overlay" class="combat-overlay hidden" role="dialog" aria-modal="true" aria-label="出巡戰場">
       <header class="combat-overlay-head">
         <h2>出巡戰場</h2>
+        <div class="combat-speed" id="combat-speed" role="group" aria-label="戰鬥速度">
+          <span class="combat-speed-label">速度</span>
+          <button type="button" class="btn tiny combat-speed-btn" data-speed="0.5">0.5×</button>
+          <button type="button" class="btn tiny combat-speed-btn" data-speed="1">1×</button>
+          <button type="button" class="btn tiny combat-speed-btn" data-speed="1.5">1.5×</button>
+          <button type="button" class="btn tiny combat-speed-btn" data-speed="2">2×</button>
+        </div>
         <button type="button" class="btn tiny" id="btn-combat-back">返回客棧</button>
       </header>
       <section id="panel-combat" class="panel combat-panel" role="tabpanel"></section>
     </div>
 
     <div id="toast-host" class="toast-host hidden" aria-live="polite"></div>
-    <footer class="footer">俠客棧 v0.6.1 · 走位戰鬥打磨 · Hub v1.5 · 墨點江湖 · 本地存檔</footer>
+    <footer class="footer">俠客棧 v0.6.2 · 戰鬥速度／貼身碰撞 · Hub v1.5 · 墨點江湖 · 本地存檔</footer>
   </div>
 
   <script src="js/data.js"></script>

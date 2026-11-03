@@ -1,6 +1,6 @@
 /**
- * 俠客棧 — 自動即時走位戰鬥（v0.6.1）
- * 加速度走位＋分離防疊；近戰圈內先出手；閃避／招架明顯位移＋短無敵；技能／遠程可遠放
+ * 俠客棧 — 自動即時走位戰鬥（v0.6.2）
+ * 近身接觸感（貼身近戰／knockback）；戰鬥速度 0.5–2×；走位＋閃避招架；技能／遠程可遠放
  */
 (function (global) {
   'use strict';
@@ -14,15 +14,16 @@
     allyMaxX: 210,
     enemyMinX: 190,
     enemyMaxX: 372,
-    meleeRange: 42,
+    meleeRange: 24,
+    contactRange: 16,
     skillRange: 118,
     rangedRange: 168,
     maxSpeed: 11,
     accel: 3.2,
     friction: 0.78,
-    sepDist: 28,
+    sepDist: 26,
     sepForce: 4.2,
-    foeSepDist: 16,
+    foeSepDist: 11,
     strafeY: 10,
     yMin: 96,
     yMax: 140,
@@ -203,7 +204,10 @@
   }
 
   function createBattle(allies, enemies, hooks) {
-    const tickMs = (hooks && hooks.tickMs) || global.WuxiaData.GAME.combatTickMs;
+    const baseTickMs = (hooks && hooks.tickMs) || global.WuxiaData.GAME.combatTickMs;
+    let speedMul = (hooks && hooks.speedMul) || 1;
+    if (speedMul < 0.5) speedMul = 0.5;
+    if (speedMul > 2) speedMul = 2;
     const units = [];
     allies.forEach(function (a, i) {
       units.push(cloneUnit(a, 'ally', i, allies.length));
@@ -217,6 +221,16 @@
     let finished = false;
     let result = null;
     let holdTicks = 0;
+
+    function effectiveTickMs() {
+      return Math.max(120, Math.round(baseTickMs / speedMul));
+    }
+
+    function restartTimer() {
+      if (!timer) return;
+      clearInterval(timer);
+      timer = setInterval(step, effectiveTickMs());
+    }
 
     function log(msg, kind) {
       if (hooks && hooks.onLog) hooks.onLog(msg, kind || 'info');
@@ -245,9 +259,10 @@
     function emitAction(evt) {
       if (hooks && hooks.onAction) hooks.onAction(evt);
       if (!evt) return;
-      if (evt.kind === 'hit') holdTicks = Math.max(holdTicks, 1);
-      else if (evt.kind === 'skill' || evt.kind === 'parry') holdTicks = Math.max(holdTicks, 2);
-      else if (evt.kind === 'ko') holdTicks = Math.max(holdTicks, 3);
+      // hold 以 tick 計；速度倍率會自然縮短 wall-clock
+      if (evt.kind === 'hit') holdTicks = Math.max(holdTicks, evt.contact ? 2 : 1);
+      else if (evt.kind === 'skill' || evt.kind === 'parry') holdTicks = Math.max(holdTicks, 3);
+      else if (evt.kind === 'ko') holdTicks = Math.max(holdTicks, 4);
       else if (evt.kind === 'move') { /* no hold */ }
     }
 
@@ -367,6 +382,8 @@
       } else if (!skillName) {
         log(attacker.emoji + attacker.name + ' 攻向 ' + target.name + '，傷害 ' + dmg, attacker.side);
       }
+      const contactDist = dist(attacker, target);
+      const wasContact = !attacker._lastRanged && contactDist <= FIELD.contactRange + 4;
       emitAction({
         kind: usedSkill && skillMul > 1 ? 'skill' : 'hit',
         attackerId: attacker.id,
@@ -375,17 +392,25 @@
         skillName: skillName,
         side: attacker.side,
         ranged: !!attacker._lastRanged,
+        contact: wasContact || !attacker._lastRanged,
         ax: attacker.x,
         ay: attacker.y,
         tx: target.x,
         ty: target.y
       });
+      // 近身：雙方短推開再彈回／摩擦（接觸感）
       const knock = attacker.side === 'ally' ? -1 : 1;
       if (!attacker._lastRanged) {
-        attacker.vx += knock * 2.5;
-        target.vx -= knock * 5;
-        attacker.x = clampX(attacker, attacker.x + knock * 3);
-        target.x = clampX(target, target.x - knock * 8);
+        const pushAtk = wasContact ? 7 : 5;
+        const pushTgt = wasContact ? 14 : 10;
+        attacker.vx += knock * pushAtk;
+        target.vx -= knock * pushTgt;
+        attacker.vy += (Math.random() < 0.5 ? -1 : 1) * (wasContact ? 2.2 : 1.2);
+        target.vy += (Math.random() < 0.5 ? -1 : 1) * (wasContact ? 3.2 : 1.8);
+        attacker.x = clampX(attacker, attacker.x + knock * (wasContact ? 6 : 4));
+        target.x = clampX(target, target.x - knock * (wasContact ? 12 : 9));
+        attacker.intent = 'hold';
+        target.intent = 'hold';
       }
       attacker.atkCd = usedSkill ? 3 : 2;
       if (target.hp <= 0) {
@@ -419,10 +444,11 @@
       }
       const d = dist(u, target);
       const ranged = isRangedUnit(u);
-      const preferRange = ranged ? FIELD.rangedRange * 0.55 : FIELD.meleeRange * 0.82;
+      const preferRange = ranged ? FIELD.rangedRange * 0.55 : FIELD.contactRange;
       const hpRatio = u.hp / u.maxHp;
       const skillReady = u.skill && u.cd <= 0;
-      u.engage = !ranged && d <= FIELD.meleeRange + 6;
+      u.engage = !ranged && d <= FIELD.meleeRange + 2;
+      u.contact = !ranged && d <= FIELD.contactRange + 2;
 
       if (hpRatio < 0.28 && d < FIELD.meleeRange + 20 && Math.random() < 0.7) {
         u.intent = 'retreat';
@@ -579,10 +605,23 @@
 
       if (canSkillHit || canBasic) {
         attacker._lastRanged = (ranged || canSkillHit) && d > FIELD.meleeRange;
-        if (!attacker._lastRanged && d > 22) {
+        // 近戰：出手前撲到貼身，唔好隔空揮
+        if (!attacker._lastRanged) {
           const toward = target.x >= attacker.x ? 1 : -1;
-          attacker.vx += toward * 4;
-          attacker.x = clampX(attacker, attacker.x + toward * 6);
+          let dNow = dist(attacker, target);
+          if (dNow > FIELD.contactRange) {
+            const close = Math.min(dNow - FIELD.contactRange + 1, 14);
+            attacker.vx += toward * 6;
+            attacker.x = clampX(attacker, attacker.x + toward * close);
+            // 微對齊 Y，兩人碰撞框重疊
+            attacker.y = clampY(attacker.y + ((target.y || target.homeY) - attacker.y) * 0.45);
+            dNow = dist(attacker, target);
+          }
+          // 仍太遠就唔斬（避免隔空）
+          if (dNow > FIELD.meleeRange) {
+            attacker.intent = 'approach';
+            return false;
+          }
         }
         resolveAttack(attacker, target, usedSkill && skillMul > 1, skillMul, skillName);
         return true;
@@ -642,7 +681,7 @@
       turn = 0;
       holdTicks = 0;
       log('戰鼓擂響，俠客出巡！', 'system');
-      log('雙方自動走位——近則刀兵相接，遠則伺機放招。', 'system');
+      log('雙方自動走位——貼身交鋒；遠程／技能可遠放。速度 ×' + speedMul, 'system');
       const withBond = units.filter(function (u) {
         return u.side === 'ally' && u.bondMul > 1;
       });
@@ -650,7 +689,7 @@
         log('羈絆加持！同隊攻擊 ×' + withBond[0].bondMul.toFixed(2), 'skill');
       }
       emit();
-      timer = setInterval(step, tickMs);
+      timer = setInterval(step, effectiveTickMs());
       step();
     }
 
@@ -661,9 +700,25 @@
       }
     }
 
+    function setSpeed(mul) {
+      let m = Number(mul);
+      if (!(m > 0)) m = 1;
+      if (m < 0.5) m = 0.5;
+      if (m > 2) m = 2;
+      // 吸附到 0.5 檔
+      m = Math.round(m * 2) / 2;
+      speedMul = m;
+      restartTimer();
+      return speedMul;
+    }
+
+    function getSpeed() { return speedMul; }
+
     return {
       start: start,
       stop: stop,
+      setSpeed: setSpeed,
+      getSpeed: getSpeed,
       getUnits: function () { return units; },
       isFinished: function () { return finished; }
     };

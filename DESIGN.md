@@ -1,4 +1,4 @@
-# 俠客棧 — 設計說明（v0.6.0）
+# 俠客棧 — 設計說明（v0.6.2）
 
 ## 產品定位（上市方向）
 目標做成**可上市**的武俠經營遊戲，模式對齊《大俠立志傳》：**場景驅動**，而非文字 Tab 網頁模擬。
@@ -155,6 +155,12 @@
 - **存檔相容**
 
 ## 版本進度
+### v0.6.2-speed-contact（本輪）
+- [x] 自動戰鬥速度 **0.5×／1×／1.5×／2×**（overlay 可點；影響 tick／動畫／hit-stop；存入 `combatSpeed`）
+- [x] 近身接觸感：`meleeRange` 收窄、出手前撲貼身、命中 knockback 彈回、身體接觸框
+- [x] 接入 `assets/sprites/fx/clash.png`（交刃／招架接觸點 one-shot；可同 spark／parry_flash 錯 1 tick）
+- [x] `GAME.version`／footer → **0.6.2**；音效暫緩
+
 ### v0.6.0-realtime-hub15（本輪）
 - [x] 戰鬥改**自動即時走位**：靠近→近戰普攻；技能／遠程可遠放；AI 閃避／招架／後退  
 - [x] 招架雙向 `parry_flash`；Boss 更大 slash／多 spark  

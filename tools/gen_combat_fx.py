@@ -6,6 +6,7 @@ Outputs under assets/sprites/fx/:
   spark.png       5×32  hit sparks
   parry_flash.png 4×32  parry flash
   hit_ring.png    3×32  optional hit ring
+  clash.png       6×32  two blades collide / impact flash
 Also writes assets/_preview/fx_*.png (×4) and fx/README.md.
 """
 from __future__ import annotations
@@ -197,6 +198,106 @@ def slash_frame(i: int) -> Image.Image:
 
 
 
+
+# ---------- clash: 6 frames — two blades cross → cream/gold burst → sparks → fade ----------
+def clash_frame(i: int) -> Image.Image:
+    """Two short blades X-cross at center; contact flash then scatter.
+    Readable 'blade clash' for melee contact; hard edge only.
+    """
+    img = new_frame()
+    cx, cy = 15, 15
+    # Blade A: NW→SE ; Blade B: NE→SW (short hard strokes)
+    if i == 0:
+        # blades approaching / just touching — short strokes meet
+        thick_line(img, 6, 8, 14, 14, [INK_SOFT, FRAME], width=1)
+        thick_line(img, 25, 8, 17, 14, [INK_SOFT, FRAME], width=1)
+        thick_line(img, 7, 9, 13, 13, [MIST, WOOD_L], width=1)
+        thick_line(img, 24, 9, 18, 13, [MIST, WOOD_L], width=1)
+        # tips near center
+        px(img, 14, 14, GOLD)
+        px(img, 16, 14, GOLD)
+        px(img, 15, 15, CREAM)
+    elif i == 1:
+        # full X cross — blades locked
+        thick_line(img, 4, 6, 20, 22, [INK, FRAME], width=1)
+        thick_line(img, 27, 6, 11, 22, [INK, FRAME], width=1)
+        thick_line(img, 5, 7, 19, 21, [GOLD, WOOD_L], width=1)
+        thick_line(img, 26, 7, 12, 21, [GOLD, WOOD_L], width=1)
+        # cream highlight along edges
+        for x, y in [(8, 10), (10, 12), (12, 14), (21, 10), (19, 12), (17, 14)]:
+            px(img, x, y, PAPER_L)
+        fill_rect(img, cx - 1, cy - 1, cx + 1, cy + 1, CREAM)
+        px(img, cx, cy, GOLD)
+    elif i == 2:
+        # PEAK burst at intersection — cream core + gold foil + cinnabar tips
+        thick_line(img, 5, 7, 19, 21, [GOLD, FRAME], width=1)
+        thick_line(img, 26, 7, 12, 21, [GOLD, FRAME], width=1)
+        thick_line(img, 6, 8, 18, 20, [CREAM], width=1)
+        thick_line(img, 25, 8, 13, 20, [CREAM], width=1)
+        # bright core cross
+        fill_rect(img, cx - 2, cy - 2, cx + 2, cy + 2, CREAM)
+        fill_rect(img, cx - 1, cy - 1, cx + 1, cy + 1, GOLD)
+        px(img, cx, cy, CREAM)
+        # hard radiate sparks (no soft halo)
+        rays = [
+            (-4, -3, CREAM), (-5, -4, GOLD), (-6, -5, CINN_B),
+            (4, -3, CREAM), (5, -5, GOLD), (6, -4, CINN_B),
+            (-4, 4, GOLD), (-6, 5, LOESS), (-5, 6, CINN),
+            (4, 4, GOLD), (6, 5, LOESS), (5, 6, CINN),
+            (0, -5, CREAM), (0, 5, GOLD),
+            (-7, 0, GOLD), (7, 0, CREAM),
+            (-3, -5, PAPER_L), (3, -5, PAPER_L),
+            (-3, 5, TEAL_B), (3, 5, TEAL_B),
+        ]
+        for dx, dy, c in rays:
+            px(img, cx + dx, cy + dy, c)
+    elif i == 3:
+        # blades still visible thin; sparks scatter
+        thick_line(img, 6, 8, 18, 20, [GOLD], width=1)
+        thick_line(img, 25, 8, 13, 20, [GOLD], width=1)
+        px(img, cx, cy, CREAM)
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            px(img, cx + dx, cy + dy, GOLD)
+        sparks = [
+            (5, 6, CREAM), (4, 5, GOLD), (3, 7, CINN_B),
+            (26, 5, CREAM), (27, 6, GOLD), (28, 4, CINN),
+            (4, 24, GOLD), (5, 26, LOESS), (3, 25, CINN_B),
+            (27, 24, CREAM), (28, 26, GOLD), (26, 27, CINN),
+            (15, 3, CREAM), (16, 2, GOLD), (14, 4, PAPER_L),
+            (15, 28, GOLD), (14, 29, LOESS), (17, 27, CINN_B),
+            (2, 15, GOLD), (1, 14, TEAL_B), (29, 16, CREAM),
+            (8, 11, PAPER_L), (22, 12, PAPER_D),
+            (10, 22, GOLD), (21, 21, LOESS),
+        ]
+        for x, y, c in sparks:
+            px(img, x, y, c)
+    elif i == 4:
+        # blades almost gone; mote scatter
+        thick_line(img, 9, 11, 15, 17, [WOOD_L], width=1)
+        thick_line(img, 22, 11, 16, 17, [WOOD_L], width=1)
+        px(img, cx, cy, GOLD)
+        motes = [
+            (3, 4, GOLD), (2, 6, CINN), (28, 3, GOLD), (29, 5, CINN_B),
+            (3, 27, LOESS), (4, 29, CINN), (28, 28, GOLD), (27, 29, CINN_B),
+            (15, 1, PAPER_L), (16, 30, FRAME),
+            (0, 14, TEAL), (31, 15, GOLD),
+            (7, 8, PAPER_D), (24, 9, LOESS),
+            (8, 23, GOLD), (23, 22, CINN),
+            (11, 13, MIST), (20, 14, MIST),
+        ]
+        for x, y, c in motes:
+            px(img, x, y, c)
+    else:
+        # extinguish — sparse residual pixels
+        for x, y, c in [
+            (2, 3, GOLD), (29, 2, CINN), (3, 29, LOESS), (28, 30, GOLD),
+            (15, 0, FRAME), (16, 31, MIST), (0, 16, TEAL), (31, 14, CINN_B),
+            (15, 15, PAPER_D), (10, 10, FRAME), (21, 11, FRAME),
+        ]:
+            px(img, x, y, c)
+    return img
+
+
 # ---------- spark: 5 frames ----------
 def spark_frame(i: int) -> Image.Image:
     img = new_frame()
@@ -377,6 +478,7 @@ def write_readme():
 | `spark.png` | 160×32 | 5 | 14–16 | 跟 `hurt`／受擊瞬間，中心對齊命中點 |
 | `parry_flash.png` | 128×32 | 4 | 12–14 | 跟 `parry` 成功幀，中心對齊武器／身體中線 |
 | `hit_ring.png` | 96×32 | 3 | 10–12 | 可選；受擊圈，跟 hurt 同幀或延後 1 tick |
+| `clash.png` | 192×32 | 6 | 12–16 | **雙方攻擊交疊**／`parry` 成功瞬間；中心對齊兩刃接觸點 |
 
 ## 對幀（0-index）
 
@@ -416,11 +518,23 @@ def write_readme():
 | 1 | 擴張金／硃 |
 | 2 | 大圈淡墨邊 |
 
+### clash.png — 兩刃相交／撞刃閃
+| 幀 | 內容 |
+|----|------|
+| 0 | 兩短刃接近、尖端剛觸（墨／木亮邊） |
+| 1 | **X 字交叉鎖刃**（金箔刃身 + cream 交點） |
+| 2 | **爆亮**（cream／金箔核 + 硃紅尖放射硬點） |
+| 3 | 刃影仍見、碎火花四散 |
+| 4 | 刃淡、外散 mote |
+| 5 | 殘點消散 |
+
+播放建議：單次 one-shot，唔 loop；建議 **12–16 fps**。綁定時機：雙方 `attack` 交疊幀，或 `parry` 成功當下（可同幀觸發刀響／金屬碰）。中心對齊接觸點；可與 `spark`／`parry_flash` 錯 0–1 tick 疊用加強接觸感。
+
 ## 色盤
 僅用 ART.md 墨點江湖盤（含角色擴充 teal／robe／violet）。生成腳本：`tools/gen_combat_fx.py`。
 
 ## 預覽
-`assets/_preview/fx_slash.png`、`fx_spark.png`、`fx_parry_flash.png`、`fx_hit_ring.png`（×4 nearest）。
+`assets/_preview/fx_slash.png`、`fx_spark.png`、`fx_parry_flash.png`、`fx_hit_ring.png`、`fx_clash.png`（×4 nearest）。
 """
     (FX / "README.md").write_text(text, encoding="utf-8")
 
@@ -434,6 +548,7 @@ def main():
         ("spark.png", [spark_frame(i) for i in range(5)]),
         ("parry_flash.png", [parry_frame(i) for i in range(4)]),
         ("hit_ring.png", [hit_ring_frame(i) for i in range(3)]),
+        ("clash.png", [clash_frame(i) for i in range(6)]),
     ]
 
     report = []

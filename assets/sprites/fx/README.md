@@ -10,6 +10,7 @@
 | `spark.png` | 160×32 | 5 | 14–16 | 跟 `hurt`／受擊瞬間，中心對齊命中點 |
 | `parry_flash.png` | 128×32 | 4 | 12–14 | 跟 `parry` 成功幀，中心對齊武器／身體中線 |
 | `hit_ring.png` | 96×32 | 3 | 10–12 | 可選；受擊圈，跟 hurt 同幀或延後 1 tick |
+| `clash.png` | 192×32 | 6 | 12–16 | **雙方攻擊交疊**／`parry` 成功瞬間；中心對齊兩刃接觸點 |
 
 ## 對幀（0-index）
 
@@ -49,8 +50,20 @@
 | 1 | 擴張金／硃 |
 | 2 | 大圈淡墨邊 |
 
+### clash.png — 兩刃相交／撞刃閃
+| 幀 | 內容 |
+|----|------|
+| 0 | 兩短刃接近、尖端剛觸（墨／木亮邊） |
+| 1 | **X 字交叉鎖刃**（金箔刃身 + cream 交點） |
+| 2 | **爆亮**（cream／金箔核 + 硃紅尖放射硬點） |
+| 3 | 刃影仍見、碎火花四散 |
+| 4 | 刃淡、外散 mote |
+| 5 | 殘點消散 |
+
+播放建議：單次 one-shot，唔 loop；建議 **12–16 fps**。綁定時機：雙方 `attack` 交疊幀，或 `parry` 成功當下（可同幀觸發刀響／金屬碰）。中心對齊接觸點；可與 `spark`／`parry_flash` 錯 0–1 tick 疊用加強接觸感。
+
 ## 色盤
 僅用 ART.md 墨點江湖盤（含角色擴充 teal／robe／violet）。生成腳本：`tools/gen_combat_fx.py`。
 
 ## 預覽
-`assets/_preview/fx_slash.png`、`fx_spark.png`、`fx_parry_flash.png`、`fx_hit_ring.png`（×4 nearest）。
+`assets/_preview/fx_slash.png`、`fx_spark.png`、`fx_parry_flash.png`、`fx_hit_ring.png`、`fx_clash.png`（×4 nearest）。

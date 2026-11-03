@@ -1183,3 +1183,39 @@ body.hub-mode .app { max-width: 1100px; }
   box-shadow: 0 0 0 3px var(--wood);
   background: var(--night);
 }
+
+
+/* —— v0.6.2 戰鬥速度 —— */
+.combat-overlay-head {
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.combat-speed {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  margin-right: 8px;
+}
+.combat-speed-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+  margin-right: 2px;
+}
+.combat-speed-btn {
+  min-width: 2.6em;
+  padding: 4px 6px;
+  border: 2px solid var(--cream);
+  background: transparent;
+  color: var(--cream);
+}
+.combat-speed-btn.active {
+  background: var(--cinnabar, #C0402A);
+  border-color: var(--gold, #D4A017);
+  color: var(--cream);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.combat-speed-btn:hover {
+  background: rgba(243, 230, 200, 0.12);
+}

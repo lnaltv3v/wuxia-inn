@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v0.6.1：走位加速度／近戰圈／閃避 iFrame）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v0.6.2：戰鬥速度 0.5–2×／貼身碰撞／clash）
  */
 (function () {
   'use strict';
@@ -151,7 +151,8 @@
       storyNotified: [],
       bossesDefeated: [],
       achievements: [],
-      bossesWon: 0
+      bossesWon: 0,
+      combatSpeed: 1
     };
   }
 
@@ -160,6 +161,15 @@
     const base = defaultState();
     const s = Object.assign({}, base, raw);
     s.version = GAME.version;
+    // v0.6.2 戰鬥速度
+    {
+      const speeds = (GAME.combatSpeeds || [0.5, 1, 1.5, 2]);
+      let sp = Number(s.combatSpeed);
+      if (!(sp > 0)) sp = 1;
+      sp = Math.round(sp * 2) / 2;
+      if (speeds.indexOf(sp) < 0) sp = 1;
+      s.combatSpeed = sp;
+    }
     if (!Array.isArray(s.unlockedManuals)) s.unlockedManuals = base.unlockedManuals.slice();
     if (!Array.isArray(s.seenEvents)) s.seenEvents = [];
     if (!s.heroes || typeof s.heroes !== 'object') s.heroes = base.heroes;
@@ -1525,8 +1535,11 @@
     setTab('combat');
     audioUnlock();
     audioSetBgm('bgm_combat');
+    const speedMul = normalizeCombatSpeed(state.combatSpeed);
+    state.combatSpeed = speedMul;
     battle = createBattle(allies, enemies, {
       tickMs: GAME.combatTickMs,
+      speedMul: speedMul,
       onLog(msg, kind) {
         appendCombatLog(msg, kind);
       },
@@ -1547,8 +1560,10 @@
     ensureCombatStage();
     if (WuxiaStages && WuxiaStages.Combat) {
       WuxiaStages.Combat.resetIdle();
+      if (WuxiaStages.Combat.setSpeedMul) WuxiaStages.Combat.setSpeedMul(speedMul);
       WuxiaStages.Combat.sync(battle.getUnits().map((u) => Object.assign({}, u)));
     }
+    syncCombatSpeedUI();
     if (rewardOpts.isBoss) {
       appendCombatLog(`—— Boss 戰：${rewardOpts.boss.name} ——`, 'system');
     }
@@ -1564,6 +1579,36 @@
     renderCombat();
     lastHubBgm = null;
     refreshHubBgm(true);
+  }
+
+  function normalizeCombatSpeed(v) {
+    const speeds = (GAME.combatSpeeds || [0.5, 1, 1.5, 2]);
+    let sp = Number(v);
+    if (!(sp > 0)) sp = 1;
+    sp = Math.round(sp * 2) / 2;
+    if (speeds.indexOf(sp) < 0) sp = 1;
+    return sp;
+  }
+
+  function syncCombatSpeedUI() {
+    const sp = normalizeCombatSpeed(state.combatSpeed);
+    state.combatSpeed = sp;
+    document.querySelectorAll('.combat-speed-btn').forEach((btn) => {
+      const v = normalizeCombatSpeed(btn.dataset.speed);
+      btn.classList.toggle('active', v === sp);
+      btn.setAttribute('aria-pressed', v === sp ? 'true' : 'false');
+    });
+    if (globalThis.WuxiaStages && WuxiaStages.Combat && WuxiaStages.Combat.setSpeedMul) {
+      WuxiaStages.Combat.setSpeedMul(sp);
+    }
+  }
+
+  function setCombatSpeed(mul) {
+    const sp = normalizeCombatSpeed(mul);
+    state.combatSpeed = sp;
+    if (battle && battle.setSpeed) battle.setSpeed(sp);
+    syncCombatSpeedUI();
+    save(true);
   }
 
   // ——— UI ———
@@ -2407,7 +2452,7 @@
     el.innerHTML = `
       <div class="card battle-card stage-first">
         <h3>${pxIcon('🗡️')} 戰場舞台</h3>
-        <p class="muted tiny-tip">400×180 像素舞台：蓄勢斬擊、受擊擊退、招架／閃避、技能軌跡、震屏。數值仍由自動戰鬥驅動。</p>
+        <p class="muted tiny-tip">400×180 像素舞台：貼身交鋒、撞刃 clash、擊退彈回。上方可調 0.5×–2× 戰鬥速度（記住偏好）。</p>
         <div id="combat-stage-host" class="stage-host combat-stage-host" aria-label="戰鬥舞台"></div>
         <div id="battle-field" class="battle-field battle-field-compact">${battle ? prevField : '<p class="muted">尚未交鋒——選敵開打後舞台會動起來</p>'}</div>
         <div id="combat-log" class="combat-log combat-log-compact">${prevLog}</div>
@@ -2649,6 +2694,14 @@
         }
       });
     }
+
+    document.querySelectorAll('.combat-speed-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        audioUiClick();
+        setCombatSpeed(btn.dataset.speed);
+      });
+    });
+    syncCombatSpeedUI();
 
     $('btn-manual-save').addEventListener('click', () => {
       save();

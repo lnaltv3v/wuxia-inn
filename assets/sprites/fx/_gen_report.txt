@@ -2,4 +2,5 @@ slash.png: 192x32 frames=6 oob=0 -> /workspace/wuxia-inn/assets/sprites/fx/slash
 spark.png: 160x32 frames=5 oob=0 -> /workspace/wuxia-inn/assets/sprites/fx/spark.png
 parry_flash.png: 128x32 frames=4 oob=0 -> /workspace/wuxia-inn/assets/sprites/fx/parry_flash.png
 hit_ring.png: 96x32 frames=3 oob=0 -> /workspace/wuxia-inn/assets/sprites/fx/hit_ring.png
+clash.png: 192x32 frames=6 oob=0 -> /workspace/wuxia-inn/assets/sprites/fx/clash.png
 TOTAL_OOB=0
