@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.6.1：加速度走位／近戰圈／閃避位移＋iFrame／VFX 保留）
+ * 俠客棧 — 墨點江湖舞台（v0.6.3：日夜更明顯／小費波動／夜燈）
  * Hub 480×270：場景分層、小二／俠客 spritesheet；戰鬥 400×180：attack／hurt／parry 幀
  */
 (function (global) {
@@ -573,7 +573,7 @@
 
     function isNightNow(now) {
       const df = dayFactor(now != null ? now : performance.now());
-      return df >= 0.55 && df < 0.92;
+      return df >= 0.52 && df < 0.86;
     }
 
     function isNight() { return isNightNow(performance.now()); }
@@ -582,6 +582,13 @@
       const night = isNightNow(now);
       if (lastNightFlag === night) return;
       lastNightFlag = night;
+      if (night) {
+        setCaption('夜色漸濃，燈籠點起——夜客小費更豪爽');
+        pushBubble('掌燈時分', 240, 36, 1.2);
+      } else {
+        setCaption('天光破曉，客棧再開門營業');
+        pushBubble('晨光入棧', 240, 36, 1.1);
+      }
       if (ambientHandler) {
         try { ambientHandler(night); } catch (e) { /* ignore */ }
       }
@@ -649,20 +656,22 @@
         return;
       }
       if (phase === 'pay') {
-        const tip = 1 + Math.floor(Math.random() * 4);
+        const mul = getTipMul();
+        const tip = Math.max(1, Math.round((1 + Math.floor(Math.random() * 4)) * mul));
         tipBurst = { x: cx, y: cy, life: 24, max: 24, amt: tip };
         floatLabel = { text: '+' + tip + '賞', x: cx - 8, y: cy - 10, life: 1 };
         if (tipHandler) tipHandler(tip, 'rush');
-        setCaption('雅座加賞 ' + tip + ' 兩');
+        setCaption((isNight() ? '夜客加賞 ' : '雅座加賞 ') + tip + ' 兩');
         return;
       }
-      const tip = 1 + Math.floor(Math.random() * 3);
+      const mul = getTipMul();
+      const tip = Math.max(1, Math.round((1 + Math.floor(Math.random() * 3)) * mul));
       tipBurst = { x: cx, y: cy, life: 28, max: 28, amt: tip };
       floatLabel = { text: '+' + tip + '賞', x: cx - 8, y: cy - 12, life: 1 };
       coinAlpha = 1;
       coinY = 0;
       if (tipHandler) tipHandler(tip, 'table');
-      setCaption('雅座客人賞銀 ' + tip + ' 兩');
+      setCaption((isNight() ? '夜客賞銀 ' : '雅座客人賞銀 ') + tip + ' 兩');
     }
 
     function enqueueGuest(guest, pay) {
@@ -731,18 +740,39 @@
       seatOccupiedKey = null;
     }
 
+    /** 全日循環約 64 秒；夜間窗加長，方便睇到 lanterns_night */
     function dayFactor(now) {
-      return (now / 90000) % 1;
+      return (now / 64000) % 1;
     }
 
     function skyTintFactor(now) {
       const df = dayFactor(now);
       let skyT = 0;
-      if (df < 0.25) skyT = df / 0.25 * 0.3;
-      else if (df < 0.55) skyT = 0.3 + (df - 0.25) / 0.3 * 0.4;
-      else if (df < 0.75) skyT = 0.7 + (df - 0.55) / 0.2 * 0.3;
-      else skyT = 1 - (df - 0.75) / 0.25 * 0.85;
+      // 晨 0–0.18 → 日 0.18–0.42 → 昏 0.42–0.52 → 夜 0.52–0.86 → 黎明 0.86–1
+      if (df < 0.18) skyT = 0.15 + (df / 0.18) * 0.25;
+      else if (df < 0.42) skyT = 0.4 + ((df - 0.18) / 0.24) * 0.15;
+      else if (df < 0.52) skyT = 0.55 + ((df - 0.42) / 0.1) * 0.25;
+      else if (df < 0.86) skyT = 0.8 + ((df - 0.52) / 0.34) * 0.2;
+      else skyT = 1.0 - ((df - 0.86) / 0.14) * 0.75;
       return skyT;
+    }
+
+    function dayPhaseName(now) {
+      const df = dayFactor(now != null ? now : performance.now());
+      if (df < 0.18) return 'dawn';
+      if (df < 0.42) return 'day';
+      if (df < 0.52) return 'dusk';
+      if (df < 0.86) return 'night';
+      return 'dawn';
+    }
+
+    /** 營業小費倍率：日平、昏略高、夜最高（酒客多） */
+    function getTipMul(now) {
+      const phase = dayPhaseName(now);
+      if (phase === 'night') return 1.55;
+      if (phase === 'dusk') return 1.3;
+      if (phase === 'dawn') return 0.85;
+      return 1.0;
     }
 
     function drawBgLayers(now) {
@@ -780,13 +810,28 @@
       const img = night && nightImg ? nightImg : dayImg;
       if (img) ctx.drawImage(img, 0, 0);
       const skyT = skyTintFactor(now);
-      // 夜燈層已有硬色塊光暈；只保留極淡天色罩，唔再厚蓋
-      if (skyT > 0.55 && !(night && nightImg)) {
-        ctx.globalAlpha = (skyT - 0.55) * 0.28;
+      // 夜：加深天色罩＋窗／燈硬光斑，令 lanterns_night 更明顯
+      if (night) {
+        ctx.globalAlpha = 0.16 + Math.min(0.14, (skyT - 0.75) * 0.35);
         drawRect(ctx, 0, 0, W, H, C.night);
         ctx.globalAlpha = 1;
-      } else if (skyT > 0.7 && night && nightImg) {
-        ctx.globalAlpha = (skyT - 0.7) * 0.12;
+        // 硬邊燈暈（盤內色，唔用柔邊）
+        const glows = [
+          { x: 72, y: 48, w: 18, h: 14 },
+          { x: 220, y: 40, w: 22, h: 16 },
+          { x: 360, y: 52, w: 18, h: 14 },
+          { x: 40, y: 118, w: 14, h: 20 },
+          { x: 400, y: 120, w: 12, h: 18 }
+        ];
+        glows.forEach(function (g) {
+          ctx.globalAlpha = 0.22;
+          drawRect(ctx, g.x, g.y, g.w, g.h, C.gold);
+          ctx.globalAlpha = 0.12;
+          drawRect(ctx, g.x - 2, g.y - 2, g.w + 4, g.h + 4, C.cinnabarBright);
+          ctx.globalAlpha = 1;
+        });
+      } else if (skyT > 0.55) {
+        ctx.globalAlpha = (skyT - 0.55) * 0.22;
         drawRect(ctx, 0, 0, W, H, C.night);
         ctx.globalAlpha = 1;
       }
@@ -1187,7 +1232,7 @@
     return {
       mount, destroy, isMounted, playGuest, enqueueGuest,
       setHotspotHandler, setTipHandler, setAmbientHeroes, setInnTitle,
-      setAmbientChange, isNight, setRumor, greetXiaoer, showBubble, playSceneEvent, resolveSceneChoice, setHintHandler, setChoiceHandler,
+      setAmbientChange, isNight, getTipMul, dayPhaseName, setRumor, greetXiaoer, showBubble, playSceneEvent, resolveSceneChoice, setHintHandler, setChoiceHandler,
       HOTSPOTS, getPhase: function () { return phase; },
       isScenePlaying: function () { return !!(sceneEvt && !sceneEvt.done); }
     };

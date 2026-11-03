@@ -1,6 +1,6 @@
 /**
- * 俠客棧 — 自動即時走位戰鬥（v0.6.2）
- * 近身接觸感（貼身近戰／knockback）；戰鬥速度 0.5–2×；走位＋閃避招架；技能／遠程可遠放
+ * 俠客棧 — 自動即時走位戰鬥（v0.6.3）
+ * meleeRange=24 固定；貼身近戰／knockback；速度 0.5–2×（存檔）；隔空砍再收緊
  */
 (function (global) {
   'use strict';
@@ -447,8 +447,8 @@
       const preferRange = ranged ? FIELD.rangedRange * 0.55 : FIELD.contactRange;
       const hpRatio = u.hp / u.maxHp;
       const skillReady = u.skill && u.cd <= 0;
-      u.engage = !ranged && d <= FIELD.meleeRange + 2;
-      u.contact = !ranged && d <= FIELD.contactRange + 2;
+      u.engage = !ranged && d <= FIELD.meleeRange;
+      u.contact = !ranged && d <= FIELD.contactRange + 1;
 
       if (hpRatio < 0.28 && d < FIELD.meleeRange + 20 && Math.random() < 0.7) {
         u.intent = 'retreat';
@@ -617,9 +617,10 @@
             attacker.y = clampY(attacker.y + ((target.y || target.homeY) - attacker.y) * 0.45);
             dNow = dist(attacker, target);
           }
-          // 仍太遠就唔斬（避免隔空）
-          if (dNow > FIELD.meleeRange) {
+          // 仍唔貼身就唔斬（比 meleeRange 更緊，避免隔空揮）
+          if (dNow > FIELD.contactRange + 4) {
             attacker.intent = 'approach';
+            attacker.vx += toward * 3;
             return false;
           }
         }

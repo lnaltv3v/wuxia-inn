@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v0.6.2：戰鬥速度 0.5–2×／貼身碰撞／clash）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v0.6.3：日夜小費／夜路信使／戰鬥速度存檔）
  */
 (function () {
   'use strict';
@@ -161,7 +161,7 @@
     const base = defaultState();
     const s = Object.assign({}, base, raw);
     s.version = GAME.version;
-    // v0.6.2 戰鬥速度
+    // v0.6.2+ 戰鬥速度存檔（0.5–2，每 0.5）；meleeRange=24 為常數唔入存檔
     {
       const speeds = (GAME.combatSpeeds || [0.5, 1, 1.5, 2]);
       let sp = Number(s.combatSpeed);
@@ -654,10 +654,11 @@
       const chance = Math.min(0.85, 0.35 + inn.guestCap * 0.05);
       if (Math.random() <= chance) {
         const guest = weightedPick(GUESTS);
-        let pay = Math.round(randInt(guest.payMin, guest.payMax) * incomeMul);
+        const tipMul = (count <= 3) ? ambientTipMul() : 1;
+        let pay = Math.round(randInt(guest.payMin, guest.payMax) * incomeMul * tipMul);
         let eventNote = null;
         if (count <= 3) {
-          const evRes = applyGuestEvent(guest, pay);
+          const evRes = applyGuestEvent(guest, pay, tipMul);
           pay = evRes.pay;
           eventNote = evRes.note;
         }
@@ -732,15 +733,24 @@
     return list[0];
   }
 
+
+  function ambientTipMul() {
+    if (globalThis.WuxiaStages && WuxiaStages.Inn && typeof WuxiaStages.Inn.getTipMul === 'function') {
+      try { return WuxiaStages.Inn.getTipMul(); } catch (e) { return 1; }
+    }
+    return 1;
+  }
+
   /** 接客小事件：小費／刁難／偶遇一句（不改存檔結構） */
-  function applyGuestEvent(guest, basePay) {
+  function applyGuestEvent(guest, basePay, tipMul) {
+    const mul = (tipMul != null && tipMul > 0) ? tipMul : 1;
     if (Math.random() > 0.42) return { pay: basePay, note: null };
     const ev = pickGuestEvent();
     if (!ev) return { pay: basePay, note: null };
     let pay = basePay;
     let note = ev.text;
     if (ev.kind === 'tip') {
-      const tip = randInt(ev.tipMin || 1, ev.tipMax || 3);
+      const tip = Math.max(1, Math.round(randInt(ev.tipMin || 1, ev.tipMax || 3) * mul));
       pay += tip;
       note = guest.name + '——' + ev.text + '（＋' + tip + ' 兩）';
     } else if (ev.kind === 'difficult') {
@@ -1981,6 +1991,8 @@
           lastHubBgm = id;
           audioSetBgm(id);
         }
+        pushLog(isNight ? '夜幕低垂，棧內點起紅燈——夜客賞銀較豐。' : '天色漸亮，客棧恢復白日生意。', 'system');
+        updateTopbar();
       });
     }
     if (WuxiaStages.Inn.setHintHandler) {

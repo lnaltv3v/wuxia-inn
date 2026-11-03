@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v0.6.2
+ * v0.6.3
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '0.6.2',
+    version: '0.6.3',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -166,6 +166,42 @@
           label: '婉拒門外',
           effects: { reputation: -2 },
           resultLine: '遊俠苦笑拱手離去……棧聲略損。'
+        }
+      ]
+    }
+,
+    {
+      id: 'night_courier',
+      caption: '夜路信使叩門…',
+      interactive: true,
+      walkers: [
+        { id: 'qingyi', x: 24, y: 170, tx: 140, ty: 176 },
+        { id: 'xiaoer', x: 260, y: 168, tx: 210, ty: 172 }
+      ],
+      beats: [
+        { at: 0, caption: '更鼓剛響，有人輕叩大門', line: '掌櫃可在？有急件。', walker: 0, life: 1.25 },
+        { at: 900, line: '夜深路滑，先喝口熱茶。', walker: 1, life: 1.15, move: { i: 0, tx: 168, ty: 174 } },
+        { at: 1800, caption: '信使捧出油布小包——', line: '不知可否代為暫存？', walker: 0, life: 1.3 },
+        { at: 2600, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'hold',
+          label: '代為保管（+聲望）',
+          effects: { reputation: 5, favorHero: 'qingyi', favor: 2 },
+          resultLine: '信使拱手：「江湖有信。」聲望與青衣好感微升。'
+        },
+        {
+          id: 'peek',
+          label: '私下拆看（+銀／−聲望）',
+          effects: { silver: 18, reputation: -3 },
+          resultLine: '包裡有散銀……可名聲亦損。信使未察覺。'
+        },
+        {
+          id: 'refuse',
+          label: '拒收門外',
+          effects: { reputation: -1 },
+          resultLine: '信使嘆了口氣，消失在夜色裡。'
         }
       ]
     }
