@@ -87,6 +87,9 @@
         if (img) Assets.bosses[id] = img;
       }));
     });
+    jobs.push(loadImg('assets/sprites/guest_sit.png').then(function (img) {
+      if (img) Assets.sheets.guest_sit = img;
+    }));
     LAYER_ORDER.concat(LAYER_TOP).forEach(function (name) {
       jobs.push(loadImg('assets/scenes/' + name + '.png').then(function (img) {
         if (img) Assets.layers[name] = img;
@@ -787,8 +790,14 @@
       }
 
       // 坐客（剪影：無客人 sheet）
-      seatedGuests.forEach(function (g) {
-        drawFigure(ctx, g.x, g.y, { robe: g.robe, accent: C.gold, skin: C.skin, hair: C.inkSoft }, { scale: 1 });
+      seatedGuests.forEach(function (g, gi) {
+        const gsheet = Assets.sheets.guest_sit;
+        if (gsheet) {
+          const fi = Math.min(3, gi % 4);
+          drawSheetFrame(ctx, gsheet, fi, g.x, g.y - 4, { scale: 1 });
+        } else {
+          drawFigure(ctx, g.x, g.y, { robe: g.robe, accent: C.gold, skin: C.skin, hair: C.inkSoft }, { scale: 1 });
+        }
       });
 
       // 小二
