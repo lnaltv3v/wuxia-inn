@@ -1,4 +1,4 @@
-/* 俠客棧 — 像素／點陣武俠風（大俠立志傳調性）v0.3.1 art */
+/* 俠客棧 — 像素／點陣武俠風（大俠立志傳調性）v0.4 */
 :root {
   --paper: #e8d5a8;
   --paper-light: #f4e6c4;
@@ -722,4 +722,120 @@ body::before {
   .quest-row { flex-direction: column; }
   .inn-scene { height: 88px; }
   .inn-scene .inn-banner { font-size: 0.95rem; }
+}
+
+
+/* —— v0.4 劇情／成就／Boss —— */
+.toast-host {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 50;
+  width: min(420px, calc(100% - 24px));
+  pointer-events: none;
+}
+.float-toast {
+  background: linear-gradient(180deg, #faf0d8, var(--paper));
+  border: 3px solid var(--ink);
+  padding: 12px 14px;
+  box-shadow: 4px 4px 0 rgba(26, 21, 16, 0.45);
+  animation: toast-in 0.25s steps(4, end);
+}
+.float-toast b {
+  font-family: var(--font-title);
+  letter-spacing: 0.04em;
+  display: block;
+  margin-bottom: 4px;
+}
+.float-toast p { margin: 0; font-size: 0.92rem; color: var(--ink-soft); }
+.float-toast.achieve { border-color: var(--gold); background: linear-gradient(135deg, #fff4c8, var(--paper)); }
+.float-toast.story { border-color: var(--jade); }
+.float-toast.boss { border-color: var(--cinnabar); }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.story-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.story-card.locked { opacity: 0.78; }
+.story-card.focus {
+  border-color: var(--cinnabar);
+  box-shadow: 4px 4px 0 rgba(166, 27, 27, 0.35);
+}
+.story-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+.story-lines {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 3px solid #8a7355;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(26,21,16,0.03) 3px, rgba(26,21,16,0.03) 4px),
+    rgba(255, 250, 240, 0.9);
+}
+.story-line {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 0.95rem;
+}
+.story-line .speaker {
+  font-family: var(--font-title);
+  color: var(--cinnabar);
+  text-align: right;
+}
+.story-line .line-text { color: var(--ink); }
+
+.achieve-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.achieve-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 3px solid #8a7355;
+  background: rgba(255, 250, 240, 0.75);
+}
+.achieve-row.got {
+  border-color: var(--jade);
+  background: linear-gradient(135deg, rgba(47, 107, 79, 0.12), transparent 55%), rgba(255, 250, 240, 0.95);
+}
+.achieve-ico {
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--ink);
+  background: var(--paper-light);
+  box-shadow: 2px 2px 0 var(--ink);
+  flex-shrink: 0;
+  font-size: 1.1rem;
+}
+.achieve-info { flex: 1; min-width: 0; }
+
+.boss-btn {
+  text-align: left;
+  border-color: var(--cinnabar) !important;
+  background: linear-gradient(135deg, rgba(166, 27, 27, 0.12), transparent 60%), var(--paper-light) !important;
+}
+.boss-btn.cleared {
+  border-color: var(--jade) !important;
+}
+.boss-btn .pill { margin-top: 4px; display: inline-block; }
+.boss-list { margin-bottom: 8px; }
+
+.log-line.story { color: var(--jade); }
+.log-line.achieve { color: #8a6a10; }
+.log-line.bond { color: #8b2942; }
+
+@media (max-width: 560px) {
+  .story-line { grid-template-columns: 1fr; }
+  .story-line .speaker { text-align: left; }
+  .tab-btn { font-size: 0.8rem; }
 }

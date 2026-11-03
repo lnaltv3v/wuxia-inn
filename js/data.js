@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v0.3.1 art
+ * v0.4
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '0.3.1',
+    version: '0.4',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1000,
     offlineCapHours: 8,
@@ -200,6 +200,143 @@
       weight: 18,
       minInn: 2
     }
+  ];
+
+
+  /**
+   * 劇情章節：unlock 以聲望／客棧等級／勝仗數判定
+   * 閱覽後發一次性獎勵；若有 bossId，閱覽後解鎖對應 Boss 戰
+   */
+  const STORY_CHAPTERS = [
+    {
+      id: 'ch1_lantern',
+      title: '第一章 · 客棧燈火',
+      subtitle: '新棧開張',
+      emoji: '🏮',
+      unlock: { battlesWon: 1 },
+      bossId: null,
+      reward: { silver: 30, reputation: 5 },
+      lines: [
+        { speaker: '掌櫃', text: '夜風捲過青石路，客棧門楣的燈籠終於亮起來了。' },
+        { speaker: '青衣劍客', text: '掌櫃不必客氣。山賊最近躁動，我守一夜便是一夜。' },
+        { speaker: '掌櫃', text: '江湖路遠，先把這盞燈守住。他日名滿四方，也不忘今夜的微光。' },
+        { speaker: '旁白', text: '—— 第一章完。勝仗已開，江湖傳聞開始朝這間小棧聚攏。' }
+      ]
+    },
+    {
+      id: 'ch2_heifeng',
+      title: '第二章 · 黑風壓境',
+      subtitle: '寨主來信',
+      emoji: '🌪️',
+      unlock: { reputation: 35, battlesWon: 3 },
+      bossId: 'boss_heifeng',
+      reward: { silver: 55, reputation: 10 },
+      lines: [
+        { speaker: '行商', text: '掌櫃……黑風寨放話了，要「借」你們半個月的酒稅，否則夜夜劫路。' },
+        { speaker: '浪人刀客', text: '借？哈哈，刀也可以「借」給寨主臉上！' },
+        { speaker: '鐵掌醫女', text: '別逞兇。寨主身旁護衛不弱，出巡前先把傷養好。' },
+        { speaker: '掌櫃', text: '客棧不交黑稅。備馬——我們去黑風寨問個明白。' },
+        { speaker: '旁白', text: '—— 第二章完。Boss「黑風寨主」已可於戰鬥分頁挑戰。' }
+      ]
+    },
+    {
+      id: 'ch3_xieyi',
+      title: '第三章 · 邪醫迷霧',
+      subtitle: '藥香異變',
+      emoji: '☠️',
+      unlock: { innLevel: 2, reputation: 70, battlesWon: 6 },
+      bossId: 'boss_xieyi',
+      reward: { silver: 90, reputation: 15 },
+      lines: [
+        { speaker: '琴心師太', text: '山中藥香……不對。此味腐骨，絕非尋常郎中所為。' },
+        { speaker: '鐵掌醫女', text: '邪醫煉藥人，以活人試毒。若不除之，青石鎮會成瘟土。' },
+        { speaker: '青衣劍客', text: '聲望既起，俠義便不能退。我們進霧。' },
+        { speaker: '掌櫃', text: '客棧醫館已備好傷藥。去吧——把迷霧撕開。' },
+        { speaker: '旁白', text: '—— 第三章完。Boss「邪醫·腐骨」已可挑戰。擊敗後可獲獨特秘籍獎勵。' }
+      ]
+    }
+  ];
+
+  /**
+   * 具名 Boss：難度高於普通山賊；需先閱覽對應章節
+   * rewardManual：首次擊敗保底秘籍（已擁有則折銀）
+   */
+  const BOSS_ENCOUNTERS = [
+    {
+      id: 'boss_heifeng',
+      name: '黑風寨主',
+      emoji: '🌪️',
+      chapterId: 'ch2_heifeng',
+      desc: '盤踞黑風寨的匪首，刀勢如狂風，護衛成雙。',
+      minInnLevel: 1,
+      rewardSilver: [180, 260],
+      rewardRep: [22, 35],
+      rewardManual: 'jinzhong',
+      bonusSilver: 100,
+      enemies: [
+        {
+          name: '黑風護衛', emoji: '👺', force: 15, nei: 8, hp: 90,
+          skill: { name: '護主斬', mul: 1.55, chance: 0.22 }
+        },
+        {
+          name: '黑風護衛', emoji: '👺', force: 15, nei: 8, hp: 90,
+          skill: { name: '護主斬', mul: 1.55, chance: 0.22 }
+        },
+        {
+          name: '黑風寨主', emoji: '🌪️', force: 28, nei: 15, hp: 210,
+          skill: { name: '黑風狂刀', mul: 2.15, chance: 0.32 },
+          mitBonus: 0.08,
+          startShield: 0.12
+        }
+      ]
+    },
+    {
+      id: 'boss_xieyi',
+      name: '邪醫·腐骨',
+      emoji: '☠️',
+      chapterId: 'ch3_xieyi',
+      desc: '煉製藥人的邪醫，毒掌削弱敵方，霧中氣血難復。',
+      minInnLevel: 2,
+      rewardSilver: [260, 380],
+      rewardRep: [35, 50],
+      rewardManual: 'fanyin',
+      bonusSilver: 150,
+      enemies: [
+        {
+          name: '藥人甲', emoji: '🧟', force: 18, nei: 12, hp: 110,
+          skill: { name: '毒爪', mul: 1.4, chance: 0.25, weaken: 0.1 }
+        },
+        {
+          name: '藥人乙', emoji: '🧟', force: 18, nei: 12, hp: 110,
+          skill: { name: '毒爪', mul: 1.4, chance: 0.25, weaken: 0.1 }
+        },
+        {
+          name: '邪醫·腐骨', emoji: '☠️', force: 24, nei: 30, hp: 260,
+          skill: { name: '腐骨毒掌', mul: 1.9, chance: 0.34, weaken: 0.2, heal: 0.08 },
+          mitBonus: 0.1,
+          startShield: 0.1
+        }
+      ]
+    }
+  ];
+
+  /**
+   * 成就：解鎖後 toast＋可於江湖分頁查看
+   * check 於執行期由 game.js 依 state 判定
+   */
+  const ACHIEVEMENTS = [
+    { id: 'first_win', name: '初試鋒芒', desc: '贏得第一場出巡勝仗', emoji: '⚔️' },
+    { id: 'wins_10', name: '百戰初成', desc: '累計勝仗達 10 場', emoji: '🏆' },
+    { id: 'recruit_all', name: '高朋滿座', desc: '招募全部可入駐俠客', emoji: '🏯' },
+    { id: 'bond_confidant', name: '知己難求', desc: '任一名俠客羈絆達「知己」', emoji: '💞' },
+    { id: 'inn_lv2', name: '青石新貌', desc: '客棧升級至 Lv.2 或以上', emoji: '🏗️' },
+    { id: 'outpost_any', name: '分舵初開', desc: '解鎖本棧以外的任一據點', emoji: '🗺️' },
+    { id: 'facility_any', name: '百工就緒', desc: '建造任一設施（達 Lv.1）', emoji: '🔧' },
+    { id: 'boss_heifeng', name: '黑風盡滅', desc: '擊敗 Boss「黑風寨主」', emoji: '🌪️' },
+    { id: 'boss_xieyi', name: '霧破毒消', desc: '擊敗 Boss「邪醫·腐骨」', emoji: '☠️' },
+    { id: 'manuals_4', name: '武學初成', desc: '藏書閣收藏至少 4 本秘籍', emoji: '📚' },
+    { id: 'quest_5', name: '俠義奔走', desc: '完成至少 5 件聲望委託', emoji: '📋' },
+    { id: 'story_all', name: '燈火三章', desc: '閱覽全部劇情章節', emoji: '📜' }
   ];
 
   const BOND_TIERS = [
@@ -521,6 +658,18 @@
     return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
   }
 
+  function getStoryChapter(id) {
+    return STORY_CHAPTERS.find((c) => c.id === id) || null;
+  }
+
+  function getBoss(id) {
+    return BOSS_ENCOUNTERS.find((b) => b.id === id) || null;
+  }
+
+  function getAchievement(id) {
+    return ACHIEVEMENTS.find((a) => a.id === id) || null;
+  }
+
   global.WuxiaData = {
     GAME,
     INN_LEVELS,
@@ -535,6 +684,9 @@
     OUTPOSTS,
     FACILITIES,
     QUEST_TEMPLATES,
+    STORY_CHAPTERS,
+    BOSS_ENCOUNTERS,
+    ACHIEVEMENTS,
     weightedPick,
     randInt,
     heroStatsAtLevel,
@@ -545,6 +697,9 @@
     getOutpost,
     getFacility,
     getQuestTemplate,
+    getStoryChapter,
+    getBoss,
+    getAchievement,
     dayKey
   };
 })(typeof window !== 'undefined' ? window : globalThis);

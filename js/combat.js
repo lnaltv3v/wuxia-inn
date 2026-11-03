@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 自動即時戰鬥（v0.2：主動／被動武學、護盾、削弱、羈絆倍率）
+ * 俠客棧 — 自動即時戰鬥（v0.4：Boss 技能／護盾、主動／被動武學、護盾、削弱、羈絆倍率）
  */
 (function (global) {
   'use strict';
@@ -257,16 +257,28 @@
     return { start, stop, getUnits: () => units, isFinished: () => finished };
   }
 
-  function scaleEnemy(template, innLevel) {
-    const scale = 1 + (innLevel - 1) * 0.12;
-    return {
+  function scaleEnemy(template, innLevel, bossScale) {
+    // Boss 額外倍率，使難度高於普通山賊
+    const base = 1 + (innLevel - 1) * 0.12;
+    const scale = base * (bossScale || 1);
+    const hp = Math.round(template.hp * scale);
+    const out = {
       name: template.name,
       emoji: template.emoji,
       force: Math.round(template.force * scale),
       nei: Math.round(template.nei * scale),
-      hp: Math.round(template.hp * scale),
-      maxHp: Math.round(template.hp * scale)
+      hp: hp,
+      maxHp: hp,
+      mitBonus: template.mitBonus || 0,
+      shield: 0
     };
+    if (template.skill) {
+      out.skill = Object.assign({}, template.skill);
+    }
+    if (template.startShield) {
+      out.shield = Math.round(hp * template.startShield);
+    }
+    return out;
   }
 
   global.WuxiaCombat = {

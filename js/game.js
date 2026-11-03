@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v0.3.1 art：像素武俠風）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v0.4：劇情／Boss／成就 · 像素武俠風）
  */
 (function () {
   'use strict';
@@ -8,9 +8,11 @@
     GAME, INN_LEVELS, GUESTS, HERO_TEMPLATES, ENEMY_WAVES, TRAIN,
     MARTIAL_ARTS, BOND_EVENTS, LIBRARY,
     OUTPOSTS, FACILITIES, QUEST_TEMPLATES,
+    STORY_CHAPTERS, BOSS_ENCOUNTERS, ACHIEVEMENTS,
     weightedPick, randInt, heroStatsAtLevel,
     getMartial, getBondTier, nextBondTier, pairBondMul,
-    getOutpost, getFacility, getQuestTemplate, dayKey
+    getOutpost, getFacility, getQuestTemplate,
+    getStoryChapter, getBoss, getAchievement, dayKey
   } = WuxiaData;
   const { createBattle, scaleEnemy, buildAllyCombatant } = WuxiaCombat;
 
@@ -21,6 +23,9 @@
   let activeTab = 'inn';
   let bondToast = null;
   let selectedOutpost = 'main';
+  let uiToast = null; // { title, text, kind }
+  let storyFocus = null; // chapter id being read
+
 
   function makeHeroState(t, level) {
     const lv = level || 1;
@@ -87,7 +92,12 @@
       questBoard: [],
       activeQuests: [],
       questDayKey: '',
-      questsDone: 0
+      questsDone: 0,
+      storyRead: [],
+      storyNotified: [],
+      bossesDefeated: [],
+      achievements: [],
+      bossesWon: 0
     };
   }
 
@@ -165,6 +175,16 @@
       q.heroes = q.heroes.filter((id) => s.heroes[id] && s.heroes[id].recruited);
       return q.heroes.length > 0 && q.endsAt;
     });
+
+    // v0.4 劇情／Boss／成就
+    if (!Array.isArray(s.storyRead)) s.storyRead = [];
+    if (!Array.isArray(s.storyNotified)) s.storyNotified = [];
+    if (!Array.isArray(s.bossesDefeated)) s.bossesDefeated = [];
+    if (!Array.isArray(s.achievements)) s.achievements = [];
+    if (typeof s.bossesWon !== 'number') s.bossesWon = s.bossesDefeated.length;
+    if (typeof s.battlesWon !== 'number') s.battlesWon = 0;
+    if (typeof s.guestsServed !== 'number') s.guestsServed = 0;
+    if (typeof s.totalEarned !== 'number') s.totalEarned = 0;
 
     return s;
   }
@@ -272,6 +292,187 @@
       bondToast = null;
       if (activeTab === 'heroes') renderHeroes();
     }, 6000);
+  }
+
+
+  // ——— 劇情／Boss／成就系統 ———
+  function showUiToast(title, text, kind) {
+    uiToast = { title: title, text: text, kind: kind || 'info' };
+    renderFloatingToast();
+    setTimeout(() => {
+      uiToast = null;
+      renderFloatingToast();
+    }, 5500);
+  }
+
+  function renderFloatingToast() {
+    let host = document.getElementById('toast-host');
+    if (!host) return;
+    if (!uiToast) {
+      host.innerHTML = '';
+      host.classList.add('hidden');
+      return;
+    }
+    host.classList.remove('hidden');
+    const k = uiToast.kind || 'info';
+    host.innerHTML = `<div class="float-toast px-frame ${k}">
+      <b>${uiToast.title}</b>
+      <p>${uiToast.text}</p>
+    </div>`;
+  }
+
+  function storyUnlockOk(ch) {
+    const u = ch.unlock || {};
+    if (u.battlesWon != null && state.battlesWon < u.battlesWon) return false;
+    if (u.reputation != null && state.reputation < u.reputation) return false;
+    if (u.innLevel != null && state.innLevel < u.innLevel) return false;
+    return true;
+  }
+
+  function storyUnlockReasons(ch) {
+    const u = ch.unlock || {};
+    const reasons = [];
+    if (u.battlesWon != null) reasons.push(`勝仗 ${u.battlesWon}`);
+    if (u.reputation != null) reasons.push(`聲望 ${u.reputation}`);
+    if (u.innLevel != null) reasons.push(`客棧 Lv.${u.innLevel}`);
+    return reasons;
+  }
+
+  function isStoryRead(id) {
+    return state.storyRead.indexOf(id) >= 0;
+  }
+
+  function isBossUnlocked(bossId) {
+    const boss = getBoss(bossId);
+    if (!boss) return false;
+    return isStoryRead(boss.chapterId);
+  }
+
+  function isBossDefeated(bossId) {
+    return state.bossesDefeated.indexOf(bossId) >= 0;
+  }
+
+  function checkStoryUnlocks() {
+    let changed = false;
+    STORY_CHAPTERS.forEach((ch) => {
+      if (isStoryRead(ch.id)) return;
+      if (!storyUnlockOk(ch)) return;
+      if (state.storyNotified.indexOf(ch.id) >= 0) return;
+      state.storyNotified.push(ch.id);
+      changed = true;
+      pushLog(`劇情可閱：「${ch.title}」——請到「江湖」分頁閱覽。`, 'story');
+      showUiToast('📖 新劇情', ch.title + ' 已解鎖，可到江湖分頁閱覽。', 'story');
+    });
+    if (changed) save(true);
+    return changed;
+  }
+
+  function readStoryChapter(id) {
+    const ch = getStoryChapter(id);
+    if (!ch) return;
+    if (!storyUnlockOk(ch)) {
+      pushLog(`章節未解鎖：需 ${storyUnlockReasons(ch).join('、')}。`, 'warn');
+      return;
+    }
+    if (isStoryRead(id)) {
+      storyFocus = id;
+      if (activeTab === 'story') renderStory();
+      return;
+    }
+    state.storyRead.push(id);
+    if (state.storyNotified.indexOf(id) < 0) state.storyNotified.push(id);
+    const rw = ch.reward || {};
+    if (rw.silver) {
+      state.silver += rw.silver;
+      state.totalEarned += rw.silver;
+    }
+    if (rw.reputation) state.reputation += rw.reputation;
+    pushLog(`閱覽「${ch.title}」${rw.silver ? `，銀兩 +${rw.silver}` : ''}${rw.reputation ? `、聲望 +${rw.reputation}` : ''}。`, 'story');
+    if (ch.bossId) {
+      const boss = getBoss(ch.bossId);
+      pushLog(`Boss「${boss ? boss.name : ch.bossId}」已可於戰鬥分頁挑戰！`, 'story');
+      showUiToast('⚔️ Boss 解鎖', (boss ? boss.name : ch.bossId) + ' 可挑戰', 'boss');
+    } else {
+      showUiToast('📖 章節完成', ch.title, 'story');
+    }
+    storyFocus = id;
+    checkAchievements();
+    save();
+    renderAll();
+  }
+
+  function achievementMet(id) {
+    switch (id) {
+      case 'first_win':
+        return state.battlesWon >= 1;
+      case 'wins_10':
+        return state.battlesWon >= 10;
+      case 'recruit_all':
+        return HERO_TEMPLATES.every((t) => state.heroes[t.id] && state.heroes[t.id].recruited);
+      case 'bond_confidant':
+        return Object.keys(state.heroes).some((hid) => {
+          const h = state.heroes[hid];
+          return h && h.recruited && (h.favor || 0) >= 50;
+        });
+      case 'inn_lv2':
+        return state.innLevel >= 2;
+      case 'outpost_any':
+        return OUTPOSTS.some((op) => op.id !== 'main' && opUnlocked(state, op.id));
+      case 'facility_any':
+        return FACILITIES.some((f) => facilityLevel(f.id) >= 1);
+      case 'boss_heifeng':
+        return isBossDefeated('boss_heifeng');
+      case 'boss_xieyi':
+        return isBossDefeated('boss_xieyi');
+      case 'manuals_4':
+        return (state.unlockedManuals || []).length >= 4;
+      case 'quest_5':
+        return state.questsDone >= 5;
+      case 'story_all':
+        return STORY_CHAPTERS.every((c) => isStoryRead(c.id));
+      default:
+        return false;
+    }
+  }
+
+  function checkAchievements() {
+    let unlocked = [];
+    ACHIEVEMENTS.forEach((a) => {
+      if (state.achievements.indexOf(a.id) >= 0) return;
+      if (!achievementMet(a.id)) return;
+      state.achievements.push(a.id);
+      unlocked.push(a);
+    });
+    unlocked.forEach((a) => {
+      pushLog(`成就解鎖：${a.emoji}${a.name}——${a.desc}`, 'achieve');
+      showUiToast(a.emoji + ' 成就', a.name + '｜' + a.desc, 'achieve');
+    });
+    if (unlocked.length) save(true);
+    return unlocked;
+  }
+
+  function grantBossUniqueReward(boss) {
+    let parts = [];
+    if (boss.bonusSilver) {
+      state.silver += boss.bonusSilver;
+      state.totalEarned += boss.bonusSilver;
+      parts.push(`額外銀兩 +${boss.bonusSilver}`);
+    }
+    if (boss.rewardManual) {
+      const m = getMartial(boss.rewardManual);
+      if (m) {
+        if (!ownsManual(m.id)) {
+          state.unlockedManuals.push(m.id);
+          parts.push(`秘籍「${m.name}」`);
+          pushLog(`Boss 戰利秘籍：「${m.name}」已入藏書閣。`, 'skill');
+        } else {
+          const bonus = Math.round(m.learnCost * 0.5);
+          state.silver += bonus;
+          parts.push(`秘籍已藏，折銀 +${bonus}`);
+        }
+      }
+    }
+    return parts.join('、');
   }
 
   function checkBondEvents(heroId, prevFavor, newFavor) {
@@ -450,8 +651,13 @@
     });
     settleQuests();
     state.lastTick = Date.now();
+    if (Math.floor(Date.now() / GAME.tickMs) % 15 === 0) {
+      checkStoryUnlocks();
+      checkAchievements();
+    }
     if (activeTab === 'inn') renderInn();
     if (activeTab === 'outposts') renderOutposts();
+    if (activeTab === 'story') renderStory();
     updateTopbar();
     if (Math.floor(Date.now() / GAME.tickMs) % 10 === 0) save(true);
   }
@@ -470,6 +676,8 @@
     state.silver -= next.silverNeed;
     state.innLevel = next.level;
     pushLog(`客棧升為「${next.name}」！俠客欄位 ${next.heroSlots}。`, 'system');
+    checkStoryUnlocks();
+    checkAchievements();
     save();
     renderAll();
   }
@@ -505,6 +713,7 @@
       state.unlockedManuals.push(t.defaultPassive);
     }
     pushLog(`以 ${t.unlockCost} 兩請「${t.name}」入駐！`, 'system');
+    checkAchievements();
     save();
     renderAll();
   }
@@ -557,6 +766,7 @@
         showBondToast(ev.title, ev.text);
       });
     }
+    checkAchievements();
     save();
     renderHeroes();
     updateTopbar();
@@ -610,6 +820,7 @@
     state.silver -= op.unlock.silver;
     state.outposts[id].unlocked = true;
     pushLog(`開設「${op.name}」！可派俠客駐守增收。`, 'system');
+    checkAchievements();
     save();
     renderOutposts();
     updateTopbar();
@@ -677,6 +888,7 @@
     state.facilities[id] = lv + 1;
     const verb = lv === 0 ? '建成' : `升至 Lv.${lv + 1}`;
     pushLog(`${fac.emoji}${fac.name}${verb}！${fac.effectLabel(lv + 1)}`, 'system');
+    checkAchievements();
     save();
     renderInn();
     renderOutposts();
@@ -858,6 +1070,8 @@
       }).join('、');
       pushLog(`委託「${q.name}」完成！${names}歸來，銀兩 +${silver}、聲望 +${rep}。${dropMsg}`, 'win');
     });
+    checkStoryUnlocks();
+    checkAchievements();
     save(true);
     if (activeTab === 'outposts') renderOutposts();
     if (activeTab === 'heroes') renderHeroes();
@@ -897,6 +1111,7 @@
       h.passiveSkill = m.id;
       pushLog(`${t.name} ${isNew ? '研習' : '改習'}被動武學「${m.name}」（${price} 兩）。`, 'skill');
     }
+    if (isNew) checkAchievements();
     save();
     renderInn();
     renderHeroes();
@@ -938,44 +1153,155 @@
   }
 
   // ——— 戰鬥 ———
-  function startPatrol(waveId) {
+  function preparePartyAllies() {
     if (battle) {
       pushLog('已在戰鬥中。', 'warn');
-      return;
+      return null;
     }
     if (!state.party.length) {
       pushLog('請先在「俠客」分頁編入出戰隊伍。', 'warn');
       activeTab = 'heroes';
       renderAll();
-      return;
+      return null;
     }
-    const wave = ENEMY_WAVES.find((w) => w.id === waveId) || ENEMY_WAVES[0];
-    if (state.innLevel < wave.minInnLevel) {
-      pushLog(`此敵需客棧 Lv.${wave.minInnLevel}。`, 'warn');
-      return;
-    }
-
     const favors = state.party.map((id) => (state.heroes[id] ? state.heroes[id].favor : 0));
     const bondInfo = pairBondMul(favors);
-
     const allies = state.party.map((id) => {
       const rt = heroRuntime(id);
       if (!rt) return null;
       return buildAllyCombatant(rt, bondInfo.mul);
     }).filter(Boolean);
-
     if (allies.some((a) => a.hp <= 0)) {
       pushLog('有俠客氣血耗盡，請先回客棧休養生息。', 'warn');
+      return null;
+    }
+    return { allies, bondInfo };
+  }
+
+  function finishBattleCommon(result, units, bondInfo, rewardOpts) {
+    const clinic = clinicMods();
+    units.filter((u) => u.side === 'ally').forEach((u) => {
+      if (state.heroes[u.id]) {
+        let hp = Math.max(0, u.hp);
+        if (result === 'win' && clinic.postHeal > 0) {
+          const rt = heroRuntime(u.id);
+          if (rt) hp = Math.min(rt.maxHp, hp + Math.round(rt.maxHp * clinic.postHeal));
+        }
+        state.heroes[u.id].hp = hp;
+      }
+    });
+    if (result === 'win') {
+      const silver = randInt(rewardOpts.rewardSilver[0], rewardOpts.rewardSilver[1]);
+      const rep = randInt(rewardOpts.rewardRep[0], rewardOpts.rewardRep[1]);
+      state.silver += silver;
+      state.reputation += rep;
+      state.battlesWon += 1;
+      const favorGain = rewardOpts.isBoss ? 4 : 2;
+      const expGain = rewardOpts.isBoss ? 6 : 3;
+      state.party.forEach((id) => {
+        if (state.heroes[id]) {
+          const prev = state.heroes[id].favor;
+          state.heroes[id].favor = Math.min(100, state.heroes[id].favor + favorGain);
+          state.heroes[id].exp = (state.heroes[id].exp || 0) + expGain;
+          const evs = checkBondEvents(id, prev, state.heroes[id].favor);
+          evs.forEach((ev) => {
+            pushLog(`【羈絆·${ev.title}】${ev.text}`, 'bond');
+          });
+        }
+      });
+      let dropMsg = '';
+      let uniqueMsg = '';
+      if (rewardOpts.isBoss && rewardOpts.boss) {
+        const firstClear = state.bossesDefeated.indexOf(rewardOpts.boss.id) < 0;
+        if (firstClear) {
+          state.bossesDefeated.push(rewardOpts.boss.id);
+          state.bossesWon += 1;
+          uniqueMsg = grantBossUniqueReward(rewardOpts.boss);
+          if (uniqueMsg) {
+            pushLog(`Boss 獨特獎勵：${uniqueMsg}`, 'win');
+            appendCombatLog(`獨特獎勵：${uniqueMsg}`, 'skill');
+          }
+        } else {
+          const pity = Math.round((rewardOpts.boss.bonusSilver || 50) * 0.35);
+          state.silver += pity;
+          uniqueMsg = `再戰犒賞 +${pity} 兩`;
+          appendCombatLog(uniqueMsg, 'skill');
+        }
+      } else {
+        const drop = rollManualDrop();
+        if (drop) {
+          if (drop.already) {
+            dropMsg = ` 秘籍共鳴，額外銀兩 +${drop.bonus}。`;
+            appendCombatLog(`已藏「${drop.name}」抄本，折銀 ${drop.bonus}`, 'skill');
+          } else {
+            dropMsg = ` 獲得秘籍「${drop.name}」！`;
+            pushLog(`戰利秘籍：「${drop.name}」已入藏書閣。`, 'skill');
+            appendCombatLog(`掉落秘籍：${drop.name}`, 'skill');
+          }
+        }
+      }
+      const label = rewardOpts.isBoss ? `Boss「${rewardOpts.boss.name}」討伐成功` : '剿匪勝利';
+      pushLog(`${label}！獲銀兩 ${silver}、聲望 ${rep}。${dropMsg}`, 'win');
+      appendCombatLog(`戰利品：銀兩 +${silver}，聲望 +${rep}`, 'win');
+      if (bondInfo.mul > 1) {
+        appendCombatLog(`羈絆「${bondInfo.tier.name}」加成生效（×${bondInfo.mul.toFixed(2)}）`, 'skill');
+      }
+      checkStoryUnlocks();
+      checkAchievements();
+    } else {
+      pushLog(rewardOpts.isBoss ? 'Boss 戰失利，俠客帶傷而回……' : '出巡失利，俠客帶傷而回……', 'lose');
+    }
+    battle = null;
+    save();
+    renderAll();
+  }
+
+  function startPatrol(waveId) {
+    const prep = preparePartyAllies();
+    if (!prep) return;
+    const wave = ENEMY_WAVES.find((w) => w.id === waveId) || ENEMY_WAVES[0];
+    if (state.innLevel < wave.minInnLevel) {
+      pushLog(`此敵需客棧 Lv.${wave.minInnLevel}。`, 'warn');
       return;
     }
-
     const enemies = wave.enemies.map((e) => scaleEnemy(e, state.innLevel));
+    beginBattle(prep.allies, enemies, prep.bondInfo, {
+      isBoss: false,
+      rewardSilver: wave.rewardSilver,
+      rewardRep: wave.rewardRep
+    });
+  }
+
+  function startBossFight(bossId) {
+    const prep = preparePartyAllies();
+    if (!prep) return;
+    const boss = getBoss(bossId);
+    if (!boss) return;
+    if (!isBossUnlocked(bossId)) {
+      pushLog('請先到「江湖」分頁閱覽對應劇情章節。', 'warn');
+      activeTab = 'story';
+      renderAll();
+      return;
+    }
+    if (state.innLevel < boss.minInnLevel) {
+      pushLog(`此 Boss 需客棧 Lv.${boss.minInnLevel}。`, 'warn');
+      return;
+    }
+    // Boss 額外 1.08 倍率，疊加技能／護盾
+    const enemies = boss.enemies.map((e) => scaleEnemy(e, state.innLevel, 1.08));
+    beginBattle(prep.allies, enemies, prep.bondInfo, {
+      isBoss: true,
+      boss: boss,
+      rewardSilver: boss.rewardSilver,
+      rewardRep: boss.rewardRep
+    });
+  }
+
+  function beginBattle(allies, enemies, bondInfo, rewardOpts) {
     const combatLogEl = document.getElementById('combat-log');
     if (combatLogEl) combatLogEl.innerHTML = '';
-
     activeTab = 'combat';
     setTab('combat');
-
     battle = createBattle(allies, enemies, {
       tickMs: GAME.combatTickMs,
       onLog(msg, kind) {
@@ -985,59 +1311,12 @@
         renderBattleUnits(snap.units);
       },
       onEnd(result, units) {
-        const clinic = clinicMods();
-        units.filter((u) => u.side === 'ally').forEach((u) => {
-          if (state.heroes[u.id]) {
-            let hp = Math.max(0, u.hp);
-            if (result === 'win' && clinic.postHeal > 0) {
-              const rt = heroRuntime(u.id);
-              if (rt) hp = Math.min(rt.maxHp, hp + Math.round(rt.maxHp * clinic.postHeal));
-            }
-            state.heroes[u.id].hp = hp;
-          }
-        });
-        if (result === 'win') {
-          const silver = randInt(wave.rewardSilver[0], wave.rewardSilver[1]);
-          const rep = randInt(wave.rewardRep[0], wave.rewardRep[1]);
-          state.silver += silver;
-          state.reputation += rep;
-          state.battlesWon += 1;
-          state.party.forEach((id) => {
-            if (state.heroes[id]) {
-              const prev = state.heroes[id].favor;
-              state.heroes[id].favor = Math.min(100, state.heroes[id].favor + 2);
-              state.heroes[id].exp = (state.heroes[id].exp || 0) + 3;
-              const evs = checkBondEvents(id, prev, state.heroes[id].favor);
-              evs.forEach((ev) => {
-                pushLog(`【羈絆·${ev.title}】${ev.text}`, 'bond');
-              });
-            }
-          });
-          let dropMsg = '';
-          const drop = rollManualDrop();
-          if (drop) {
-            if (drop.already) {
-              dropMsg = ` 秘籍共鳴，額外銀兩 +${drop.bonus}。`;
-              appendCombatLog(`已藏「${drop.name}」抄本，折銀 ${drop.bonus}`, 'skill');
-            } else {
-              dropMsg = ` 獲得秘籍「${drop.name}」！`;
-              pushLog(`戰利秘籍：「${drop.name}」已入藏書閣。`, 'skill');
-              appendCombatLog(`掉落秘籍：${drop.name}`, 'skill');
-            }
-          }
-          pushLog(`剿匪勝利！獲銀兩 ${silver}、聲望 ${rep}。${dropMsg}`, 'win');
-          appendCombatLog(`戰利品：銀兩 +${silver}，聲望 +${rep}`, 'win');
-          if (bondInfo.mul > 1) {
-            appendCombatLog(`羈絆「${bondInfo.tier.name}」加成生效（×${bondInfo.mul.toFixed(2)}）`, 'skill');
-          }
-        } else {
-          pushLog('出巡失利，俠客帶傷而回……', 'lose');
-        }
-        battle = null;
-        save();
-        renderAll();
+        finishBattleCommon(result, units, bondInfo, rewardOpts);
       }
     });
+    if (rewardOpts.isBoss) {
+      appendCombatLog(`—— Boss 戰：${rewardOpts.boss.name} ——`, 'system');
+    }
     battle.start();
     renderCombat();
   }
@@ -1598,12 +1877,35 @@
     const prevLog = $('combat-log') ? $('combat-log').innerHTML : '';
     const prevField = $('battle-field') ? $('battle-field').innerHTML : '';
 
+    const bossCards = BOSS_ENCOUNTERS.map((b) => {
+      const unlocked = isBossUnlocked(b.id);
+      const defeated = isBossDefeated(b.id);
+      const lockedInn = state.innLevel < b.minInnLevel;
+      const ch = getStoryChapter(b.chapterId);
+      let status = '';
+      if (!unlocked) status = `需先閱覽「${ch ? ch.title : '對應章節'}」`;
+      else if (lockedInn) status = `需客棧 Lv.${b.minInnLevel}`;
+      else if (defeated) status = '已討伐（可再戰）';
+      else status = '可挑戰';
+      const disabled = !!battle || !unlocked || lockedInn;
+      return `<button type="button" class="btn wave-btn boss-btn ${defeated ? 'cleared' : ''} ${!unlocked || lockedInn ? 'locked' : ''}"
+        data-boss="${b.id}" ${disabled ? 'disabled' : ''}>
+        <b>${b.emoji} ${b.name}</b>
+        <span>${b.desc}</span>
+        <span>獎勵 ${b.rewardSilver[0]}–${b.rewardSilver[1]} 兩 · 聲望 ${b.rewardRep[0]}–${b.rewardRep[1]} · 獨特秘籍／銀兩</span>
+        <span class="pill ${defeated ? 'jade' : unlocked && !lockedInn ? 'cinnabar' : ''}">${status}</span>
+      </button>`;
+    }).join('');
+
     el.innerHTML = `
       <div class="card">
         <h2>${pxIcon('🗡️')} 出巡剿匪</h2>
         <p class="muted">全自動即時戰鬥。羈絆同隊加成：${state.party.length >= 2 ? `「${bondInfo.tier.name}」攻擊 ×${bondInfo.mul.toFixed(2)}` : '需至少 2 人'}</p>
         <div class="party-bar">隊伍：${partyHtml}</div>
+        <h4 class="subhead">普通敵軍</h4>
         <div class="wave-list" id="wave-list"></div>
+        <h4 class="subhead">具名 Boss</h4>
+        <div class="wave-list boss-list">${bossCards}</div>
         <div class="btn-row">
           ${battle ? '<button class="btn danger" id="btn-flee">鳴金收兵</button>' : ''}
         </div>
@@ -1623,6 +1925,9 @@
       btn.innerHTML = `<b>${w.name}</b><span>獎勵 ${w.rewardSilver[0]}–${w.rewardSilver[1]} 兩 · 聲望 ${w.rewardRep[0]}–${w.rewardRep[1]}${locked ? ` · 需客棧 Lv.${w.minInnLevel}` : ''}</span>`;
       btn.onclick = () => startPatrol(w.id);
       list.appendChild(btn);
+    });
+    el.querySelectorAll('[data-boss]').forEach((b) => {
+      b.onclick = () => startBossFight(b.dataset.boss);
     });
     const flee = $('btn-flee');
     if (flee) flee.onclick = stopBattle;
@@ -1666,10 +1971,75 @@
     while (box.children.length > 60) box.removeChild(box.lastChild);
   }
 
+
+  function renderStory() {
+    checkStoryUnlocks();
+    const el = $('panel-story');
+    if (!el) return;
+
+    const chapters = STORY_CHAPTERS.map((ch) => {
+      const unlocked = storyUnlockOk(ch);
+      const read = isStoryRead(ch.id);
+      const focus = storyFocus === ch.id;
+      const reasons = storyUnlockReasons(ch).join('、');
+      const lines = (focus || read) && (focus || unlocked)
+        ? `<div class="story-lines">${ch.lines.map((ln) =>
+            `<div class="story-line"><span class="speaker">${ln.speaker}</span><span class="line-text">${ln.text}</span></div>`
+          ).join('')}</div>`
+        : '';
+      let badge = '未解鎖';
+      let badgeCls = '';
+      if (read) { badge = '已閱'; badgeCls = 'jade'; }
+      else if (unlocked) { badge = '可閱'; badgeCls = 'cinnabar'; }
+      return `<div class="card story-card ${read ? 'read' : ''} ${unlocked ? '' : 'locked'} ${focus ? 'focus' : ''}">
+        <div class="story-head">
+          <b>${pxIcon(ch.emoji)} ${ch.title}</b>
+          <span class="pill ${badgeCls}">${badge}</span>
+        </div>
+        <p class="muted">${ch.subtitle || ''} · 條件：${reasons || '—'}</p>
+        ${ch.bossId ? `<p class="muted">關聯 Boss：${(getBoss(ch.bossId) || {}).name || ch.bossId}${isBossDefeated(ch.bossId) ? '（已討伐）' : isBossUnlocked(ch.bossId) ? '（已解鎖）' : ''}</p>` : ''}
+        ${lines}
+        <div class="btn-row">
+          ${unlocked
+            ? `<button class="btn tiny primary" data-read-story="${ch.id}">${read ? '重溫對話' : '閱覽章節'}</button>`
+            : `<button class="btn tiny" disabled>未達條件</button>`}
+        </div>
+      </div>`;
+    }).join('');
+
+    const achHtml = ACHIEVEMENTS.map((a) => {
+      const got = state.achievements.indexOf(a.id) >= 0;
+      return `<div class="achieve-row ${got ? 'got' : ''}">
+        <span class="achieve-ico">${a.emoji}</span>
+        <div class="achieve-info">
+          <b>${a.name}</b> ${got ? '<span class="pill jade">已達成</span>' : '<span class="pill">未解鎖</span>'}
+          <div class="muted">${a.desc}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="card ink-card">
+        <h2>${pxIcon('📖')} 劇情章節</h2>
+        <p class="muted">以勝仗、聲望、客棧等級推進。閱覽後可解鎖具名 Boss；像素風對話面板如下。</p>
+        <div class="story-list">${chapters}</div>
+      </div>
+      <div class="card">
+        <h3>${pxIcon('🏅')} 成就（${state.achievements.length}/${ACHIEVEMENTS.length}）</h3>
+        <p class="muted">達成時會跳出 toast，並寫入江湖日誌。</p>
+        <div class="achieve-list">${achHtml}</div>
+      </div>
+    `;
+    el.querySelectorAll('[data-read-story]').forEach((b) => {
+      b.onclick = () => readStoryChapter(b.dataset.readStory);
+    });
+  }
+
   function renderLog() {
     const el = $('panel-log');
     if (!el) return;
     el.innerHTML = `<div class="card"><h2>${pxIcon('📜')} 江湖日誌</h2>
+      <p class="muted">成就 ${state.achievements.length}/${ACHIEVEMENTS.length} · 章節 ${state.storyRead.length}/${STORY_CHAPTERS.length} · Boss ${state.bossesDefeated.length}/${BOSS_ENCOUNTERS.length}</p>
       <div class="log-list">${state.log.map((e) =>
         `<div class="log-line ${e.kind}"><span class="t">${e.t}</span>${e.msg}</div>`
       ).join('') || '<p class="muted">尚無記錄</p>'}</div>
@@ -1690,7 +2060,9 @@
     renderOutposts();
     renderHeroes();
     renderCombat();
+    renderStory();
     renderLog();
+    renderFloatingToast();
     setTab(activeTab);
   }
 
@@ -1701,10 +2073,12 @@
       pushLog('讀取存檔成功（已遷移至 v' + GAME.version + '）。', 'system');
       ensureQuestBoard(false);
       applyOffline();
+      checkStoryUnlocks();
+      checkAchievements();
     } else {
       state = defaultState();
       ensureQuestBoard(true);
-      pushLog('新開張！青衣劍客已願為客棧護院。可開分舵、建設施、接任務板委託。', 'system');
+      pushLog('新開張！青衣劍客已願為客棧護院。可開分舵、建設施、接任務板委託。勝仗後可開劇情章節。', 'system');
     }
 
     document.querySelectorAll('.tab-btn').forEach((btn) => {
@@ -1714,6 +2088,7 @@
         if (btn.dataset.tab === 'outposts') renderOutposts();
         if (btn.dataset.tab === 'heroes') renderHeroes();
         if (btn.dataset.tab === 'combat') renderCombat();
+        if (btn.dataset.tab === 'story') renderStory();
         if (btn.dataset.tab === 'log') renderLog();
       });
     });
