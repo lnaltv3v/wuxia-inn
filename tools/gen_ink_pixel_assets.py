@@ -4,7 +4,8 @@
 Sprites 32×32; Hub scenes native 960×540 (v2.0, hard edge, palette-locked, no AA).
 Sprites owned by 墨點美術; Hub scenes by 墨點場景.
 Native 64×64 sheets: tools/gen_sprites_64.py → assets/sprites/64/ (do not NN-upscale 32).
-Use --scenes-only to regenerate assets/scenes/ + hub previews without touching sprites.
+Use --scenes-only to regenerate Hub assets/scenes/ + hub previews without touching sprites.
+Use --battle-only to regenerate battle_* layers + battle preview (does not touch hub_* / sprites).
 """
 from __future__ import annotations
 
@@ -2160,6 +2161,320 @@ def make_hub_layers():
 
 
 
+
+def make_battle_layers():
+    """Battle arena v0.8.4 — native 960×540 (draw logical 480×270 then NEAREST ×2).
+    Density matches Hub v2.0 readability + breathing room; central combat strip clear.
+    z-order: sky → mid → ground → props. Does not touch hub_*.
+    """
+    BW, BH = 480, 270
+    OW, OH = 960, 540
+    layers_base = {}
+
+    # ----- SKY (upper half opaque; lower alpha0) -----
+    sky = Image.new("RGBA", (BW, BH), TRANS)
+    sky_bot = 140
+    fill_rect(sky, 0, 0, BW, sky_bot, SKY)
+    # hard cloud blocks (宣紙／cream 硬邊，唔柔)
+    clouds = [
+        (18, 18, 62, 10), (28, 26, 40, 6),
+        (70, 12, 48, 8), (78, 20, 28, 5),
+        (140, 22, 70, 9), (150, 30, 42, 5),
+        (210, 10, 55, 8), (220, 18, 30, 5),
+        (280, 24, 72, 10), (292, 32, 40, 5),
+        (360, 14, 50, 8), (368, 22, 28, 5),
+        (410, 28, 58, 9), (420, 36, 32, 5),
+        (95, 40, 36, 6), (320, 8, 44, 6),
+    ]
+    for cx, cy, cw, ch in clouds:
+        fill_rect(sky, cx, cy, cx + cw, cy + ch, CREAM)
+        fill_rect(sky, cx + 4, cy + ch // 2, cx + cw - 6, cy + ch, PAPER)
+        if ch >= 8:
+            px(sky, cx + cw // 2, cy + 1, PAPER_L)
+    # 日輪 — 金箔硬方輪（右上）
+    sx0, sy0 = 428, 16
+    fill_rect(sky, sx0, sy0, sx0 + 22, sy0 + 22, GOLD)
+    fill_rect(sky, sx0 + 3, sy0 + 3, sx0 + 19, sy0 + 19, LOESS)
+    fill_rect(sky, sx0 + 6, sy0 + 6, sx0 + 16, sy0 + 16, SKY)
+    # thin gold rim studs
+    for ox, oy in ((0, 10), (21, 10), (10, 0), (10, 21), (0, 0), (21, 0), (0, 21), (21, 21)):
+        px(sky, sx0 + ox, sy0 + oy, GOLD)
+    # faint upper air grit (盤內點)
+    for y in range(4, sky_bot - 8, 7):
+        for x in range(6, BW - 6, 17):
+            if (x * 3 + y * 5) % 11 == 0:
+                px(sky, x, y, PAPER_L if (x + y) % 2 == 0 else PAPER)
+    layers_base["battle_sky.png"] = sky
+
+    # ----- MID: 遠山／霧帶／遠樹（透明底） -----
+    mid = Image.new("RGBA", (BW, BH), TRANS)
+
+    def mountain(img, bx, py, width, height, col, ridge=None):
+        """Hard-edge mountain = narrowing horizontal bands (no soft AA)."""
+        for i in range(height):
+            t = i / max(1, height - 1)
+            half = max(2, int((width / 2) * (1 - t * 0.92)))
+            y = py + i
+            fill_rect(img, bx + width // 2 - half, y, bx + width // 2 + half, y + 1, col)
+            if ridge and i < 3:
+                px(img, bx + width // 2, y, ridge)
+
+    # back range (farther, cooler)
+    mountain(mid, -30, 72, 150, 68, MTN, PAPER_L)
+    mountain(mid, 80, 58, 170, 82, JADE, CREAM)
+    mountain(mid, 200, 68, 160, 72, MTN, PAPER)
+    mountain(mid, 300, 52, 180, 88, JADE, PAPER_L)
+    mountain(mid, 400, 70, 140, 70, MTN, CREAM)
+    # nearer foothills
+    mountain(mid, -20, 95, 120, 50, JADE_B, None)
+    mountain(mid, 90, 100, 110, 45, MTN, None)
+    mountain(mid, 190, 92, 130, 53, JADE, None)
+    mountain(mid, 310, 98, 120, 47, MTN, None)
+    mountain(mid, 400, 90, 110, 55, JADE_B, None)
+    # 遠樹 hard stubs along foothills
+    for tx, ty, th in [
+        (24, 118, 14), (38, 116, 16), (52, 120, 12),
+        (160, 114, 15), (174, 112, 17),
+        (250, 116, 13), (264, 114, 15),
+        (350, 112, 16), (364, 114, 14),
+        (430, 116, 15), (448, 118, 12),
+    ]:
+        fill_rect(mid, tx, ty, tx + 4, ty + th, WOOD)
+        fill_rect(mid, tx - 2, ty - 4, tx + 6, ty + 2, JADE)
+        px(mid, tx + 1, ty - 5, JADE_B)
+    # mist / fog band — irregular hard fog slabs (唔似馬路虛線)
+    fill_rect(mid, 0, 128, BW, 142, MIST)
+    fog_slabs = [
+        (0, 130, 40, 138, PAPER_D), (28, 134, 70, 141, PAPER),
+        (60, 129, 110, 136, PAPER_D), (100, 133, 150, 140, PAPER),
+        (145, 130, 190, 138, PAPER_D), (180, 135, 230, 141, PAPER),
+        (220, 129, 270, 136, PAPER_D), (255, 133, 310, 140, PAPER),
+        (300, 130, 350, 138, PAPER_D), (340, 134, 390, 141, PAPER),
+        (380, 129, 430, 136, PAPER_D), (420, 133, 480, 140, PAPER),
+    ]
+    for x0, y0, x1, y1, col in fog_slabs:
+        fill_rect(mid, x0, y0, x1, y1, col)
+    for x in range(12, BW, 41):
+        px(mid, x, 131, PAPER_L)
+        px(mid, x + 7, 137, CREAM)
+    # horizon ink line
+    hline(mid, 0, BW, 141, INK_SOFT)
+    layers_base["battle_mid.png"] = mid
+
+    # ----- GROUND: 黄土擂台（中央站位清爽） -----
+    ground = Image.new("RGBA", (BW, BH), TRANS)
+    # upper loess terrace
+    fill_rect(ground, 0, 135, BW, 160, LOESS)
+    # wood-light lip
+    fill_rect(ground, 0, 155, BW, 165, WOOD_L)
+    hline(ground, 0, BW, 155, GOLD)
+    hline(ground, 0, BW, 157, LOESS)
+    # main packed earth / wood arena floor
+    fill_rect(ground, 0, 165, BW, BH, WOOD)
+    # lighter plank bands
+    for i in range(10):
+        x = 8 + i * 48
+        fill_rect(ground, x, 178, x + 36, 184, WOOD_L)
+        hline(ground, x + 2, x + 34, 186, INK_SOFT)
+        if i % 2 == 0:
+            fill_rect(ground, x + 4, 200, x + 30, 204, FRAME)
+    # central ring — clearer standing pad (role yBase≈162 logical)
+    pad_x0, pad_x1 = 150, 330
+    pad_y0, pad_y1 = 168, 220
+    fill_rect(ground, pad_x0, pad_y0, pad_x1, pad_y1, WOOD_L)
+    outline_rect(ground, pad_x0, pad_y0, pad_x1, pad_y1, INK_SOFT)
+    fill_rect(ground, pad_x0 + 6, pad_y0 + 4, pad_x1 - 6, pad_y1 - 4, WOOD)
+    # gold center mark (not throng)
+    cx = (pad_x0 + pad_x1) // 2
+    cy = (pad_y0 + pad_y1) // 2
+    fill_rect(ground, cx - 8, cy - 2, cx + 8, cy + 2, GOLD)
+    fill_rect(ground, cx - 2, cy - 6, cx + 2, cy + 6, GOLD)
+    px(ground, cx, cy, LOESS)
+    # hard shadow under pad lip
+    draw_hard_shadow(ground, pad_x0 + 2, pad_y1 - 4, pad_x1 - pad_x0 - 4, 6, ox=3, oy=2, col=NIGHT)
+    # 擂台沿 cracks / grit — sparse hard dots
+    for y in range(168, 250, 5):
+        for x in range(20, BW - 20, 13):
+            if pad_x0 + 10 < x < pad_x1 - 10 and pad_y0 < y < pad_y1 - 6:
+                continue  # keep pad clean
+            if (x * 7 + y * 3) % 17 == 0:
+                px(ground, x, y, INK_SOFT)
+            elif (x + y * 5) % 23 == 0:
+                px(ground, x, y, FRAME)
+            elif (x * 2 + y) % 29 == 0:
+                px(ground, x, y, NIGHT)
+    # 碎石／裂縫 — sides only
+    for sx, sy in [
+        (30, 190), (42, 198), (55, 210), (28, 230),
+        (430, 188), (445, 200), (420, 215), (450, 228),
+        (70, 240), (400, 242), (100, 248), (380, 250),
+    ]:
+        fill_rect(ground, sx, sy, sx + 5, sy + 3, FRAME)
+        px(ground, sx + 1, sy + 1, INK_SOFT)
+        px(ground, sx + 3, sy, MIST)
+    # left / right dark side wells (foreground depth)
+    fill_rect(ground, 0, 210, 36, BH, NIGHT)
+    fill_rect(ground, BW - 36, 210, BW, BH, NIGHT)
+    fill_rect(ground, 0, 230, 50, BH, INK_SOFT)
+    fill_rect(ground, BW - 50, 230, BW, BH, INK_SOFT)
+    # front apron shadow band
+    fill_rect(ground, 40, 248, BW - 40, BH, NIGHT)
+    for x in range(50, BW - 50, 22):
+        fill_rect(ground, x, 252, x + 12, 258, INK_SOFT)
+    # terrace edge highlights
+    hline(ground, 0, BW, 135, MIST)
+    hline(ground, 0, BW, 136, PAPER_D)
+    layers_base["battle_ground.png"] = ground
+
+    # ----- PROPS: 木樁／旗／燈／繩；中央戰鬥區留空 -----
+    props = Image.new("RGBA", (BW, BH), TRANS)
+
+    def stake(img, x, y, h, flag=False, side="L", thick=5):
+        draw_hard_shadow(img, x - 2, y + h - 4, thick + 6, 6, ox=2, oy=2, col=NIGHT)
+        fill_rect(img, x, y, x + thick, y + h, WOOD)
+        fill_rect(img, x + 1, y, x + thick - 1, y + h, WOOD_L)
+        fill_rect(img, x - 2, y + h - 5, x + thick + 2, y + h + 1, INK_SOFT)
+        if not flag:
+            return
+        fy = y + 6
+        fw, fh = 22, 16
+        if side == "L":
+            fill_rect(img, x + thick, fy, x + thick + fw, fy + fh, CINN)
+            fill_rect(img, x + thick, fy, x + thick + fw, fy + 3, CINN_B)
+            fill_rect(img, x + thick + 4, fy + 5, x + thick + 14, fy + 11, CREAM)
+            px(img, x + thick + 8, fy + 7, GOLD)
+            px(img, x + thick + 10, fy + 8, LOESS)
+            # gold trim block
+            hline(img, x + thick, x + thick + fw, fy + fh - 1, GOLD)
+        else:
+            fill_rect(img, x - fw, fy, x, fy + fh, CINN)
+            fill_rect(img, x - fw, fy, x, fy + 3, CINN_B)
+            fill_rect(img, x - 14, fy + 5, x - 4, fy + 11, GOLD)
+            px(img, x - 10, fy + 7, LOESS)
+            px(img, x - 8, fy + 8, CREAM)
+            hline(img, x - fw, x, fy + fh - 1, GOLD)
+
+    # left stakes (outside combat pad)
+    stake(props, 16, 118, 52, True, "L")
+    stake(props, 42, 114, 54, False, "L")
+    stake(props, 68, 110, 56, True, "L")
+    # right stakes
+    stake(props, 460, 118, 52, True, "R")
+    stake(props, 434, 114, 54, False, "R")
+    stake(props, 408, 110, 56, True, "R")
+
+    # rope / crossbeam between outer stakes (hard 1–2px)
+    hline(props, 20, 72, 124, INK_SOFT)
+    hline(props, 20, 72, 125, FRAME)
+    hline(props, 408, 464, 124, INK_SOFT)
+    hline(props, 408, 464, 125, FRAME)
+    # short pennant string on left rope only (sparse)
+    draw_pennant_string(props, 22, 124, 70, n=5, drop=6,
+                        colors=[CINN, GOLD, PAPER_L, JADE, CINN_B])
+
+    # 燈柱 — left & right, cream flame 1px
+    def lamp(img, x, y, h=28):
+        draw_hard_shadow(img, x - 3, y + h - 2, 14, 5, ox=2, oy=2, col=NIGHT)
+        fill_rect(img, x, y, x + 4, y + h, WOOD)
+        fill_rect(img, x + 1, y, x + 3, y + h, WOOD_L)
+        fill_rect(img, x - 4, y - 2, x + 8, y + 4, CINN_B)
+        outline_rect(img, x - 4, y - 2, x + 8, y + 4, INK)
+        fill_rect(img, x - 2, y - 6, x + 6, y - 2, GOLD)
+        px(img, x + 1, y - 7, CREAM)  # flame heart 1px
+        px(img, x + 2, y - 8, CREAM)
+        px(img, x, y - 6, LOESS)
+        px(img, x + 3, y - 6, LOESS)
+
+    lamp(props, 96, 148, 32)
+    lamp(props, 380, 148, 32)
+
+    # mid-side fence posts (no flags) — still outside pad
+    for px0, py0, ph in [(110, 150, 22), (370, 150, 22)]:
+        fill_rect(props, px0, py0, px0 + 3, py0 + ph, WOOD)
+        fill_rect(props, px0 - 2, py0 - 2, px0 + 5, py0 + 1, INK)
+        draw_hard_shadow(props, px0 - 1, py0 + ph - 2, 6, 4, ox=2, oy=1, col=NIGHT)
+
+    # 少量碎石／罈 — far sides only (throng 唔塞)
+    jars = [(12, 175), (28, 188), (450, 175), (462, 190)]
+    for jx, jy in jars:
+        draw_hard_shadow(props, jx, jy + 6, 10, 5, ox=2, oy=2, col=NIGHT)
+        fill_rect(props, jx, jy, jx + 9, jy + 10, FRAME)
+        fill_rect(props, jx + 1, jy + 1, jx + 8, jy + 8, WOOD)
+        fill_rect(props, jx + 2, jy - 2, jx + 7, jy + 1, WOOD_L)
+        px(props, jx + 4, jy + 3, GOLD)
+
+    # corner grit stones
+    for sx, sy in [(8, 200), (18, 210), (458, 202), (470, 212)]:
+        fill_rect(props, sx, sy, sx + 4, sy + 3, MIST)
+        px(props, sx + 1, sy + 1, INK_SOFT)
+
+    # ensure combat pad interior stays empty of props (safety clear)
+    # pad logical ~150–330 × 168–220 — erase any accidental fill
+    for y in range(168, 220):
+        for x in range(150, 330):
+            r, g, b, a = props.getpixel((x, y))
+            if a:
+                # keep nothing in center band
+                props.putpixel((x, y), TRANS)
+
+    layers_base["battle_props.png"] = props
+
+    # composed preview (night underpaint so transparent reads)
+    composed = Image.new("RGBA", (BW, BH), NIGHT)
+    for key in ["battle_sky.png", "battle_mid.png", "battle_ground.png", "battle_props.png"]:
+        composed.alpha_composite(layers_base[key])
+    layers_base["battle_composed.png"] = composed
+
+    layers = {}
+    for name, im in layers_base.items():
+        layers[name] = im.resize((OW, OH), Image.NEAREST)
+    return layers
+
+
+def write_battle_only():
+    """Regenerate battle_* layers only — owned by 墨點場景. Does not touch hub_* / sprites."""
+    SCENES.mkdir(parents=True, exist_ok=True)
+    PREVIEW.mkdir(parents=True, exist_ok=True)
+    report = ["# Ink-Pixel Inn battle scenes report v0.8.4 (960×540)", ""]
+    layers = make_battle_layers()
+    # write only the four game layers (+ keep composed for preview, not required by game)
+    out_names = [
+        "battle_sky.png", "battle_mid.png", "battle_ground.png", "battle_props.png",
+    ]
+    for name in out_names:
+        im = layers[name]
+        assert im.size == (960, 540), f"{name} size {im.size}"
+        opaque, oob, cols = audit(im, name)
+        out = SCENES / name
+        im.save(out)
+        line = f"BATTLE {name}: size={im.size} opaque={opaque} oob={oob} oob_cols={cols} bytes={out.stat().st_size}"
+        report.append(line)
+        print(line)
+        if oob:
+            raise SystemExit(f"OOB colors in {name}: {cols}")
+    composed = layers["battle_composed.png"]
+    composed.save(SCENES / "battle_composed.png")
+    # preview ×2 for inspect
+    composed.resize((composed.width * 2, composed.height * 2), Image.NEAREST).save(
+        PREVIEW / "battle_composed_x2.png"
+    )
+    composed.save(PREVIEW / "battle_composed.png")
+    report.append("PREVIEWS: battle_composed.png (=960) battle_composed_x2.png (1920×1080)")
+    report.append("")
+    report.append("## z-order（由底到頂）")
+    report.append("battle_sky → battle_mid → battle_ground → battle_props → （角色）")
+    report.append("")
+    report.append("## 站位留白（960×540）")
+    report.append("中央墊 300–660,336–440｜角色 yBase≈325；props 唔入 300–660×336–440")
+    report.append("")
+    report.append("## 重生")
+    report.append("python3 tools/gen_ink_pixel_assets.py --battle-only")
+    print("PREVIEWS: battle_composed.png battle_composed_x2.png refreshed")
+    (SCENES / "_battle_gen_report.txt").write_text("\n".join(report) + "\n", encoding="utf-8")
+    print("DONE v0.8.4 battle-only")
+
+
+
 def audit(img: Image.Image, name: str):
     oob = 0
     opaque = 0
@@ -2265,7 +2580,10 @@ def write_scenes_only():
 
 
 
-def main(scenes_only=False):
+def main(scenes_only=False, battle_only=False):
+    if battle_only:
+        write_battle_only()
+        return
     if scenes_only:
         write_scenes_only()
         return
@@ -2332,4 +2650,7 @@ def main(scenes_only=False):
 
 if __name__ == "__main__":
     import sys
-    main(scenes_only=("--scenes-only" in sys.argv))
+    main(
+        scenes_only=("--scenes-only" in sys.argv),
+        battle_only=("--battle-only" in sys.argv),
+    )

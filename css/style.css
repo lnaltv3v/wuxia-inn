@@ -1,4 +1,4 @@
-/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.8.4（Hub 減雜／浮層預熱／960×540） */
+/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.9.0（青衣／浪人精修＋戰鬥教學／960×540） */
 :root {
   /* 嚴格色盤 — 禁止盤外色 */
   --ink: #1A1510;
@@ -1393,6 +1393,7 @@ body.hub-mode .app { max-width: 1100px; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  pointer-events: none; /* 唔遮熱點／快捷點擊 */
 }
 .hub-hint-hot {
   border-left-color: var(--cinnabar) !important;
@@ -1490,4 +1491,84 @@ body.hub-mode .app { max-width: 1100px; }
   .hub-stage-wrap .hub-canvas {
     max-height: min(88vh, 1000px);
   }
+}
+
+
+/* —— v0.9.0 戰鬥教學芯片／招名可讀／熱點唔遮 —— */
+@media (orientation: landscape) {
+  .hub-quickbar-chips .hub-qbtn {
+    min-height: 40px !important;
+    font-size: 0.95rem !important;
+    padding: 6px 10px !important;
+  }
+}
+.combat-auto-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border: 2px solid var(--frame);
+  background: rgba(232, 213, 168, 0.85);
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-family: var(--font-body);
+  letter-spacing: 0.04em;
+}
+.combat-auto-tip[hidden] { display: none !important; }
+.combat-auto-tip-hide {
+  min-width: 1.4em !important;
+  padding: 0 4px !important;
+  line-height: 1.2;
+}
+.combat-tutor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  max-width: 1100px;
+  margin: 0 auto 8px;
+  padding: 8px 12px;
+  background: rgba(244, 230, 196, 0.92);
+  border: 3px solid var(--ink);
+  box-shadow: 0 0 0 2px var(--wood), 3px 3px 0 rgba(26,21,16,0.45);
+}
+.combat-tutor.hidden,
+.combat-tutor[hidden] { display: none !important; }
+.combat-tutor-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.combat-tutor-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 2px solid var(--ink);
+  background: var(--paper-light);
+  font-family: var(--font-title);
+  font-size: 0.9rem;
+  color: var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.combat-tutor-chip b {
+  display: inline-block;
+  min-width: 1.1em;
+  text-align: center;
+  background: var(--gold);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  padding: 1px 3px;
+}
+.combat-tutor-note {
+  margin: 0;
+  flex: 1 1 160px;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
 }

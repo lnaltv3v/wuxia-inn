@@ -1,6 +1,6 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.8.4：戰場背景加厚／鏡頭・VFX／Hub・戰鬥 960×540）
- * Hub＋戰鬥 960×540；FSM＋v0.9 幀；戰場分層遠山／地面／木樁旗；shake／VFX／場內 HUD
+ * 俠客棧 — 墨點江湖舞台（v0.9.0：青衣／浪人精修＋招名飄字／960×540）
+ * Hub＋戰鬥 960×540；FSM＋v0.9 幀；讀招淡出／判定強顯招名；戰場分層；shake／VFX
  */
 (function (global) {
   'use strict';
@@ -1554,10 +1554,13 @@
         pushFxSheet('slash', atk.x + (dir > 0 ? 18 : -22), atk.y + 4, {
           flip: dir < 0, dur: scaleDur(14), scale: 0.9
         });
+        // v0.9：windup 招名淡出（弱）
+        const wuName = evt.skillName ? ('「' + evt.skillName + '」') : '讀招';
         fx.push({
-          kind: 'text', text: evt.skillName ? ('「' + evt.skillName + '」') : '！',
-          x: atk.x - 12, y: atk.y - 40, life: scaleDur(36), max: scaleDur(36),
-          color: evt.skillName ? C.gold : C.cream
+          kind: 'text', text: wuName,
+          x: atk.x - 10, y: atk.y - 44, life: scaleDur(42), max: scaleDur(42),
+          color: evt.skillName ? C.gold : C.mist,
+          soft: true
         });
         return;
       }
@@ -1570,6 +1573,14 @@
           : Math.min(68, Math.max(28, dx * 0.72 + 12));
         anims[atk.id] = { kind: 'lunge', t: 0, dur: scaleDur(evt.ranged ? 40 : 52), dir: dir, ranged: !!evt.ranged, reach: reach };
         spawnBladeFx(atk, tgt, false, false);
+        // v0.9：strike 招名強顯（跟狀態）
+        const sn = evt.skillName ? ('「' + evt.skillName + '」') : '判定';
+        fx.push({
+          kind: 'text', text: sn,
+          x: atk.x - 14, y: atk.y - 52, life: scaleDur(50), max: scaleDur(50),
+          color: evt.skillName ? C.cinnabarBright : C.cream,
+          strong: true
+        });
         return;
       }
 
@@ -1848,6 +1859,8 @@
     }
 
     function drawBg() {
+      // z-order：sky → mid → ground → props（之後 loop 先畫單位／VFX）
+      // 中央站位留白約 x 300–660、y 336–440（精修場景）
       const hasSky = !!Assets.layers.battle_sky;
       if (hasSky) {
         ctx.imageSmoothingEnabled = false;
@@ -2407,7 +2420,15 @@
         }
         ctx.globalAlpha = clamp(a, 0, 1);
         if (f.kind === 'text') {
+          let ta = a;
+          if (f.soft) ta = a * a;           // 讀招：更快淡出
+          if (f.strong) ta = Math.min(1, a * 1.25 + 0.15); // 判定：更醒目
+          ctx.globalAlpha = clamp(ta, 0, 1);
+          if (f.strong) {
+            drawRect(ctx, f.x - 2, f.y - 1, Math.min(120, 8 + String(f.text).length * 7), 12, C.ink);
+          }
           drawPixelText(ctx, f.text, f.x, f.y, f.color || C.cream);
+          ctx.globalAlpha = 1;
         } else if (f.kind === 'burst') {
           drawRect(ctx, f.x - 5, f.y - 5, 12, 12, f.color || C.gold);
           drawRect(ctx, f.x - 2, f.y - 2, 6, 6, C.cream);

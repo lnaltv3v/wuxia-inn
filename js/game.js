@@ -1606,6 +1606,8 @@
     }
     battle.start();
     renderCombat();
+    syncCombatAutoTipUI();
+    syncCombatTutorUI(true);
   }
 
   function stopBattle() {
@@ -1749,6 +1751,50 @@
     if (name === 'log') renderLog();
   }
 
+  const LS_COMBAT_TUTOR = 'wuxia-inn-combat-tutor-v1';
+  const LS_COMBAT_AUTOTIP = 'wuxia-inn-combat-auto-tip-v1';
+
+  function combatTutorDone() {
+    try { return localStorage.getItem(LS_COMBAT_TUTOR) === '1'; } catch (e) { return false; }
+  }
+  function setCombatTutorDone() {
+    try { localStorage.setItem(LS_COMBAT_TUTOR, '1'); } catch (e) { /* ignore */ }
+  }
+  function combatAutoTipHidden() {
+    try { return localStorage.getItem(LS_COMBAT_AUTOTIP) === '1'; } catch (e) { return false; }
+  }
+  function setCombatAutoTipHidden() {
+    try { localStorage.setItem(LS_COMBAT_AUTOTIP, '1'); } catch (e) { /* ignore */ }
+  }
+
+  function syncCombatTutorUI(forceShow) {
+    const el = $('combat-tutor');
+    if (!el) return;
+    const show = forceShow || (!combatTutorDone() && !!battle);
+    if (show) {
+      el.classList.remove('hidden');
+      el.hidden = false;
+    } else {
+      el.classList.add('hidden');
+      el.hidden = true;
+    }
+  }
+
+  function syncCombatAutoTipUI() {
+    const tip = $('combat-auto-tip');
+    if (!tip) return;
+    if (combatAutoTipHidden()) {
+      tip.hidden = true;
+    } else {
+      tip.hidden = false;
+    }
+  }
+
+  function dismissCombatTutor() {
+    setCombatTutorDone();
+    syncCombatTutorUI(false);
+  }
+
   function openCombatOverlay() {
     activeTab = 'combat';
     closeSheet();
@@ -1760,6 +1806,8 @@
     });
     closeMenu();
     renderCombat();
+    syncCombatAutoTipUI();
+    syncCombatTutorUI(false);
   }
 
   function closeCombatOverlay(force) {
@@ -2515,7 +2563,7 @@
     el.innerHTML = `
       <div class="card battle-card stage-first">
         <h3>${pxIcon('🗡️')} 戰場舞台</h3>
-        <p class="muted tiny-tip">960×540｜狀態機：讀招→判定→硬直；近戰須接觸；撞刃 clash。上方 0.5×–2× 速度（記住偏好）。</p>
+        <p class="muted tiny-tip">960×540｜靠近→讀招→判定；近戰須接觸；招名跟狀態飄字。速度 0.5×–2×（記住偏好）。</p>
         <div id="combat-stage-host" class="stage-host combat-stage-host" aria-label="戰鬥舞台"></div>
         <div id="battle-field" class="battle-field battle-field-compact">${battle ? prevField : '<p class="muted">尚未交鋒——選敵開打後舞台會動起來</p>'}</div>
         <div id="combat-log" class="combat-log combat-log-compact">${prevLog}</div>
@@ -2765,6 +2813,18 @@
       });
     });
     syncCombatSpeedUI();
+    syncCombatAutoTipUI();
+    const btnTutor = $('btn-combat-tutor-dismiss');
+    if (btnTutor) btnTutor.addEventListener('click', () => {
+      audioUiClick();
+      dismissCombatTutor();
+    });
+    const btnAutoTip = $('btn-combat-auto-tip-hide');
+    if (btnAutoTip) btnAutoTip.addEventListener('click', () => {
+      audioUiClick();
+      setCombatAutoTipHidden();
+      syncCombatAutoTipUI();
+    });
 
     $('btn-manual-save').addEventListener('click', () => {
       save();

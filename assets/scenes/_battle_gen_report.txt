@@ -1,0 +1,16 @@
+# Ink-Pixel Inn battle scenes report v0.8.4 (960×540)
+
+BATTLE battle_sky.png: size=(960, 540) opaque=268800 oob=0 oob_cols={} bytes=3919
+BATTLE battle_mid.png: size=(960, 540) opaque=148388 oob=0 oob_cols={} bytes=4905
+BATTLE battle_ground.png: size=(960, 540) opaque=259200 oob=0 oob_cols={} bytes=4188
+BATTLE battle_props.png: size=(960, 540) opaque=19732 oob=0 oob_cols={} bytes=4225
+PREVIEWS: battle_composed.png (=960) battle_composed_x2.png (1920×1080)
+
+## z-order（由底到頂）
+battle_sky → battle_mid → battle_ground → battle_props → （角色）
+
+## 站位留白（960×540）
+中央墊 300–660,336–440｜角色 yBase≈325；props 唔入 300–660×336–440
+
+## 重生
+python3 tools/gen_ink_pixel_assets.py --battle-only

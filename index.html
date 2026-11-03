@@ -78,14 +78,27 @@
           <button type="button" class="btn combat-speed-btn" data-speed="1">1×</button>
           <button type="button" class="btn combat-speed-btn" data-speed="1.5">1.5×</button>
           <button type="button" class="btn combat-speed-btn" data-speed="2">2×</button>
+          <span class="combat-auto-tip" id="combat-auto-tip" hidden>
+            <span class="combat-auto-tip-text">自動走位戰鬥</span>
+            <button type="button" class="btn tiny combat-auto-tip-hide" id="btn-combat-auto-tip-hide" title="收起提示">×</button>
+          </span>
         </div>
         <button type="button" class="btn tiny" id="btn-combat-back">返回客棧</button>
       </header>
+      <div id="combat-tutor" class="combat-tutor hidden" role="region" aria-label="戰鬥短教學" hidden>
+        <ol class="combat-tutor-steps">
+          <li class="combat-tutor-chip" data-step="1"><b>1</b> 靠近</li>
+          <li class="combat-tutor-chip" data-step="2"><b>2</b> 讀招</li>
+          <li class="combat-tutor-chip" data-step="3"><b>3</b> 判定</li>
+        </ol>
+        <p class="combat-tutor-note">自動走位：靠近 → 蓄勢讀招 → 接觸幀出手</p>
+        <button type="button" class="btn tiny primary" id="btn-combat-tutor-dismiss">知道了</button>
+      </div>
       <section id="panel-combat" class="panel combat-panel" role="tabpanel"></section>
     </div>
 
     <div id="toast-host" class="toast-host hidden" aria-live="polite"></div>
-    <footer class="footer">俠客棧 v0.8.4 · Hub 減雜／浮層預熱 · 960×540 · 墨點江湖</footer>
+    <footer class="footer">俠客棧 v0.9.0 · 青衣／浪人精靈精修 · 960×540 · 墨點江湖</footer>
   </div>
 
   <script src="js/data.js"></script>

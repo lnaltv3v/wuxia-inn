@@ -1,0 +1,53 @@
+# v0.9 sprite gen report
+
+## qingyi
+path: /workspace/wuxia-inn/assets/sprites/64/qingyi.png
+size: (1152, 64)
+oob: 0
+palette_used (19): #1A1510, #2A2218, #2A6A6A, #3D3226, #4A9A9A, #5A4A32, #5C4030, #8B2942, #8B6914, #A61B1B, #B8860B, #C09070, #C42B2B, #C9A227, #D4BC8A, #E8C4A0, #E8D5A8, #F4E6C4, #FFF8EE
+frames:
+  00 idle0: visible=1540
+  01 idle1: visible=1527
+  02 walk0: visible=1480
+  03 walk1: visible=1525
+  04 walk2: visible=1490
+  05 walk3: visible=1538
+  06 windup0: visible=1382
+  07 windup1: visible=1380
+  08 windup2: visible=1328
+  09 strike0: visible=1411
+  10 strike1: visible=1421
+  11 strike2: visible=1431
+  12 strike3: visible=1473
+  13 hurt0: visible=1433
+  14 hurt1: visible=1360
+  15 parry0: visible=1393
+  16 parry1: visible=1421
+  17 parry2: visible=1387
+
+## langren
+path: /workspace/wuxia-inn/assets/sprites/64/langren.png
+size: (1152, 64)
+oob: 0
+palette_used (13): #1A1510, #2A2218, #3D3226, #5A4A32, #5C4030, #8A7A60, #8B2942, #8B6914, #A61B1B, #C09070, #C42B2B, #C9A227, #FFF8EE
+frames:
+  00 idle0: visible=1698
+  01 idle1: visible=1669
+  02 walk0: visible=1596
+  03 walk1: visible=1661
+  04 walk2: visible=1621
+  05 walk3: visible=1679
+  06 windup0: visible=1488
+  07 windup1: visible=1484
+  08 windup2: visible=1413
+  09 strike0: visible=1519
+  10 strike1: visible=1550
+  11 strike2: visible=1530
+  12 strike3: visible=1593
+  13 hurt0: visible=1497
+  14 hurt1: visible=1417
+  15 parry0: visible=1510
+  16 parry1: visible=1526
+  17 parry2: visible=1494
+
+TOTAL_OOB=0
