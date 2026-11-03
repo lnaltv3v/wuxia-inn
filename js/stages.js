@@ -1,6 +1,6 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.8.2：戰鬥鏡頭／VFX 加厚／Hub・戰鬥 960×540）
- * Hub 960×540；FSM＋v0.9 幀；鏡頭 shake 分層＋整數 zoom pulse；場內血條／狀態可讀
+ * 俠客棧 — 墨點江湖舞台（v0.8.3：戰場背景加厚／鏡頭・VFX／Hub・戰鬥 960×540）
+ * Hub＋戰鬥 960×540；FSM＋v0.9 幀；戰場分層遠山／地面／木樁旗；shake／VFX／場內 HUD
  */
 (function (global) {
   'use strict';
@@ -63,6 +63,8 @@
   const LAYER_TOP = ['hub_lanterns'];
   const LAYER_FG = ['hub_fg'];
   const LAYER_NIGHT = ['hub_lanterns_night'];
+  /** 戰鬥場分層（可選 PNG；缺則程式畫硬邊後備） */
+  const BATTLE_LAYERS = ['battle_sky', 'battle_mid', 'battle_ground', 'battle_props'];
 
   const Assets = {
     sheets: {},
@@ -83,7 +85,7 @@
   /** 資產快取戳：跟 GAME.version 對齊，確保 v1.2.1 精靈表換檔後瀏覽器重拉 */
   const ASSET_VER = (typeof global !== 'undefined' && global.WuxiaData && global.WuxiaData.GAME && global.WuxiaData.GAME.version)
     ? global.WuxiaData.GAME.version
-    : '0.8.2';
+    : '0.8.3';
 
   function loadImg(src) {
     return new Promise(function (resolve) {
@@ -146,7 +148,7 @@
       });
     }));
 
-    LAYER_ORDER.concat(LAYER_TOP).concat(LAYER_FG).concat(LAYER_NIGHT).forEach(function (name) {
+    LAYER_ORDER.concat(LAYER_TOP).concat(LAYER_FG).concat(LAYER_NIGHT).concat(BATTLE_LAYERS).forEach(function (name) {
       jobs.push(loadImg('assets/scenes/' + name + '.png').then(function (img) {
         if (img) Assets.layers[name] = img;
       }));
@@ -1771,19 +1773,98 @@
       }
     }
 
-    function drawBg() {
-      drawRect(ctx, 0, 0, W, 255, C.sky);
-      drawRect(ctx, 0, 165, 168, 120, C.mtn);
-      drawRect(ctx, 120, 145, 192, 138, C.jade);
-      drawRect(ctx, 600, 155, 216, 125, C.mtn);
-      drawRect(ctx, 744, 125, 168, 155, C.jade);
-      drawRect(ctx, 0, 255, W, 65, C.loess);
-      drawRect(ctx, 0, 320, W, 220, C.wood);
-      for (let i = 0; i < 12; i++) {
-        drawRect(ctx, 28 + i * 80, 342, 44, 8, C.woodLight);
+    /** 戰鬥場背景：遠山／地面／木樁旗分層；優先 battle_* PNG，否則硬邊程式畫 */
+    function drawBattleProc() {
+      // sky
+      drawRect(ctx, 0, 0, W, 280, C.sky);
+      [[40, 36, 120, 18], [90, 48, 80, 12], [280, 28, 140, 16], [420, 50, 100, 14],
+       [560, 34, 160, 18], [720, 44, 110, 12], [820, 30, 90, 16]].forEach(function (b) {
+        drawRect(ctx, b[0], b[1], b[2], b[3], C.cream);
+        drawRect(ctx, b[0] + 8, b[1] + 10, Math.max(8, b[2] - 20), 8, C.paper);
+      });
+      drawRect(ctx, 860, 50, 36, 36, C.gold);
+      drawRect(ctx, 866, 56, 24, 24, C.sky);
+      // mountains (narrowing bands)
+      function mountain(bx, py, width, height, col) {
+        for (let i = 0; i < height; i++) {
+          const t = i / Math.max(1, height - 1);
+          const half = Math.max(2, Math.round((width / 2) * (1 - t * 0.92)));
+          drawRect(ctx, bx + Math.round(width / 2) - half, py + i, half * 2, 2, col);
+        }
       }
-      drawRect(ctx, 470, 275, 14, 14, C.cinnabar);
-      drawRect(ctx, 466, 300, 24, 4, C.ink);
+      mountain(-40, 130, 280, 150, C.mtn);
+      mountain(160, 110, 320, 170, C.jade);
+      mountain(400, 125, 300, 155, C.mtn);
+      mountain(620, 100, 340, 180, C.jade);
+      mountain(780, 135, 260, 145, C.mtn);
+      drawRect(ctx, 0, 250, W, 30, C.mist);
+      for (let x = 0; x < W; x += 48) drawRect(ctx, x, 258, 28, 8, C.paper);
+      // ground
+      drawRect(ctx, 0, 270, W, 50, C.loess);
+      drawRect(ctx, 0, 310, W, 16, C.woodLight);
+      drawRect(ctx, 0, 320, W, 220, C.wood);
+      for (let i = 0; i < 14; i++) {
+        const x = 20 + i * 70;
+        drawRect(ctx, x, 348, 48, 10, C.woodLight);
+        drawRect(ctx, x + 4, 358, 40, 4, C.inkSoft);
+      }
+      drawRect(ctx, 400, 360, 160, 70, C.inkSoft);
+      drawRect(ctx, 408, 368, 144, 54, '#5A4A32');
+      drawRect(ctx, 420, 380, 120, 30, C.wood);
+      drawRect(ctx, 470, 390, 20, 10, C.gold);
+      drawRect(ctx, 0, 400, 80, 80, C.night);
+      drawRect(ctx, 880, 400, 80, 80, C.night);
+      // stakes + flags
+      function stake(x, y, h, flag, side) {
+        drawRect(ctx, x, y, 8, h, C.wood);
+        drawRect(ctx, x + 2, y, 4, h, C.woodLight);
+        drawRect(ctx, x - 2, y + h - 6, 12, 8, C.inkSoft);
+        if (!flag) return;
+        const fy = y + 8;
+        if (side === 'L') {
+          drawRect(ctx, x + 8, fy, 40, 28, C.cinnabar);
+          drawRect(ctx, x + 8, fy, 40, 6, C.cinnabarBright);
+          drawRect(ctx, x + 12, fy + 10, 20, 10, C.cream);
+        } else {
+          drawRect(ctx, x - 40, fy, 40, 28, C.cinnabar);
+          drawRect(ctx, x - 40, fy, 40, 6, C.cinnabarBright);
+          drawRect(ctx, x - 32, fy + 10, 20, 10, C.gold);
+        }
+      }
+      [[36, 250, 95, true, 'L'], [90, 244, 99, false, 'L'], [150, 238, 103, true, 'L'],
+       [870, 250, 95, true, 'R'], [810, 244, 99, false, 'R'], [750, 238, 103, true, 'R']
+      ].forEach(function (s) { stake(s[0], s[1], s[2], s[3], s[4]); });
+      [280, 480, 680].forEach(function (x) {
+        drawRect(ctx, x, 290, 6, 40, C.wood);
+        drawRect(ctx, x - 4, 286, 14, 6, C.ink);
+      });
+      drawRect(ctx, 44, 268, 110, 3, C.inkSoft);
+      drawRect(ctx, 760, 268, 110, 3, C.inkSoft);
+      [200, 740].forEach(function (x) {
+        drawRect(ctx, x, 300, 6, 50, C.wood);
+        drawRect(ctx, x - 6, 292, 18, 14, C.cinnabarBright);
+        drawRect(ctx, x - 2, 296, 10, 6, C.gold);
+      });
+    }
+
+    function drawBg() {
+      const hasSky = !!Assets.layers.battle_sky;
+      if (hasSky) {
+        ctx.imageSmoothingEnabled = false;
+        BATTLE_LAYERS.forEach(function (name) {
+          const img = Assets.layers[name];
+          if (img) ctx.drawImage(img, 0, 0, W, H);
+        });
+        // 若缺 props 層仍補一點旗／樁，避免太空
+        if (!Assets.layers.battle_props) {
+          drawRect(ctx, 40, 250, 8, 90, C.wood);
+          drawRect(ctx, 48, 258, 36, 24, C.cinnabar);
+          drawRect(ctx, 900, 250, 8, 90, C.wood);
+          drawRect(ctx, 860, 258, 36, 24, C.cinnabar);
+        }
+      } else {
+        drawBattleProc();
+      }
     }
 
     function drawMeleeRing(u) {
@@ -2004,11 +2085,15 @@
           bulky: isMob
         });
         if (isMob) {
-          // 寬肩／帽簷／腰帶：提升可讀剪影
-          drawRect(ctx, dx - 2, dy + 20, 56, 10, pal.robe);
-          drawRect(ctx, dx + 6, dy + 8, 40, 8, pal.hair || C.ink);
-          drawRect(ctx, dx + 10, dy + 48, 36, 6, pal.accent || C.cinnabar);
-          drawRect(ctx, dx + 48, dy + 28, 18, 6, pal.accent || C.cinnabarBright);
+          // 寬肩／帽簷／腰帶／靴／武器塊：可讀剪影（腳本色塊≠精修成品）
+          drawRect(ctx, dx - 4, dy + 18, 60, 14, pal.robe);
+          drawRect(ctx, dx + 4, dy + 6, 44, 10, pal.hair || C.ink);
+          drawRect(ctx, dx + 14, dy + 10, 6, 4, C.cream); // 帽簷高光 1 塊
+          drawRect(ctx, dx + 8, dy + 46, 40, 8, pal.accent || C.cinnabar);
+          drawRect(ctx, dx + 12, dy + 70, 14, 10, C.inkSoft); // 左靴
+          drawRect(ctx, dx + 30, dy + 70, 14, 10, C.inkSoft); // 右靴
+          drawRect(ctx, dx + 50, dy + 24, 22, 8, pal.accent || C.cinnabarBright); // 橫刀
+          drawRect(ctx, dx + 48, dy + 22, 6, 12, C.woodLight); // 刀柄
         }
       }
       ctx.globalAlpha = 1;
