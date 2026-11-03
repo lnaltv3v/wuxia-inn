@@ -1891,6 +1891,16 @@ body.combat-open .hub-shell {
 .wave-btn-info.risk-3 .wave-risk { color: var(--cinnabar); }
 .wave-btn-info.risk-4 .wave-risk,
 .wave-btn-info.risk-5 .wave-risk { color: var(--blood, #8B2942); }
+.wave-btn-info .wave-combo {
+  font-family: var(--font-pixel);
+  font-size: 0.5rem;
+  letter-spacing: 0.04em;
+  color: #c9a227;
+  display: inline-block;
+}
+.combat-combo-line .wave-combo, .combat-combo-line {
+  color: var(--ink-soft, #5a4a3a);
+}
 .wave-btn-info .wave-reward {
   font-size: 0.82rem;
   color: var(--ink);

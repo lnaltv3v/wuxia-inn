@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v2.4.0：合擊圖鑑＋六合連枝）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v2.5.0：出巡前合擊預覽）
  */
 (function () {
   'use strict';
@@ -3494,11 +3494,18 @@
         }).join('、') + '</p>'
       : '';
     const comboInfo = resolveActiveCombo();
-    const comboLine = comboInfo
-      ? '<p class="muted combat-combo-line">合擊：「' + comboInfo.name + '」已解鎖 · 同隊自動施放（一場一次）</p>'
+    const comboName = comboInfo && comboInfo.name ? String(comboInfo.name) : '';
+    const comboPreview = comboName
+      ? ('本隊可合擊：' + comboName)
+      : '';
+    const comboLine = comboPreview
+      ? '<p class="muted combat-combo-line" aria-live="polite">' + comboPreview + ' · 同隊自動施放（一場一次）</p>'
       : ((state.duoBondDone || []).length
         ? '<p class="muted combat-combo-line">合擊：完成雙人羈絆後，相關俠客同隊可開</p>'
         : '');
+    const comboRiskHint = comboPreview
+      ? ('<span class="wave-combo" title="編隊已具備雙人合擊">' + comboPreview + '</span>')
+      : '';
     const partyHtml = state.party.length
       ? state.party.map((id) => {
           const r = heroRuntime(id);
@@ -3534,7 +3541,7 @@
         <span class="wave-title"><b>${b.emoji} ${b.name}</b>
           <span class="pill ${defeated ? 'jade' : unlocked && !lockedInn ? 'cinnabar' : ''}">${status}</span>
         </span>
-        <span class="wave-risk">風險 ★★★★☆ · Boss</span>
+        <span class="wave-risk">風險 ★★★★☆ · Boss</span>${comboRiskHint}
         <span class="wave-reward">銀 ${b.rewardSilver[0]}–${b.rewardSilver[1]} · 望 ${b.rewardRep[0]}–${b.rewardRep[1]} · 獨特獎</span>
         <span class="wave-blurb">${b.desc}</span>
       </button>`;
@@ -3585,6 +3592,7 @@
           (locked ? `<span class="pill">需 Lv.${w.minInnLevel}</span>` : '') +
           `</span>` +
           `<span class="wave-risk" aria-label="風險 ${risk}">風險 ${prev.starStr}</span>` +
+          comboRiskHint +
           `<span class="wave-reward">${prev.rewardLine || (`銀 ${w.rewardSilver[0]}–${w.rewardSilver[1]} · 望 ${w.rewardRep[0]}–${w.rewardRep[1]}`)}</span>` +
           `<span class="wave-tags">${prev.tagsLine}</span>` +
           (prev.blurb ? `<span class="wave-blurb">${prev.blurb}</span>` : '') +
@@ -4249,7 +4257,7 @@
       try { WuxiaAudio.preload(); } catch (e) { /* ignore */ }
     }
 
-    const verLabel = (GAME && GAME.version) ? String(GAME.version) : '2.4.0';
+    const verLabel = (GAME && GAME.version) ? String(GAME.version) : '2.5.0';
     const footVer = $('footer-version');
     if (footVer) footVer.textContent = 'v' + verLabel;
     try {
