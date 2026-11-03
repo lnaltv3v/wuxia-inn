@@ -518,7 +518,11 @@
       attacker.comboHits = (attacker.comboHits || 0) + 1;
       if (isCombo) {
         comboArmed = false;
-        log('合擊「' + (skillName || '同心') + '」打中 ' + target.name + '（' + dmg + '）' + (pending.breakMit ? ' · 破防' : ''), 'skill');
+        if (pending.primary) {
+          log('合擊成功：' + (skillName || '同心') + ' · 打中 ' + target.name + '（' + dmg + '）' + (pending.breakMit ? ' · 破防' : ''), 'skill');
+        } else {
+          log('合擊「' + (skillName || '同心') + '」打中 ' + target.name + '（' + dmg + '）' + (pending.breakMit ? ' · 破防' : ''), 'skill');
+        }
       } else if (isCounter) {
         log(attacker.emoji + attacker.name + ' 招架反打 ' + target.name + '（' + dmg + '）', 'skill');
       } else if (skillName && skillMul > 1) {
@@ -545,6 +549,7 @@
         clash: !!clash,
         counter: isCounter,
         isCombo: isCombo,
+        primary: !!pending.primary,
         breakMit: pending.breakMit || 0,
         combo: attacker.comboHits || 1,
         phase: 'strike',
@@ -1072,6 +1077,7 @@
           usedSkill: true,
           ranged: false,
           isCombo: true,
+          primary: !!primary,
           breakMit: primary ? brk : brk * 0.5,
           partnerId: partnerId
         };

@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v2.5.0
+ * v2.6.0
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '2.5.0',
+    version: '2.6.0',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -658,6 +658,83 @@
             reputation: 3
           },
           resultLine: '青衣與師太各飲一盞。人情暖過紙燈。'
+        }
+      ]
+    },
+    {
+      id: 'rain_eave_spar',
+      title: '雨簷劍影',
+      caption: '簷下雨絲斜，兩刃未出先有風…',
+      interactive: true,
+      once: true,
+      preferPhase: 'night',
+      weight: 36,
+      walkers: [
+        { id: 'qingyi', x: 120, y: 336, tx: 260, ty: 348 },
+        { id: 'langren', x: 620, y: 350, tx: 480, ty: 352 }
+      ],
+      beats: [
+        { at: 0, caption: '雨打簷瓦，廊下兩人對峙', line: '點到為止？', walker: 0, scale: 1.2 },
+        { at: 900, line: '刀不快，路還長。', walker: 1, scale: 1.15 },
+        { at: 1800, caption: '掌櫃定夺', line: '勸和、觀戰，還是請去廂房歇雨？', walker: 0, scale: 1.1 },
+        { at: 2500, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'rain_mediate',
+          label: '勸和奉茶（＋望／小好感）',
+          effects: { silver: -6, reputation: 8, favorHero: 'qingyi', favor: 3, favorHero2: 'langren', favor2: 3 },
+          resultLine: '兩人收刃，共飲簷下熱茶。雨聲也溫了些。'
+        },
+        {
+          id: 'rain_watch',
+          label: '准比試三招（＋銀／戰意）',
+          effects: {
+            silver: 18, reputation: 3,
+            favorHero: 'langren', favor: 2,
+            combatBuff: { id: 'buff_rain_eave', label: '雨簷', forceMul: 1.06, battles: 2, heroes: ['qingyi', 'langren'] }
+          },
+          resultLine: '刀劍過三招，圍觀客賞了些碎銀。戰意未散。'
+        },
+        {
+          id: 'rain_shelter',
+          label: '請入廂房避雨（平）',
+          effects: { silver: 4, reputation: 2, favorHero: 'qinshi', favor: 2 },
+          resultLine: '浪人收刀，青衣點頭。廂房多點了一盞燈。'
+        }
+      ]
+    },
+    {
+      id: 'ink_guest_verse',
+      title: '墨客題壁',
+      caption: '過路墨客要在告示旁留一句…',
+      interactive: true,
+      once: true,
+      preferPhase: 'dusk',
+      needHubDays: 1,
+      weight: 34,
+      walkers: [
+        { id: 'xiaoer', x: 300, y: 320, tx: 380, ty: 330 },
+        { id: 'qinshi', x: 540, y: 340, tx: 460, ty: 345 }
+      ],
+      beats: [
+        { at: 0, caption: '墨客執筆，小二捏一把汗', line: '掌櫃！他要題壁——寫壞怎麼辦？', walker: 0, scale: 1.2 },
+        { at: 950, line: '字如人。善惡在心，不在牆。', walker: 1, scale: 1.25 },
+        { at: 1850, caption: '兩選', line: '准他寫，還是請去雅座另紙？', walker: 0, scale: 1.1 },
+        { at: 2500, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'ink_allow_wall',
+          label: '准題壁（＋望／人情）',
+          effects: { reputation: 9, favorHero: 'qinshi', favor: 4, favorHero2: 'qingyi', favor2: 2 },
+          resultLine: '墨客留下「客心如水」。過路人駐足念了半日。'
+        },
+        {
+          id: 'ink_paper_fee',
+          label: '改題宣紙收潤筆（＋銀）',
+          effects: { silver: 22, reputation: 3 },
+          resultLine: '墨客笑納潤筆，紙捲帶走。櫃上多了幾兩。'
         }
       ]
     }

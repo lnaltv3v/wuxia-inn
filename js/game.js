@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v2.5.0：出巡前合擊預覽）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v2.6.0：Hub短景＋合擊成功提示）
  */
 (function () {
   'use strict';
@@ -2223,6 +2223,7 @@
     const speedMul = normalizeCombatSpeed(state.combatSpeed);
     state.combatSpeed = speedMul;
     const combo = resolveActiveCombo();
+    let comboSuccessAnnounced = false;
     battle = createBattle(allies, enemies, {
       tickMs: GAME.combatTickMs,
       speedMul: speedMul,
@@ -2237,6 +2238,13 @@
       onAction(evt) {
         if (evt && evt.kind === 'counter') {
           state.countersLanded = (state.countersLanded || 0) + 1;
+        }
+        // v2.6：合擊落地一次 toast＋戰鬥日誌「合擊成功：招名」
+        if (evt && evt.kind === 'combo' && evt.isCombo && evt.primary && !comboSuccessAnnounced) {
+          comboSuccessAnnounced = true;
+          const nm = evt.skillName || (combo && combo.name) || '合擊';
+          appendCombatLog('合擊成功：' + nm, 'skill');
+          showUiToast('⚔ 合擊成功', nm, 'skill');
         }
         if (evt && evt.kind) {
           const k = evt.kind === 'combo' || evt.kind === 'combo_windup' ? 'skill' : evt.kind;
@@ -4257,7 +4265,7 @@
       try { WuxiaAudio.preload(); } catch (e) { /* ignore */ }
     }
 
-    const verLabel = (GAME && GAME.version) ? String(GAME.version) : '2.5.0';
+    const verLabel = (GAME && GAME.version) ? String(GAME.version) : '2.6.0';
     const footVer = $('footer-version');
     if (footVer) footVer.textContent = 'v' + verLabel;
     try {
