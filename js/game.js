@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v0.5.8：Hub v1.4／guest_walk 六色／多段刀光）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v0.6.1：走位加速度／近戰圈／閃避 iFrame）
  */
 (function () {
   'use strict';

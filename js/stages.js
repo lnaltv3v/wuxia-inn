@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.6.0：即時走位戰鬥／雙向招架閃／Boss 加強 VFX）
+ * 俠客棧 — 墨點江湖舞台（v0.6.1：加速度走位／近戰圈／閃避位移＋iFrame／VFX 保留）
  * Hub 480×270：場景分層、小二／俠客 spritesheet；戰鬥 400×180：attack／hurt／parry 幀
  */
 (function (global) {
@@ -1312,6 +1312,8 @@
           heroId: u.id,
           intent: u.intent || 'hold',
           ranged: !!u.ranged,
+          engage: !!u.engage,
+          invuln: u.invuln || 0,
           x: x,
           y: y,
           ox: tx,
@@ -1351,6 +1353,8 @@
           heroId: heroId,
           intent: u.intent || 'hold',
           ranged: !!u.ranged,
+          engage: !!u.engage,
+          invuln: u.invuln || 0,
           x: x,
           y: y,
           ox: tx,
@@ -1413,7 +1417,7 @@
       }
 
       if (evt.kind === 'miss' && tgt) {
-        anims[tgt.id] = { kind: 'dodge', t: 0, dur: 40, dir: tgt.side === 'ally' ? -1 : 1 };
+        anims[tgt.id] = { kind: 'dodge', t: 0, dur: 52, dir: tgt.side === 'ally' ? -1 : 1 };
         fx.push({ kind: 'text', text: '閃', x: tgt.x + 2, y: tgt.y - 6, life: 30, max: 30, color: C.sky });
         hitStop = Math.max(hitStop, 5);
         return;
@@ -1503,6 +1507,36 @@
       drawRect(ctx, 194, 100, 10, 2, C.ink);
     }
 
+    function drawMeleeRing(u) {
+      if (!u || u.dead || u.ranged) return;
+      const FIELD = (global.WuxiaCombat && global.WuxiaCombat.FIELD) || { meleeRange: 42 };
+      const r = (FIELD.meleeRange || 42) * 0.55;
+      const cx = u.x + 8;
+      const cy = u.y + 26;
+      const active = u.engage || u.intent === 'approach' || u.intent === 'hold';
+      if (!active && !(u.invuln > 0)) return;
+      const a = u.engage ? 0.42 : (u.invuln > 0 ? 0.5 : 0.22);
+      ctx.globalAlpha = a;
+      const col = u.invuln > 0 ? C.sky : (u.side === 'ally' ? C.jadeBright : C.cinnabarBright);
+      // 墨點硬邊橢圓近似（近戰距離感）
+      for (let i = 0; i < 12; i++) {
+        const ang = (i / 12) * Math.PI * 2;
+        const x = cx + Math.cos(ang) * r;
+        const y = cy + Math.sin(ang) * r * 0.38;
+        drawRect(ctx, x, y, 2, 2, col);
+      }
+      if (u.engage) {
+        ctx.globalAlpha = a * 0.7;
+        for (let i = 0; i < 8; i++) {
+          const ang = (i / 8) * Math.PI * 2 + 0.2;
+          const x = cx + Math.cos(ang) * (r * 0.7);
+          const y = cy + Math.sin(ang) * (r * 0.28);
+          drawRect(ctx, x, y, 2, 1, C.cream);
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+
     function poseToAnim(pose) {
       if (pose === 'strike') return 'attack';
       if (pose === 'hurt') return 'hurt';
@@ -1516,7 +1550,7 @@
       let dy = u.y;
       const an = anims[u.id];
       let arm = 0;
-      let flash = u.flash > 0;
+      let flash = u.flash > 0 || (u.invuln > 0);
       let pose = 'idle';
       let animName = 'idle';
       let frameOverride = null;
@@ -1566,14 +1600,16 @@
           frameOverride = ANIM.hurt[p < 0.5 ? 0 : 1];
         } else if (an.kind === 'dodge') {
           const amp = Math.sin(p * Math.PI);
-          dx = u.ox + an.dir * 14 * amp;
-          dy = u.oy - 6 * amp;
+          dx = u.ox + an.dir * 26 * amp;
+          dy = u.oy - 10 * amp;
+          flash = p > 0.15 && p < 0.7;
           animName = 'walk';
         } else if (an.kind === 'parry') {
           const amp = Math.sin(p * Math.PI);
-          dx = u.ox + an.dir * 4 * amp;
+          dx = u.ox + an.dir * 10 * amp;
+          dy = u.oy - 3 * amp;
           pose = 'parry';
-          flash = p > 0.2 && p < 0.55;
+          flash = p > 0.15 && p < 0.65;
           animName = 'parry';
           frameOverride = ANIM.parry[Math.min(2, Math.floor(p * 3))];
         }
@@ -1844,6 +1880,7 @@
       ctx.clearRect(0, 0, W, H);
       drawBg();
       const sorted = units.slice().sort((a, b) => a.y - b.y);
+      sorted.forEach(drawMeleeRing);
       sorted.forEach(drawUnit);
 
       fx.forEach((f) => {
