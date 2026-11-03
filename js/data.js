@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v2.2.0
+ * v2.3.0
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '2.2.0',
+    version: '2.3.0',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -1609,6 +1609,56 @@
           resultLine: '你輕步走開。雅座琴音仍緩，劍穗未停。'
         }
       ]
+
+    },
+    {
+      id: 'duo_blade_fan',
+      title: '刀梵夜語',
+      heroes: ['langren', 'qinshi'],
+      favorNeed: { langren: 42, qinshi: 40 },
+      caption: '夜廊燈影，浪人倚柱擦刀，師太撥動念珠…',
+      interactive: true,
+      weight: 45,
+      walkers: [
+        { id: 'langren', x: 280, y: 330, tx: 350, ty: 340 },
+        { id: 'qinshi', x: 560, y: 336, tx: 460, ty: 340 }
+      ],
+      beats: [
+        { at: 0, caption: '刀響輕、梵音緩', line: '你這刀，夜裡比白天更吵。', walker: 1, life: 1.2 },
+        { at: 900, line: '……吵醒了野鬼也好。師太你怕不怕？', walker: 0, life: 1.2 },
+        { at: 1850, caption: '二人望向掌櫃', line: '掌櫃——刀與梵，可否共守一夜？', walker: 1, life: 1.2 },
+        { at: 2650, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'hear_blade_fan',
+          label: '靜聽刀梵（雙方好感＋）',
+          effects: {
+            favorHero: 'langren', favor: 5,
+            favorHero2: 'qinshi', favor2: 5,
+            combatBuff: { id: 'buff_blade_fan', label: '刀梵夜語', forceMul: 1.09, battles: 2, heroes: ['langren', 'qinshi'] }
+          },
+          resultLine: '刀入鞘，梵音歇。來日出巡，可解鎖合擊「刀梵夜語」。'
+        },
+        {
+          id: 'toast_blade_fan',
+          label: '備清茶相敬（-18 兩 · 戰意）',
+          effects: {
+            silver: -18, reputation: 2,
+            favorHero: 'langren', favor: 4,
+            favorHero2: 'qinshi', favor2: 4,
+            combatBuff: { id: 'buff_blade_fan_tea', label: '夜廊清茶', forceMul: 1.12, battles: 3, heroes: ['langren', 'qinshi'] }
+          },
+          resultLine: '清茶入喉。浪人與師太同時點頭——短暫戰意高昂。'
+        },
+        {
+          id: 'step_blade_fan',
+          label: '不便打擾（小好感）',
+          effects: { favorHero: 'langren', favor: 1, favorHero2: 'qinshi', favor2: 1 },
+          resultLine: '你輕步走開。夜廊刀響漸歇，念珠仍緩。'
+        }
+      ]
+
     }
   ];
 
@@ -1667,6 +1717,16 @@
       breakMit: 0.21,
       telegraph: '琴音引劍、劍膽護心',
       resultLine: '師太梵音一撥，青衣劍光跟上——合擊破敵！'
+    },
+    {
+      id: 'combo_blade_fan',
+      duoId: 'duo_blade_fan',
+      name: '刀梵夜語',
+      heroes: ['langren', 'qinshi'],
+      damageMul: 1.9,
+      breakMit: 0.2,
+      telegraph: '刀光夜語、梵音護心',
+      resultLine: '浪人橫刀，師太梵音跟上——合擊破敵！'
     }
   ];
 

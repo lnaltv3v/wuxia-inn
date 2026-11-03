@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v2.2.0：琴心劍膽／燈節茶會／合擊手感）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v2.3.0：刀梵夜語合擊）
  */
 (function () {
   'use strict';
@@ -283,7 +283,7 @@
         (Number(s.silver) > 40);
       s.hubTourDone = !!progressed;
     }
-    // v2.2 累計營業日（燈節等 once 節慶）
+    // v2.2+ 累計營業日（燈節等 once 節慶）
     if (typeof s.hubDaysLived !== 'number' || !(s.hubDaysLived >= 0)) {
       s.hubDaysLived = 0;
     }
@@ -1097,7 +1097,7 @@
     const eligible = list.filter(sceneEventEligible);
     if (!eligible.length) return null;
     // v2.2 燈節／節慶：達標時高優先一次
-    const fests = eligible.filter(function (e) { return e.fest && e.interactive; });
+    const fests = eligible.filter(function (e) { return e && e.fest && e.interactive && e.choices && e.choices.length; });
     if (fests.length && Math.random() < 0.55) {
       return fests[Math.floor(Math.random() * fests.length)];
     }

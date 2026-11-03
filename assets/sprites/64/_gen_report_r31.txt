@@ -3,98 +3,98 @@
 ## qingyi_r31
 path: /workspace/wuxia-inn/assets/sprites/64/qingyi_r31.png
 added: sword tassel (GOLD/CINN/PAPER/CREAM beads + tip fork) at guard/pommel
-oob: 0  idle0_visible Δ+31 (1645→1676)
+oob: 0  idle0_visible Δ+42 (1676→1718)
 palette_used (19): #1A1510, #2A2218, #2A6A6A, #3D3226, #4A9A9A, #5A4A32, #5C4030, #8B2942, #8B6914, #A61B1B, #B8860B, #C09070, #C42B2B, #C9A227, #D4BC8A, #E8C4A0, #E8D5A8, #F4E6C4, #FFF8EE
-  00 idle0: visible=1676
-  01 idle1: visible=1667
-  02 walk0: visible=1671
-  03 walk1: visible=1700
-  04 walk2: visible=1608
-  05 walk3: visible=1646
+  00 idle0: visible=1718
+  01 idle1: visible=1709
+  02 walk0: visible=1713
+  03 walk1: visible=1742
+  04 walk2: visible=1650
+  05 walk3: visible=1688
   06 windup0: visible=1615
   07 windup1: visible=1503
   08 windup2: visible=1398
-  09 strike0: visible=1550
-  10 strike1: visible=1625
-  11 strike2: visible=1603
-  12 strike3: visible=1528
-  13 hurt0: visible=1622
+  09 strike0: visible=1569
+  10 strike1: visible=1635
+  11 strike2: visible=1615
+  12 strike3: visible=1570
+  13 hurt0: visible=1652
   14 hurt1: visible=1433
-  15 parry0: visible=1642
-  16 parry1: visible=1681
-  17 parry2: visible=1549
+  15 parry0: visible=1650
+  16 parry1: visible=1699
+  17 parry2: visible=1556
 
 ## langren_r31
 path: /workspace/wuxia-inn/assets/sprites/64/langren_r31.png
 added: blade tassel + shoulder/chest hard plates + thicker bracers
-oob: 0  idle0_visible Δ+41 (1789→1830)
+oob: 0  idle0_visible Δ+110 (1830→1940)
 palette_used (16): #1A1510, #2A2218, #3D3226, #5A4A32, #5C4030, #8A7A60, #8B2942, #8B6914, #A61B1B, #B8860B, #C09070, #C42B2B, #C9A227, #D4BC8A, #F4E6C4, #FFF8EE
-  00 idle0: visible=1830
-  01 idle1: visible=1806
-  02 walk0: visible=1799
-  03 walk1: visible=1845
-  04 walk2: visible=1750
-  05 walk3: visible=1798
-  06 windup0: visible=1725
-  07 windup1: visible=1573
-  08 windup2: visible=1450
-  09 strike0: visible=1647
-  10 strike1: visible=1750
-  11 strike2: visible=1712
-  12 strike3: visible=1639
-  13 hurt0: visible=1720
-  14 hurt1: visible=1469
-  15 parry0: visible=1801
-  16 parry1: visible=1833
-  17 parry2: visible=1604
+  00 idle0: visible=1940
+  01 idle1: visible=1916
+  02 walk0: visible=1891
+  03 walk1: visible=1953
+  04 walk2: visible=1851
+  05 walk3: visible=1899
+  06 windup0: visible=1776
+  07 windup1: visible=1624
+  08 windup2: visible=1501
+  09 strike0: visible=1787
+  10 strike1: visible=1834
+  11 strike2: visible=1853
+  12 strike3: visible=1770
+  13 hurt0: visible=1761
+  14 hurt1: visible=1498
+  15 parry0: visible=1882
+  16 parry1: visible=1924
+  17 parry2: visible=1651
 
 ## tiezhang_r31
 path: /workspace/wuxia-inn/assets/sprites/64/tiezhang_r31.png
 added: shoulder plates + thicker medical bracers + chest clasp (palm unchanged)
-oob: 0  idle0_visible Δ+55 (1647→1702)
+oob: 0  idle0_visible Δ+69 (1702→1771)
 palette_used (19): #1A1510, #2A2218, #2F6B4F, #3D3226, #3D8F66, #5A4A32, #5C4030, #8B2942, #8B6914, #A04040, #A61B1B, #B8860B, #C09070, #C42B2B, #C9A227, #E8C4A0, #E8D5A8, #F4E6C4, #FFF8EE
-  00 idle0: visible=1702
-  01 idle1: visible=1700
-  02 walk0: visible=1723
-  03 walk1: visible=1755
-  04 walk2: visible=1641
-  05 walk3: visible=1697
-  06 windup0: visible=1840
-  07 windup1: visible=1707
-  08 windup2: visible=1588
-  09 strike0: visible=1794
-  10 strike1: visible=1850
-  11 strike2: visible=1829
-  12 strike3: visible=1667
-  13 hurt0: visible=1736
-  14 hurt1: visible=1527
-  15 parry0: visible=1858
-  16 parry1: visible=1874
-  17 parry2: visible=1615
+  00 idle0: visible=1771
+  01 idle1: visible=1769
+  02 walk0: visible=1764
+  03 walk1: visible=1814
+  04 walk2: visible=1709
+  05 walk3: visible=1765
+  06 windup0: visible=1863
+  07 windup1: visible=1730
+  08 windup2: visible=1611
+  09 strike0: visible=1832
+  10 strike1: visible=1877
+  11 strike2: visible=1898
+  12 strike3: visible=1694
+  13 hurt0: visible=1756
+  14 hurt1: visible=1544
+  15 parry0: visible=1929
+  16 parry1: visible=1945
+  17 parry2: visible=1635
 
 ## qinshi_r31
 path: /workspace/wuxia-inn/assets/sprites/64/qinshi_r31.png
 added: whisk tip +4–6px + 1–2px hard forks (vert/slash/back)
-oob: 0  idle0_visible Δ+0 (1683→1683)
+oob: 0  idle0_visible Δ+11 (1683→1694)
 palette_used (18): #1A1510, #2A2218, #3D3226, #5A4060, #5A4A32, #5C4030, #8B2942, #8B6914, #A61B1B, #B8860B, #C09070, #C42B2B, #C9A227, #D4BC8A, #E8C4A0, #E8D5A8, #F4E6C4, #FFF8EE
-  00 idle0: visible=1683
-  01 idle1: visible=1654
-  02 walk0: visible=1657
-  03 walk1: visible=1683
-  04 walk2: visible=1623
-  05 walk3: visible=1623
-  06 windup0: visible=1730
+  00 idle0: visible=1694
+  01 idle1: visible=1665
+  02 walk0: visible=1668
+  03 walk1: visible=1694
+  04 walk2: visible=1634
+  05 walk3: visible=1632
+  06 windup0: visible=1733
   07 windup1: visible=1575
   08 windup2: visible=1438
-  09 strike0: visible=1766
-  10 strike1: visible=1781
-  11 strike2: visible=1734
-  12 strike3: visible=1611
-  13 hurt0: visible=1500
-  14 hurt1: visible=1321
-  15 parry0: visible=1655
-  16 parry1: visible=1717
-  17 parry2: visible=1629
+  09 strike0: visible=1774
+  10 strike1: visible=1837
+  11 strike2: visible=1790
+  12 strike3: visible=1620
+  13 hurt0: visible=1509
+  14 hurt1: visible=1328
+  15 parry0: visible=1683
+  16 parry1: visible=1745
+  17 parry2: visible=1746
 
 untouched_ok: qingyi
 untouched_ok: langren
@@ -112,8 +112,9 @@ untouched_ok: enemy_melee
 TOTAL_OOB=0
 
 ## weaknesses
-- tassel anchors are pose-estimated; may float 1–2px off actual guard on some frames
-- armor plates can cover robe folds / pouch edges on tiezhang
-- whisk extension may clip frame bottom on idle tip-down
-- still no sword tassel physics (static bead chain)
+- tassel anchors pose-estimated; can float 1–2px off true guard
+- idle qinshi whisk already at frame bottom — lengthening is mostly lateral forks
+- windup qinshi plume growth limited by top/left frame edge
+- armor strap tags can look detached on extreme bx poses
+- no tassel swing physics (static bead chains)
 

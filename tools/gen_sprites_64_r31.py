@@ -204,101 +204,113 @@ def _whisk_colors():
     return {PAPER_L[:3], PAPER[:3], PAPER_D[:3], CREAM[:3]}
 
 
-def _find_whisk_extrema(img, tip_up=True):
-    """Find extremal PAPER-family pixels (whisk hair) to grow from."""
+def _grow_whisk(img, mode, hx, hy, length=22, lean=0):
+    """Lengthen / fork whisk tips into free space near weapon hair mass."""
     cols = _whisk_colors()
+    # collect paper pixels in weapon neighborhood (not whole white trousers)
+    if mode in ("vert_down", "vert_up"):
+        x0, x1 = max(0, hx - 8), min(FS, hx + 12)
+    elif mode == "slash":
+        x0, x1 = max(0, hx), min(FS, hx + length + 12)
+    else:  # back
+        x0, x1 = max(0, hx - 18 - lean * 2), min(FS, hx + 8)
     pts = []
     for y in range(FS):
-        for x in range(FS):
+        for x in range(x0, x1):
             p = img.getpixel((x, y))
             if p[3] and p[:3] in cols:
                 pts.append((x, y))
     if not pts:
-        return None
-    if tip_up:
-        min_y = min(y for _, y in pts)
-        tip_pts = [(x, y) for x, y in pts if y <= min_y + 2]
-    else:
+        pts = [(hx, hy)]
+
+    added = 0
+
+    def put(x, y, c):
+        nonlocal added
+        if 0 <= x < FS and 0 <= y < FS:
+            prev = img.getpixel((x, y))
+            px(img, x, y, c)
+            if prev[3] == 0:
+                added += 1
+
+    if mode == "vert_down":
         max_y = max(y for _, y in pts)
-        tip_pts = [(x, y) for x, y in pts if y >= max_y - 2]
-    return tip_pts
+        tip_pts = [(x, y) for x, y in pts if y >= max_y - 3]
+        for i, (tx, ty) in enumerate(tip_pts):
+            # if room below: grow down; else fan sideways + densify
+            room = FS - 1 - ty
+            for d in range(1, min(6, room + 1)):
+                put(tx, ty + d, PAPER_L if d % 2 == 0 else PAPER)
+                put(tx - 1, ty + d, PAPER_D)  # fork L
+                put(tx + 1, ty + d, PAPER_L)  # fork R
+            if room < 3:
+                # lateral hanging strands into empty right/left
+                for d in range(1, 5):
+                    put(tx + 2 + d // 2, ty - 1 + d, PAPER_L)
+                    put(tx + 3 + d // 2, ty + d, CREAM if d % 2 else PAPER)
+                    put(tx - 2 - d // 2, ty - 1 + d, PAPER)
+                    if d == 4:
+                        put(tx + 4, ty + d, VIOLET)
+                        put(tx - 3, ty + d - 1, VIOLET)
+            elif i % 3 == 0:
+                put(tx, min(FS - 1, ty + room), VIOLET)
 
+    elif mode == "vert_up":
+        min_y = min(y for _, y in pts)
+        tip_pts = [(x, y) for x, y in pts if y <= min_y + 3]
+        for i, (tx, ty) in enumerate(tip_pts):
+            room = ty
+            for d in range(1, min(6, room + 1)):
+                put(tx, ty - d, PAPER_L if d % 2 == 0 else PAPER)
+                put(tx - 1, ty - d, PAPER)
+                put(tx + 1, ty - d, PAPER_L)
+            if room < 3:
+                for d in range(1, 5):
+                    put(tx + 2, ty + d, PAPER_L)
+                    put(tx - 2, ty + d, PAPER)
+                    put(tx + 3, ty + 1 + d, CREAM)
+            elif i % 3 == 0:
+                put(tx, max(0, ty - room), VIOLET)
 
-def extend_whisk_tips_vert(img, hx, hy, tip_up=True):
-    """Add 4–6px longer forked tips beyond existing hair mass (scan-based)."""
-    tips = _find_whisk_extrema(img, tip_up=tip_up)
-    if not tips:
-        # fallback geometric
-        if tip_up:
-            tips = [(hx + ox, hy - 24) for ox in (-4, -2, 0, 2, 4)]
-        else:
-            tips = [(hx + ox, min(FS - 5, hy + 30)) for ox in (-4, -2, 0, 2, 4)]
-    for i, (tx, ty) in enumerate(tips):
-        if tip_up:
+    elif mode == "slash":
+        max_x = max(x for x, _ in pts)
+        tip_pts = [(x, y) for x, y in pts if x >= max_x - 2]
+        for i, (tx, ty) in enumerate(tip_pts):
+            room = FS - 1 - tx
+            for d in range(1, min(7, room + 1)):
+                put(tx + d, ty, PAPER_L if d % 2 == 0 else PAPER)
+                put(tx + d, ty - 1, PAPER_L)  # fork up
+                put(tx + d, ty + 1, PAPER)    # fork down
+            if room < 3:
+                for d in range(1, 5):
+                    put(tx - 1, ty - 2 - d, PAPER_L)
+                    put(tx, ty + 2 + d, PAPER)
+                    put(tx - 2, ty - 1 - d, CREAM)
+            elif i % 2 == 0:
+                put(min(FS - 1, tx + room), ty, VIOLET)
+
+    else:  # back
+        min_y = min(y for _, y in pts)
+        min_x = min(x for x, _ in pts)
+        tip_pts = [(x, y) for x, y in pts if y <= min_y + 3 or x <= min_x + 2]
+        for i, (tx, ty) in enumerate(tip_pts[:12]):
             for d in range(1, 6):
-                y = ty - d
-                px(img, tx, y, PAPER_L if d % 2 == 0 else PAPER)
-                if d >= 3:
-                    px(img, tx - 1, y, PAPER_D)  # fork L
-                    px(img, tx + 1, y, PAPER_L)  # fork R
-                if d == 5:
-                    px(img, tx, y - 1, CREAM)
-                    if i % 3 == 0:
-                        px(img, tx, y - 1, VIOLET)
-        else:
-            for d in range(1, 6):
-                y = ty + d
-                px(img, tx, y, PAPER_L if d % 2 == 0 else PAPER)
-                if d >= 3:
-                    px(img, tx - 1, y, PAPER)
-                    px(img, tx + 1, y, PAPER_L)
-                if d == 5:
-                    px(img, tx, y + 1, CREAM)
-                    if i % 3 == 0:
-                        px(img, tx, y, VIOLET)
+                put(tx - d, ty - d, PAPER_L if d % 2 == 0 else PAPER)
+                put(tx - d - 1, ty - d, PAPER)   # fork
+                put(tx - d, ty - d - 1, PAPER_L)
+            if i % 3 == 0:
+                put(tx - 5, ty - 5, VIOLET)
+                put(tx - 6, ty - 4, CREAM)
 
+    # mid-bundle density strands (always a few new pixels if space)
+    xs = [x for x, _ in pts]
+    ys = [y for _, y in pts]
+    mid_x = sum(xs) // len(xs)
+    mid_y = sum(ys) // len(ys)
+    for i, (ox, oy) in enumerate([(-3, 2), (3, -2), (-2, 4), (4, 1), (2, 5), (-4, 0)]):
+        put(mid_x + ox, mid_y + oy, PAPER_L if i % 2 == 0 else CREAM)
+    return added
 
-def extend_whisk_tips_slash(img, hx, hy, length=22, dy=0):
-    cols = _whisk_colors()
-    # find rightmost paper pixels as tip front
-    max_x = -1
-    tip_ys = []
-    for y in range(FS):
-        for x in range(FS):
-            p = img.getpixel((x, y))
-            if p[3] and p[:3] in cols and x >= max_x:
-                if x > max_x:
-                    max_x = x
-                    tip_ys = [y]
-                else:
-                    tip_ys.append(y)
-    if max_x < 0:
-        max_x = min(FS - 4, hx + 5 + length)
-        tip_ys = [hy + dy, hy + dy + 2, hy + dy + 4]
-    for i, ty in enumerate(sorted(set(tip_ys))[:8]):
-        for d in range(1, 7):
-            x = max_x + d
-            px(img, x, ty, PAPER_L if d % 2 == 0 else PAPER)
-            if d >= 3:
-                px(img, x, ty - 1, PAPER_L)  # fork up
-                px(img, x, ty + 1, PAPER)    # fork down
-            if d == 6:
-                px(img, x + 1, ty, CREAM)
-                if i % 2 == 0:
-                    px(img, x + 1, ty - 1, VIOLET)
-
-
-def extend_whisk_tips_back(img, hx, hy, lean=0):
-    for i in range(6):
-        x = hx - 14 - lean * 2 - (i // 2)
-        y = hy - 28 - i
-        px(img, x, y, PAPER_L)
-        px(img, x + 2, y - 1, CREAM)
-        if i % 2 == 0:
-            px(img, x - 1, y - 1, PAPER)  # fork
-            px(img, x + 1, y - 2, PAPER_L)
-        if i % 3 == 0:
-            px(img, x, y - 2, VIOLET)
 
 
 # ============================================================
@@ -382,7 +394,6 @@ def qs_weapon_anchor(pose):
     if k == "windup":
         return ("back", cx - 14, ty - 2, phase + 1)
     if k == "strike":
-        # from r3 qinshi: phase0 slash16, phase1 longer, etc — approximate
         if phase == 0:
             return ("slash", cx + 14, ty - 2, 16)
         if phase == 1:
@@ -406,78 +417,76 @@ def body_xy(pose):
     return 22 + bx, 24 + by + breath
 
 
-# ============================================================
-# overlays
-# ============================================================
 def overlay_qingyi(frame, pose):
     mode, hx, hy = qy_weapon_anchor(pose)[:3]
-    # tassel from guard
     if mode == "vert_down":
-        # guard at hy-3..hy+1 → hang from right of guard
-        tassel_down(frame, hx + 6, hy - 1, length=11)
-        # second short cord from pommel
-        tassel_down(frame, hx - 2, hy - 10, length=6,
-                    beads=(GOLD, PAPER_L, CINN_B, CREAM, GOLD, PAPER_D))
+        # hang OUTSIDE blade silhouette (right of guard)
+        tassel_down(frame, hx + 9, hy - 2, length=12)
+        tassel_down(frame, hx + 8, hy + 4, length=8,
+                    beads=(CINN_B, GOLD, PAPER_L, CREAM, CINN, GOLD, PAPER_D, CREAM))
+        # pommel cord into empty left-up if space
+        tassel_side(frame, hx - 1, hy - 11, length=5, right=False)
     elif mode == "vert_up":
-        tassel_up(frame, hx, hy, length=8)
+        tassel_up(frame, hx + 2, hy, length=9)
     elif mode == "slash":
-        tassel_side(frame, hx, hy, length=9, right=False)  # trail behind slash
+        tassel_side(frame, hx - 1, hy + 1, length=10, right=False)
     elif mode == "diag":
-        tassel_down(frame, hx + 5, hy + 2, length=8)
+        tassel_down(frame, hx + 8, hy + 1, length=9)
     elif mode == "back":
-        tassel_up(frame, hx, hy + 2, length=7)
-    # tiny pommel ring accent
-    if mode in ("vert_down", "vert_up"):
-        px(frame, hx + 1, hy - 12 if mode == "vert_down" else hy + 2, GOLD)
-        px(frame, hx + 2, hy - 13 if mode == "vert_down" else hy + 3, CINN_B)
+        tassel_up(frame, hx + 2, hy + 2, length=8)
+    # guard knot accent (may recolor)
+    px(frame, hx + 5, hy - 1, CINN_B)
+    px(frame, hx + 6, hy, PAPER_L)
+    px(frame, hx + 7, hy - 1, GOLD)
 
 
 def overlay_langren(frame, pose):
     mode, hx, hy = lr_weapon_anchor(pose)[:3]
     if mode == "vert_down":
-        tassel_down(frame, hx + 7, hy - 1, length=9,
-                    beads=(GOLD, CINN, CINN_B, PAPER_L, CREAM, GOLD, CINN_B))
+        tassel_down(frame, hx + 10, hy - 2, length=11,
+                    beads=(GOLD, CINN, CINN_B, PAPER_L, CREAM, GOLD, CINN_B, PAPER_D))
+        tassel_down(frame, hx + 9, hy + 3, length=7,
+                    beads=(CINN_B, GOLD, PAPER_L, CREAM, CINN, GOLD))
     elif mode == "vert_up":
-        tassel_up(frame, hx, hy, length=7)
+        tassel_up(frame, hx + 2, hy, length=8)
     elif mode == "slash":
-        tassel_side(frame, hx, hy, length=8, right=False)
+        tassel_side(frame, hx - 1, hy + 1, length=10, right=False)
     elif mode == "diag":
-        tassel_down(frame, hx + 6, hy + 2, length=7)
+        tassel_down(frame, hx + 9, hy + 1, length=8)
     elif mode == "back":
-        tassel_up(frame, hx, hy + 2, length=6)
-    # light armor plates shoulder/chest
+        tassel_up(frame, hx + 2, hy + 2, length=7)
     cx, ty = body_xy(pose)
     k = pose.get("kind", "idle")
-    shoulder_plate(frame, cx - 14, ty + 1, FRAME, GOLD, wide=7)
-    shoulder_plate(frame, cx + 7, ty + 1, FRAME, CINN_B, wide=7)
+    # plates pushed outward into empty shoulder air
+    shoulder_plate(frame, cx - 16, ty, FRAME, GOLD, wide=7)
+    shoulder_plate(frame, cx + 9, ty, FRAME, CINN_B, wide=7)
     if k in ("idle", "walk", "parry", "windup", "hurt"):
         chest_plate(frame, cx - 3, ty + 8, FRAME, GOLD)
-    # thicker bracers + strap tags
-    if k in ("idle", "walk", "windup", "parry", "hurt"):
-        thick_bracer(frame, cx - 18, cx - 9, ty + 9, ty + 18, WOOD, GOLD)
-        thick_bracer(frame, cx + 11, cx + 20, ty + 9, ty + 18, WOOD, CINN_B)
-        rect(frame, cx - 19, ty + 17, cx - 16, ty + 22, FRAME)
-        px(frame, cx - 18, ty + 21, GOLD)
-        rect(frame, cx + 17, ty + 17, cx + 20, ty + 22, FRAME)
-        px(frame, cx + 18, ty + 21, CINN_B)
+    # bracers + strap tags further out
+    thick_bracer(frame, cx - 20, cx - 11, ty + 9, ty + 18, WOOD, GOLD)
+    thick_bracer(frame, cx + 13, cx + 22, ty + 9, ty + 18, WOOD, CINN_B)
+    rect(frame, cx - 22, ty + 16, cx - 18, ty + 24, FRAME)
+    px(frame, cx - 21, ty + 23, GOLD)
+    px(frame, cx - 20, ty + 22, CINN_B)
+    rect(frame, cx + 19, ty + 16, cx + 23, ty + 24, FRAME)
+    px(frame, cx + 20, ty + 23, CINN_B)
+    px(frame, cx + 21, ty + 22, GOLD)
 
 
 def overlay_tiezhang(frame, pose):
     cx, ty = body_xy(pose)
     k = pose.get("kind", "idle")
-    # medical robe: smaller shoulder plates sticking slightly out
-    shoulder_plate(frame, cx - 13, ty + 1, WOOD, GOLD, wide=5)
-    shoulder_plate(frame, cx + 8, ty + 1, WOOD, JADE_B, wide=5)
-    # thicker medical bracers — extend 1–2px beyond typical sleeve edge
-    if k in ("idle", "walk", "windup", "parry", "hurt", "strike"):
-        thick_bracer(frame, cx - 18, cx - 9, ty + 9, ty + 18, BLOOD, GOLD)
-        thick_bracer(frame, cx + 11, cx + 20, ty + 9, ty + 18, WOOD, JADE_B)
-        # hanging strap tags off bracer (new opaque pixels)
-        rect(frame, cx - 19, ty + 17, cx - 16, ty + 23, WOOD)
-        px(frame, cx - 18, ty + 22, GOLD)
-        rect(frame, cx + 17, ty + 17, cx + 20, ty + 23, WOOD_L)
-        px(frame, cx + 18, ty + 22, JADE_B)
-    # small chest clasp plate
+    shoulder_plate(frame, cx - 15, ty, WOOD, GOLD, wide=5)
+    shoulder_plate(frame, cx + 10, ty, WOOD, JADE_B, wide=5)
+    # thicker medical bracers + hanging straps into empty air
+    thick_bracer(frame, cx - 20, cx - 11, ty + 9, ty + 18, BLOOD, GOLD)
+    thick_bracer(frame, cx + 13, cx + 22, ty + 9, ty + 18, WOOD, JADE_B)
+    rect(frame, cx - 22, ty + 16, cx - 18, ty + 25, WOOD)
+    px(frame, cx - 21, ty + 24, GOLD)
+    px(frame, cx - 20, ty + 23, JADE_B)
+    rect(frame, cx + 19, ty + 16, cx + 23, ty + 25, WOOD_L)
+    px(frame, cx + 20, ty + 24, JADE_B)
+    px(frame, cx + 21, ty + 23, GOLD)
     if k in ("idle", "walk", "parry", "windup"):
         rect(frame, cx - 2, ty + 7, cx + 4, ty + 11, WOOD)
         outline_rect(frame, cx - 2, ty + 7, cx + 4, ty + 11, INK)
@@ -489,16 +498,36 @@ def overlay_qinshi(frame, pose):
     anc = qs_weapon_anchor(pose)
     mode = anc[0]
     hx, hy = anc[1], anc[2]
-    if mode == "vert_down":
-        extend_whisk_tips_vert(frame, hx, hy, tip_up=False)
-    elif mode == "vert_up":
-        extend_whisk_tips_vert(frame, hx, hy, tip_up=True)
-    elif mode == "slash":
+    if mode == "slash":
         length = anc[3] if len(anc) > 3 else 22
-        extend_whisk_tips_slash(frame, hx, hy, length=length, dy=0)
+        _grow_whisk(frame, mode, hx, hy, length=length)
     elif mode == "back":
         lean = anc[3] if len(anc) > 3 else 1
-        extend_whisk_tips_back(frame, hx, hy, lean=lean)
+        _grow_whisk(frame, mode, hx, hy, lean=lean)
+        # forced extra plume tips up-left (windup often already near edge)
+        for i in range(8):
+            x = hx - 12 - lean * 2 - i
+            y = hy - 22 - i
+            px(frame, x, y, PAPER_L if i % 2 == 0 else PAPER)
+            px(frame, x - 1, y, PAPER)      # fork
+            px(frame, x, y - 1, PAPER_L)
+            if i % 3 == 0:
+                px(frame, x - 1, y - 1, CREAM)
+                px(frame, x - 2, y, VIOLET)
+    else:
+        _grow_whisk(frame, mode, hx, hy)
+        # idle/walk tip-down: forced side forks near known tip band
+        if mode == "vert_down":
+            for i, ox in enumerate((-2, 0, 2, 4, 6, -4)):
+                x = hx + ox
+                y = min(FS - 2, hy + 28 + (i % 3))
+                px(frame, x + 2, y, PAPER_L)
+                px(frame, x + 3, y + 1, CREAM)
+                px(frame, x + 2, y + 1, PAPER)
+                px(frame, x - 2, y, PAPER_D)
+                px(frame, x - 3, y + 1, PAPER_L)
+                if i % 2 == 0:
+                    px(frame, x + 4, y, VIOLET)
 
 
 OVERLAYS = {
@@ -510,7 +539,7 @@ OVERLAYS = {
 
 
 def crop_frame(sheet, i):
-    return sheet.crop((i * FS, 0, (i + 1) * FS, FS)).convert("RGBA")
+    return sheet.crop((i * FS, 0, (i + 1) * FS, FS)).convert("RGBA").copy()
 
 
 def apply_sheet(cid: str) -> Image.Image:

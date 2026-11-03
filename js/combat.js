@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 自動即時走位戰鬥（v2.2.0：合擊手感／琴心劍膽）
+ * 俠客棧 — 自動即時走位戰鬥（v2.3.0：刀梵夜語）
  * 戰場 960×540；狀態機：idle→approach→windup→strike→recover（hurt／parry／dodge）
  * 幀語意 v0.9；舞台鏡頭／VFX 加厚見 stages；僅 strike 判定幀傷害；近戰須接觸；速度 0.5–2×
  * v2.0：已解鎖雙人羈絆同隊時可一場一次合擊（額外傷害＋短暫破防）
@@ -1188,7 +1188,7 @@
         log('羈絆加持，同隊出手更利（×' + withBond[0].bondMul.toFixed(2) + '）', 'skill');
       }
       if (comboDef) {
-        log('合擊「' + comboDef.name + '」已備——條件滿足時自動施放（一場一次）', 'skill');
+        log('合擊「' + (comboDef.name || '合擊') + '」已備——條件滿足時自動施放（一場一次）', 'skill');
         comboReadyHint = true;
       }
       emit();
