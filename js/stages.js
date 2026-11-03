@@ -2276,6 +2276,7 @@
       else if (st === 'hurt') { chip = 'H'; chipCol = C.blood; }
       else if (st === 'parry') { chip = 'P'; chipCol = C.gold; }
       else if (st === 'dodge') { chip = 'D'; chipCol = C.sky; }
+      else if (u.intent === 'charge') { chip = 'C'; chipCol = C.cinnabar; }
       else if (u.contact) { chip = '!'; chipCol = C.cream; }
       if (chip) {
         drawRect(ctx, barX + bw + 4, barY - 2, 14, 14, C.ink);

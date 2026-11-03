@@ -9,8 +9,8 @@
 |----|------|------|----------|
 | `qingyi.png` | **1152×64** | **v0.9 r2 精修**（姿勢差加大／判定幀；遊戲 `?v=0.9.1` cache bust） | `tools/gen_sprites_64_v09.py` |
 | `langren.png` | **1152×64** | **v0.9 r2 精修**（姿勢差加大／判定幀；遊戲 `?v=0.9.1` cache bust） | `tools/gen_sprites_64_v09.py` |
-| `tiezhang.png` | 1152×64 | 待 v0.9（暫留舊版） | `tools/gen_sprites_64.py` |
-| `qinshi.png` | 1152×64 | 待 v0.9（暫留舊版） | `tools/gen_sprites_64.py` |
+| `tiezhang.png` | **1152×64** | **v1.1 精修（震掌／藥囊）** | `tools/gen_sprites_64_v11.py` |
+| `qinshi.png` | **1152×64** | **v1.1 精修（拂塵／梵紫）** | `tools/gen_sprites_64_v11.py` |
 | `xiaoer.png` | 1152×64 | 待 v0.9（暫留舊版） | `tools/gen_sprites_64.py` |
 | `guest_sit.png` | 384×64 | 可選／舊版 | `tools/gen_sprites_64.py` |
 | `boss_*_combat.png` | 64×64 | 可選／舊版 | `tools/gen_sprites_64.py` |
@@ -49,3 +49,11 @@ python3 /workspace/wuxia-inn/tools/gen_sprites_64_v09.py
 ```
 
 合規報告：`_gen_report_v09.txt`。預覽：`assets/_preview/64_{qingyi,langren}_*_x2.png`。
+
+## v1.1 鐵掌／琴師
+
+- `tiezhang`：醫袍紅＋藥綠囊；攻擊＝蓄掌／震掌（無劍）
+- `qinshi`：梵紫＋素袍；道具＝拂塵；攻擊＝橫掃
+- 姿勢誇張對齊 v0.9 r2；生成：`tools/gen_sprites_64_v11.py`
+- 報告：`_gen_report_v11.txt`
+

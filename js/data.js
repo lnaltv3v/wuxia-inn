@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v0.7.0
+ * v1.1.0
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '1.0.0',
+    version: '1.1.0',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -168,8 +168,7 @@
           resultLine: '遊俠苦笑拱手離去……棧聲略損。'
         }
       ]
-    }
-,
+    },
     {
       id: 'night_courier',
       caption: '夜路信使叩門…',
@@ -272,6 +271,76 @@
           label: '拒酒勸他歇息',
           effects: { favorHero: 'langren', favor: -2, favorHero2: 'tiezhang', favor2: 1 },
           resultLine: '浪人哼一聲離席；醫女卻道：「掌櫃懂分寸。」'
+        }
+      ]
+    },
+    {
+      id: 'qin_mercy',
+      caption: '師太於廊下撫琴止爭…',
+      interactive: true,
+      walkers: [
+        { id: 'qinshi', x: 520, y: 348, tx: 400, ty: 360 },
+        { id: 'langren', x: 80, y: 352, tx: 260, ty: 364 }
+      ],
+      beats: [
+        { at: 0, caption: '琴聲忽然蓋過刀聲', line: '施主且止。', walker: 0, life: 1.2 },
+        { at: 900, line: '……哼，好琴。', walker: 1, life: 1.15, move: { i: 1, tx: 320, ty: 360 } },
+        { at: 1800, caption: '師太望向掌櫃——', line: '可願聽貧尼一勸？', walker: 0, life: 1.25 },
+        { at: 2600, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'listen',
+          label: '靜聽一曲（+羈絆／望）',
+          effects: { favorHero: 'qinshi', favor: 5, reputation: 3 },
+          resultLine: '梵音入耳。浪人收刀。師太微頷：「心定，棧安。」'
+        },
+        {
+          id: 'donate',
+          label: '添香火銀（−銀／++望）',
+          effects: { silver: -15, reputation: 6, favorHero: 'qinshi', favor: 3 },
+          resultLine: '香火錢入匣。過路客紛紛稱善，聲望上升。'
+        },
+        {
+          id: 'busy',
+          label: '推說忙碌',
+          effects: { favorHero: 'qinshi', favor: -1 },
+          resultLine: '師太輕嘆收弦：「貧尼自去。」廊下只餘餘音。'
+        }
+      ]
+    },
+    {
+      id: 'challenge_letter',
+      caption: '告示欄多了一紙挑戰書…',
+      interactive: true,
+      walkers: [
+        { id: 'qingyi', x: 200, y: 220, tx: 240, ty: 240 },
+        { id: 'langren', x: 700, y: 360, tx: 560, ty: 350 }
+      ],
+      beats: [
+        { at: 0, caption: '告示欄前圍了幾人', line: '有人點名本棧護院。', walker: 0, life: 1.2 },
+        { at: 900, line: '正好手癢！', walker: 1, life: 1.1, move: { i: 1, tx: 480, ty: 340 } },
+        { at: 1800, caption: '青衣將挑戰書遞來——', line: '掌櫃定夺，我等聽令。', walker: 0, life: 1.25 },
+        { at: 2600, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'accept',
+          label: '應戰約期（+望／微銀）',
+          effects: { reputation: 4, silver: 12, favorHero: 'qingyi', favor: 2, favorHero2: 'langren', favor2: 2 },
+          resultLine: '約期已定。江湖傳開：此棧不怯戰。'
+        },
+        {
+          id: 'mediate',
+          label: '調解撤帖（+望／−銀）',
+          effects: { silver: -8, reputation: 5, favorHero: 'qinshi', favor: 2 },
+          resultLine: '你出面講和。挑戰書撕去，聲望反升。'
+        },
+        {
+          id: 'ignore',
+          label: '當無事撕掉',
+          effects: { reputation: -2, favorHero: 'langren', favor: -2 },
+          resultLine: '浪人撇嘴。外頭有人笑本棧怯陣……'
         }
       ]
     }
@@ -780,6 +849,12 @@
         favorNeed: 55,
         title: '往事如鋒',
         text: '她低聲道出師門舊怨，末了却笑：「有你守這盞燈，我便不急著復仇。」知己之交，青鋒更準。'
+      },
+      {
+        id: 'qy_3',
+        favorNeed: 80,
+        title: '燈下同守',
+        text: '夜深她為你添一盞燈：「江湖再亂，此棧有燈、有你，我便有歸處。」劍意與心同時安定。'
       }
     ],
     tiezhang: [
@@ -808,6 +883,12 @@
         favorNeed: 50,
         title: '孤刀不孤',
         text: '他罕見收起浪態：「從前一人走江湖，現在……出巡有人并肩，也成。」'
+      },
+      {
+        id: 'lr_3',
+        favorNeed: 78,
+        title: '酒盡真義',
+        text: '他將空碗一扣：「刀可以借，命可以拼——只這棧，不許人欺。」狂名之下，竟是護短。'
       }
     ],
     qinshi: [
@@ -831,50 +912,110 @@
       id: 'bandit_small',
       name: '山賊小隊',
       minInnLevel: 1,
+      risk: 1,
+      tags: ['近戰', '練手'],
+      blurb: '喽啰成群，節奏慢，適合熱身。',
       rewardSilver: [28, 48],
       rewardRep: [3, 6],
       enemies: [
-        { name: '山賊喽啰', emoji: '👺', force: 6, nei: 3, hp: 40 },
-        { name: '山賊喽啰', emoji: '👺', force: 6, nei: 3, hp: 40 }
+        { name: '山賊喽啰', emoji: '👺', force: 6, nei: 3, hp: 40, ai: 'skirmish' },
+        { name: '山賊喽啰', emoji: '👺', force: 6, nei: 3, hp: 40, ai: 'skirmish' }
       ]
     },
     {
       id: 'bandit_camp',
       name: '流寇營寨',
       minInnLevel: 1,
+      risk: 2,
+      tags: ['混合', '拉距'],
+      blurb: '刀手推進、弓手拉距；頭目會伺機衝鋒。',
       rewardSilver: [55, 95],
       rewardRep: [6, 12],
       enemies: [
-        { name: '流寇刀手', emoji: '💀', force: 10, nei: 5, hp: 60 },
-        { name: '流寇弓手', emoji: '🏹', force: 8, nei: 6, hp: 45 },
-        { name: '流寇頭目', emoji: '👹', force: 14, nei: 8, hp: 90 }
+        { name: '流寇刀手', emoji: '💀', force: 10, nei: 5, hp: 60, ai: 'skirmish' },
+        { name: '流寇弓手', emoji: '🏹', force: 8, nei: 6, hp: 45, ranged: true, ai: 'kite' },
+        { name: '流寇頭目', emoji: '👹', force: 14, nei: 8, hp: 90, ai: 'charge' }
+      ]
+    },
+    {
+      id: 'horse_raid',
+      name: '馬匪衝陣',
+      minInnLevel: 2,
+      risk: 3,
+      tags: ['衝鋒', '高壓'],
+      blurb: '槍騎直撲中軍；側翼弓手風箏。輸贏往往在前十秒。',
+      rewardSilver: [120, 190],
+      rewardRep: [14, 22],
+      enemies: [
+        { name: '馬匪槍騎', emoji: '🐎', force: 15, nei: 7, hp: 85, ai: 'charge' },
+        { name: '馬匪槍騎', emoji: '🐎', force: 15, nei: 7, hp: 85, ai: 'charge' },
+        { name: '馬匪弓手', emoji: '🏹', force: 11, nei: 9, hp: 55, ranged: true, ai: 'kite' }
       ]
     },
     {
       id: 'black_market',
       name: '黑市惡霸',
       minInnLevel: 2,
+      risk: 3,
+      tags: ['厚血', '護盾感'],
+      blurb: '護院肉盾纏鬥，惡霸下手重；宜集火頭目。',
       rewardSilver: [100, 160],
       rewardRep: [12, 20],
       enemies: [
-        { name: '惡霸護院', emoji: '🛡️', force: 12, nei: 8, hp: 80 },
-        { name: '惡霸護院', emoji: '🛡️', force: 12, nei: 8, hp: 80 },
-        { name: '黑市惡霸', emoji: '👿', force: 18, nei: 12, hp: 130 }
+        { name: '惡霸護院', emoji: '🛡️', force: 12, nei: 8, hp: 80, ai: 'skirmish', mitBonus: 0.08 },
+        { name: '惡霸護院', emoji: '🛡️', force: 12, nei: 8, hp: 80, ai: 'skirmish', mitBonus: 0.08 },
+        { name: '黑市惡霸', emoji: '👿', force: 18, nei: 12, hp: 130, ai: 'charge' }
       ]
     },
     {
       id: 'demon_cult',
       name: '魔教探子',
       minInnLevel: 3,
+      risk: 4,
+      tags: ['刺客', '高壓'],
+      blurb: '刺客喜突進，血影使內力深厚；慢熱易崩。',
       rewardSilver: [180, 280],
       rewardRep: [20, 35],
       enemies: [
-        { name: '魔教探子', emoji: '🌑', force: 16, nei: 14, hp: 100 },
-        { name: '魔教刺客', emoji: '🗡️', force: 20, nei: 10, hp: 90 },
-        { name: '血影使', emoji: '🩸', force: 24, nei: 18, hp: 160 }
+        { name: '魔教探子', emoji: '🌑', force: 16, nei: 14, hp: 100, ai: 'kite', ranged: true },
+        { name: '魔教刺客', emoji: '🗡️', force: 20, nei: 10, hp: 90, ai: 'charge' },
+        { name: '血影使', emoji: '🩸', force: 24, nei: 18, hp: 160, ai: 'charge' }
       ]
     }
   ];
+
+  /** 出巡路線資訊：風險星／報酬字串（供 UI） */
+  function waveThreatScore(wave) {
+    if (!wave || !wave.enemies) return 0;
+    return wave.enemies.reduce(function (s, e) {
+      const aiW = e.ai === 'charge' ? 1.25 : (e.ai === 'kite' ? 1.1 : 1);
+      return s + (e.force * 2.2 + (e.nei || 0) + (e.hp || 0) / 12) * aiW;
+    }, 0);
+  }
+
+  function waveRiskStars(wave) {
+    const r = wave && wave.risk != null ? wave.risk : Math.max(1, Math.min(5, Math.round(waveThreatScore(wave) / 55)));
+    return Math.max(1, Math.min(5, r | 0));
+  }
+
+  function formatWavePreview(wave) {
+    const stars = waveRiskStars(wave);
+    const starStr = '★'.repeat(stars) + '☆'.repeat(5 - stars);
+    const sil = wave.rewardSilver || [0, 0];
+    const rep = wave.rewardRep || [0, 0];
+    const tags = (wave.tags || []).slice(0, 3).join('·') || '常規';
+    return {
+      stars: stars,
+      starStr: starStr,
+      rewardLine: '銀 ' + sil[0] + '–' + sil[1] + ' · 望 ' + rep[0] + '–' + rep[1],
+      tagsLine: tags,
+      blurb: wave.blurb || '',
+      enemyLine: (wave.enemies || []).map(function (e) {
+        const tip = e.ai === 'charge' ? '衝' : (e.ai === 'kite' ? '距' : '常');
+        return e.name + '[' + tip + ']';
+      }).join('、')
+    };
+  }
 
   const TRAIN = {
     force: { label: '練武（武力）', cost: 28, gain: 2, favor: 1 },
@@ -979,6 +1120,9 @@
     SCENE_EVENTS,
     HERO_TEMPLATES,
     ENEMY_WAVES,
+    waveThreatScore,
+    waveRiskStars,
+    formatWavePreview,
     TRAIN,
     MARTIAL_ARTS,
     BOND_TIERS,

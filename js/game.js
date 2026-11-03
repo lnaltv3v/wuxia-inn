@@ -1,12 +1,12 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v0.7.0：Hub 960×540／橫屏優先／速度鈕）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v1.1.0：出巡預覽／場景事件／羈絆）
  */
 (function () {
   'use strict';
 
   const {
     GAME, INN_LEVELS, GUESTS, RUMORS, XIAOER_LINES, GUEST_EVENTS, SCENE_EVENTS, HERO_TEMPLATES, ENEMY_WAVES, TRAIN,
-    MARTIAL_ARTS, BOND_EVENTS, LIBRARY,
+    MARTIAL_ARTS, BOND_EVENTS, LIBRARY, formatWavePreview, waveRiskStars,
     OUTPOSTS, FACILITIES, QUEST_TEMPLATES,
     STORY_CHAPTERS, BOSS_ENCOUNTERS, ACHIEVEMENTS,
     weightedPick, randInt, heroStatsAtLevel,
@@ -806,8 +806,14 @@
 
   function applyFavorDelta(heroId, delta) {
     if (!heroId || !delta) return;
-    const h = state.heroes[heroId];
-    if (!h) return;
+    let h = state.heroes[heroId];
+    if (!h) {
+      const tpl = HERO_TEMPLATES.find((x) => x.id === heroId);
+      if (!tpl) return;
+      h = makeHeroState(tpl, 1);
+      h.recruited = false;
+      state.heroes[heroId] = h;
+    }
     const prev = h.favor || 0;
     h.favor = Math.max(0, Math.min(100, prev + delta));
     // 即使未招募，場景選擇仍可累積好感（招募後繼承）
@@ -2646,12 +2652,14 @@
       else if (defeated) status = '已討伐（可再戰）';
       else status = '可挑戰';
       const disabled = !!battle || !unlocked || lockedInn;
-      return `<button type="button" class="btn wave-btn boss-btn ${defeated ? 'cleared' : ''} ${!unlocked || lockedInn ? 'locked' : ''}"
+      return `<button type="button" class="btn wave-btn boss-btn wave-btn-info ${defeated ? 'cleared' : ''} ${!unlocked || lockedInn ? 'locked' : ''}"
         data-boss="${b.id}" ${disabled ? 'disabled' : ''}>
-        <b>${b.emoji} ${b.name}</b>
-        <span>${b.desc}</span>
-        <span>獎勵 ${b.rewardSilver[0]}–${b.rewardSilver[1]} 兩 · 聲望 ${b.rewardRep[0]}–${b.rewardRep[1]} · 獨特秘籍／銀兩</span>
-        <span class="pill ${defeated ? 'jade' : unlocked && !lockedInn ? 'cinnabar' : ''}">${status}</span>
+        <span class="wave-title"><b>${b.emoji} ${b.name}</b>
+          <span class="pill ${defeated ? 'jade' : unlocked && !lockedInn ? 'cinnabar' : ''}">${status}</span>
+        </span>
+        <span class="wave-risk">風險 ★★★★☆ · Boss</span>
+        <span class="wave-reward">銀 ${b.rewardSilver[0]}–${b.rewardSilver[1]} · 望 ${b.rewardRep[0]}–${b.rewardRep[1]} · 獨特獎</span>
+        <span class="wave-blurb">${b.desc}</span>
       </button>`;
     }).join('');
 
@@ -2687,9 +2695,21 @@
       waves.forEach((w) => {
         const locked = state.innLevel < w.minInnLevel;
         const btn = document.createElement('button');
-        btn.className = 'btn wave-btn' + (locked ? ' locked' : '');
+        const prev = (typeof formatWavePreview === 'function')
+          ? formatWavePreview(w)
+          : { starStr: '★', rewardLine: '', tagsLine: '', blurb: '', enemyLine: '' };
+        const risk = (typeof waveRiskStars === 'function') ? waveRiskStars(w) : (w.risk || 1);
+        btn.className = 'btn wave-btn wave-btn-info' + (locked ? ' locked' : '') + ' risk-' + risk;
         btn.disabled = !!battle || locked;
-        btn.innerHTML = `<b>${w.name}</b><span>獎勵 ${w.rewardSilver[0]}–${w.rewardSilver[1]} 兩 · 聲望 ${w.rewardRep[0]}–${w.rewardRep[1]}${locked ? ` · 需客棧 Lv.${w.minInnLevel}` : ''}</span>`;
+        btn.title = (prev.blurb || w.name) + (prev.enemyLine ? ('\n' + prev.enemyLine) : '');
+        btn.innerHTML = `<span class="wave-title"><b>${w.name}</b>` +
+          (locked ? `<span class="pill">需 Lv.${w.minInnLevel}</span>` : '') +
+          `</span>` +
+          `<span class="wave-risk" aria-label="風險 ${risk}">風險 ${prev.starStr}</span>` +
+          `<span class="wave-reward">${prev.rewardLine || (`銀 ${w.rewardSilver[0]}–${w.rewardSilver[1]} · 望 ${w.rewardRep[0]}–${w.rewardRep[1]}`)}</span>` +
+          `<span class="wave-tags">${prev.tagsLine}</span>` +
+          (prev.blurb ? `<span class="wave-blurb">${prev.blurb}</span>` : '') +
+          (prev.enemyLine ? `<span class="wave-enemies muted">${prev.enemyLine}</span>` : '');
         btn.onclick = () => startPatrol(w.id);
         list.appendChild(btn);
       });

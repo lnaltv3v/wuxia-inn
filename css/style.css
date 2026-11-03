@@ -1836,3 +1836,59 @@ body.combat-open .hub-shell {
   padding-left: 8px;
   color: var(--ink);
 }
+
+
+/* —— v1.1.0 出巡路線風險／報酬預覽 —— */
+.wave-btn-info {
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-start !important;
+  gap: 3px;
+  text-align: left !important;
+  padding: 10px 12px !important;
+  min-height: 0;
+}
+.wave-btn-info .wave-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  font-size: 1.02rem;
+}
+.wave-btn-info .wave-risk {
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  color: var(--cinnabar);
+}
+.wave-btn-info.risk-1 .wave-risk { color: var(--jade, #2A6A4A); }
+.wave-btn-info.risk-2 .wave-risk { color: var(--gold); }
+.wave-btn-info.risk-3 .wave-risk { color: var(--cinnabar); }
+.wave-btn-info.risk-4 .wave-risk,
+.wave-btn-info.risk-5 .wave-risk { color: var(--blood, #8B2942); }
+.wave-btn-info .wave-reward {
+  font-size: 0.82rem;
+  color: var(--ink);
+  font-family: var(--font-title);
+}
+.wave-btn-info .wave-tags {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+}
+.wave-btn-info .wave-blurb {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  line-height: 1.35;
+  margin-top: 2px;
+}
+.wave-btn-info .wave-enemies {
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+.combat-overlay .wave-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

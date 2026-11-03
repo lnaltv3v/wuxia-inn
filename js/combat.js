@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 自動即時走位戰鬥（v0.9.1）
+ * 俠客棧 — 自動即時走位戰鬥（v1.1.0：衝鋒／拉距 AI）
  * 戰場 960×540；狀態機：idle→approach→windup→strike→recover（hurt／parry／dodge）
  * 幀語意 v0.9；舞台鏡頭／VFX 加厚見 stages；僅 strike 判定幀傷害；近戰須接觸；速度 0.5–2×
  */
@@ -141,6 +141,7 @@
       bondMul: src.bondMul || 1,
       regen: src.regen || 0,
       ranged: !!src.ranged || isRangedUnit(src),
+      ai: src.ai || null,
       x: start + i * gap,
       y: y,
       homeY: y,
@@ -157,7 +158,9 @@
       contact: false,
       pending: null,
       hitDone: false,
-      telegraph: false
+      telegraph: false,
+      chargeT: 0,
+      chargeCd: Math.floor(Math.random() * 20)
     };
     return u;
   }
@@ -584,48 +587,92 @@
 
       const d = dist(u, target);
       const ranged = isRangedUnit(u);
-      const preferRange = ranged ? FIELD.rangedRange * 0.55 : FIELD.contactRange;
+      const ai = u.ai || (ranged ? 'kite' : 'skirmish');
+      const preferRange = (ai === 'kite' || ranged)
+        ? FIELD.rangedRange * (ai === 'kite' ? 0.58 : 0.55)
+        : (ai === 'charge' ? FIELD.contactRange + 4 : FIELD.contactRange);
       const hpRatio = u.hp / u.maxHp;
       u.engage = !ranged && d <= FIELD.meleeRange;
       u.contact = !ranged && d <= FIELD.contactRange + 1;
       u.facing = target.x >= u.x ? 1 : -1;
 
+      if (u.chargeCd > 0) u.chargeCd -= 1;
+      if (u.chargeT > 0) u.chargeT -= 1;
+
       let want = STATES.IDLE;
-      if (hpRatio < 0.28 && d < FIELD.meleeRange + 40 && Math.random() < 0.55) {
-        want = 'retreat';
-      } else if (ranged && d < FIELD.meleeRange + 16 && Math.random() < 0.45) {
-        want = 'retreat';
-      } else if (d > (ranged ? FIELD.rangedRange * 0.9 : FIELD.meleeRange)) {
-        want = STATES.APPROACH;
-      } else if (d < preferRange - 16 && !ranged && Math.random() < 0.22) {
-        want = 'strafe';
+      if (ai === 'charge') {
+        // 衝鋒：少退、多貼；遠距觸發短衝刺
+        if (hpRatio < 0.16 && d < FIELD.meleeRange + 24 && Math.random() < 0.28) {
+          want = 'retreat';
+        } else if (d > FIELD.contactRange + 2) {
+          want = STATES.APPROACH;
+          if (d > 96 && u.chargeCd <= 0 && u.chargeT <= 0 && Math.random() < 0.55) {
+            u.chargeT = 14;
+            u.chargeCd = 70 + Math.floor(Math.random() * 40);
+            log(u.emoji + u.name + ' 催動腳步，直衝而來！', 'warn');
+          }
+        } else if (Math.random() < 0.18) {
+          want = 'strafe';
+        } else {
+          want = STATES.IDLE;
+        }
+      } else if (ai === 'kite') {
+        // 拉距：近則退、遠則靠、中距遊走
+        if (d < preferRange - 28) {
+          want = 'retreat';
+        } else if (d > preferRange + 36) {
+          want = STATES.APPROACH;
+        } else if (Math.random() < 0.48) {
+          want = 'strafe';
+        } else {
+          want = STATES.IDLE;
+        }
+        if (hpRatio < 0.3 && d < FIELD.meleeRange + 48 && Math.random() < 0.4) {
+          want = 'retreat';
+        }
       } else {
-        want = STATES.IDLE;
+        // skirmish：原有邏輯
+        if (hpRatio < 0.28 && d < FIELD.meleeRange + 40 && Math.random() < 0.55) {
+          want = 'retreat';
+        } else if (ranged && d < FIELD.meleeRange + 16 && Math.random() < 0.45) {
+          want = 'retreat';
+        } else if (d > (ranged ? FIELD.rangedRange * 0.9 : FIELD.meleeRange)) {
+          want = STATES.APPROACH;
+        } else if (d < preferRange - 16 && !ranged && Math.random() < 0.22) {
+          want = 'strafe';
+        } else {
+          want = STATES.IDLE;
+        }
       }
 
       if (want === STATES.APPROACH) setState(u, STATES.APPROACH, 1);
       else if (want === STATES.IDLE || want === 'retreat' || want === 'strafe') {
         if (u.combatState !== STATES.IDLE && want === STATES.IDLE) setState(u, STATES.IDLE, 1);
-        u.intent = want === 'retreat' ? 'retreat' : (want === 'strafe' ? 'strafe' : 'hold');
+        u.intent = want === 'retreat' ? 'retreat' : (want === 'strafe' ? 'strafe' : (u.chargeT > 0 ? 'charge' : 'hold'));
         if (want === STATES.IDLE) u.combatState = STATES.IDLE;
       }
+      if (u.chargeT > 0) u.intent = 'charge';
 
       const toward = target.x >= u.x ? 1 : -1;
       let ax = 0;
       let ay = 0;
-      const speedScale = 0.85 + Math.random() * 0.3;
+      let speedScale = 0.85 + Math.random() * 0.3;
+      if (ai === 'charge') speedScale *= 1.12;
+      if (ai === 'kite') speedScale *= 1.05;
+      if (u.chargeT > 0) speedScale *= 1.55;
 
-      if (want === STATES.APPROACH || u.combatState === STATES.APPROACH) {
-        ax = toward * FIELD.accel * 1.25 * speedScale;
-        ay += (u.homeY - u.y) * 0.28;
-        ay += ((target.y || target.homeY) - u.y) * 0.1;
+      if (want === STATES.APPROACH || u.combatState === STATES.APPROACH || u.chargeT > 0) {
+        const accelMul = (ai === 'charge' ? 1.55 : 1.25) * (u.chargeT > 0 ? 1.8 : 1);
+        ax = toward * FIELD.accel * accelMul * speedScale;
+        ay += (u.homeY - u.y) * (ai === 'charge' ? 0.18 : 0.28);
+        ay += ((target.y || target.homeY) - u.y) * (ai === 'charge' ? 0.22 : 0.1);
       } else if (want === 'retreat') {
-        ax = -toward * FIELD.accel * 1.1 * speedScale;
+        ax = -toward * FIELD.accel * (ai === 'kite' ? 1.35 : 1.1) * speedScale;
         ay += (u.homeY - u.y) * 0.3;
       } else if (want === 'strafe') {
-        ax = toward * FIELD.accel * 0.18;
+        ax = toward * FIELD.accel * (ai === 'kite' ? 0.08 : 0.18);
         const side = (u.lane % 2 === 0) ? -1 : 1;
-        ay += side * FIELD.accel * 0.7 + (u.homeY - u.y) * 0.15;
+        ay += side * FIELD.accel * (ai === 'kite' ? 0.95 : 0.7) + (u.homeY - u.y) * 0.15;
       } else {
         ay += (u.homeY - u.y) * 0.35;
         if (u.engage && Math.random() < 0.35) {
@@ -636,11 +683,12 @@
       u.vx = (u.vx + ax) * FIELD.friction;
       u.vy = (u.vy + ay) * FIELD.friction;
       const sp = Math.sqrt(u.vx * u.vx + u.vy * u.vy);
-      const maxSp = FIELD.maxSpeed * speedScale;
+      const maxSp = FIELD.maxSpeed * speedScale * (u.chargeT > 0 ? 1.35 : 1);
       if (sp > maxSp) {
         u.vx = (u.vx / sp) * maxSp;
         u.vy = (u.vy / sp) * maxSp;
       }
+      if (u.chargeT <= 0) u.telegraph = !!u.pending;
     }
 
     function integrateMove(u) {
@@ -937,7 +985,11 @@
 
       // 5) CD
       alive.forEach(function (u) {
-        if (u.atkCd > 0 && canControlMove(u)) u.atkCd -= 1;
+        if (u.atkCd > 0 && canControlMove(u)) {
+          u.atkCd -= 1;
+          // 衝鋒近身：額外縮短攻擊間隔一點
+          if (u.ai === 'charge' && u.engage && u.atkCd > 0 && Math.random() < 0.35) u.atkCd -= 1;
+        }
       });
 
       // 6) 自由單位開讀招（每 tick 最多 2 人）
@@ -1022,7 +1074,8 @@
       maxHp: hp,
       mitBonus: template.mitBonus || 0,
       shield: 0,
-      ranged: !!(template.ranged || (template.name && template.name.indexOf('弓') >= 0) || template.emoji === '🏹')
+      ranged: !!(template.ranged || (template.name && template.name.indexOf('弓') >= 0) || template.emoji === '🏹'),
+      ai: template.ai || null
     };
     if (template.skill) {
       out.skill = Object.assign({}, template.skill);

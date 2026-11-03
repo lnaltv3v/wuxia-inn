@@ -1,0 +1,56 @@
+# v1.1 sprite gen report (tiezhang + qinshi)
+
+## tiezhang
+path: /workspace/wuxia-inn/assets/sprites/64/tiezhang.png
+size: (1152, 64)
+oob: 0
+palette_used (19): #1A1510, #2A2218, #2F6B4F, #3D3226, #3D8F66, #5A4A32, #5C4030, #8B2942, #8B6914, #A04040, #A61B1B, #B8860B, #C09070, #C42B2B, #C9A227, #E8C4A0, #E8D5A8, #F4E6C4, #FFF8EE
+frames:
+  00 idle0: visible=1593
+  01 idle1: visible=1587
+  02 walk0: visible=1582
+  03 walk1: visible=1626
+  04 walk2: visible=1491
+  05 walk3: visible=1566
+  06 windup0: visible=1667
+  07 windup1: visible=1568
+  08 windup2: visible=1467
+  09 strike0: visible=1636
+  10 strike1: visible=1599
+  11 strike2: visible=1632
+  12 strike3: visible=1532
+  13 hurt0: visible=1588
+  14 hurt1: visible=1472
+  15 parry0: visible=1658
+  16 parry1: visible=1673
+  17 parry2: visible=1473
+
+## qinshi
+path: /workspace/wuxia-inn/assets/sprites/64/qinshi.png
+size: (1152, 64)
+oob: 0
+palette_used (17): #1A1510, #2A2218, #3D3226, #5A4060, #5A4A32, #5C4030, #8B2942, #8B6914, #A61B1B, #C09070, #C42B2B, #C9A227, #D4BC8A, #E8C4A0, #E8D5A8, #F4E6C4, #FFF8EE
+frames:
+  00 idle0: visible=1623
+  01 idle1: visible=1594
+  02 walk0: visible=1568
+  03 walk1: visible=1607
+  04 walk2: visible=1539
+  05 walk3: visible=1569
+  06 windup0: visible=1550
+  07 windup1: visible=1422
+  08 windup2: visible=1319
+  09 strike0: visible=1571
+  10 strike1: visible=1606
+  11 strike2: visible=1575
+  12 strike3: visible=1552
+  13 hurt0: visible=1435
+  14 hurt1: visible=1315
+  15 parry0: visible=1522
+  16 parry1: visible=1564
+  17 parry2: visible=1364
+
+untouched_ok: qingyi md5=977296aec036a4ab018495d9ea97d5d7
+untouched_ok: langren md5=3d03e01ea2db13abd2e966dca1ec7512
+untouched_ok: xiaoer md5=5948ba8a86da96a5e5ddc127f5597b71
+TOTAL_OOB=0
