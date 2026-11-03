@@ -448,8 +448,8 @@
     // Hub v2.0 熱點（960×540＝舊錨點 ×2；場景 PNG 暫 nearest 橋接）
     const HOTSPOTS = [
       { id: 'door',     label: '大門·出巡',   x: 12,  y: 164, w: 96,  h: 136, open: 'combat' },
-      { id: 'board',    label: '告示·江湖',   x: 216, y: 184, w: 88,  h: 56,  open: 'story' },
-      { id: 'books',    label: '書架·藏書',   x: 216, y: 224, w: 80,  h: 100, open: 'library' },
+      { id: 'board',    label: '告示·江湖',   x: 216, y: 176, w: 88,  h: 44,  open: 'story' },
+      { id: 'books',    label: '書架·藏書',   x: 216, y: 228, w: 80,  h: 96,  open: 'library' },
       { id: 'counter',  label: '櫃檯·經營',   x: 306, y: 326, w: 368, h: 114, open: 'inn' },
       { id: 'map',      label: '地圖·據點',   x: 724, y: 182, w: 92,  h: 106, open: 'outposts' },
       { id: 'heroes',   label: '俠客席·養成', x: 676, y: 356, w: 144, h: 68,  open: 'heroes' },

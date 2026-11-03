@@ -32,6 +32,17 @@
       <div id="hub-stage-host" class="stage-host hub-stage-host" aria-label="客棧內部像素場景"></div>
       <div class="landscape-nudge" role="status">建議橫持螢幕遊玩 · 客棧場景同按鈕會更大更清楚</div>
       <p class="hub-hint hub-hint-chip" id="hub-hint" title="熱點提示">移近熱點 · 櫃檯／俠客／大門／告示／地圖／書架</p>
+      <div id="hub-tour" class="hub-tour hidden" role="dialog" aria-modal="true" aria-labelledby="hub-tour-title" hidden>
+        <div class="hub-tour-card px-frame">
+          <p class="hub-tour-kicker" id="hub-tour-step">引導 1／3</p>
+          <h3 id="hub-tour-title">櫃檯·經營</h3>
+          <p id="hub-tour-body" class="hub-tour-body">點大廳櫃檯，升級設施、接待客人、累積銀兩與聲望。</p>
+          <div class="btn-row hub-tour-actions">
+            <button type="button" class="btn" id="btn-hub-tour-skip" aria-label="跳過新手引導">跳過</button>
+            <button type="button" class="btn primary" id="btn-hub-tour-next">下一步</button>
+          </div>
+        </div>
+      </div>
       <div id="hub-choice-bar" class="hub-choice-bar hidden" role="group" aria-label="江湖事件選擇"></div>
       <div class="hub-quickbar hub-quickbar-chips" role="toolbar" aria-label="快捷入口">
         <button type="button" class="hub-qbtn" data-open="inn" title="經營" aria-label="經營詳情"><span class="px-ico"><img src="assets/ui/ico_jingying.png" alt="" width="16" height="16" decoding="async"></span><span class="hub-qbtn-lab">經</span></button>
@@ -99,7 +110,7 @@
     </div>
 
     <div id="toast-host" class="toast-host hidden" aria-live="polite"></div>
-    <footer class="footer">俠客棧 v1.6.0 · 存檔匯出匯入 · 離頁暫停 · 奇客 · 960×540</footer>
+    <footer class="footer">俠客棧 v1.7.0 · 新手引導 · 第六章開頭 · 教學可重開 · 960×540</footer>
   </div>
 
   <script src="js/data.js"></script>

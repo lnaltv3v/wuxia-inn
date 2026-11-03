@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v1.6.0：存檔匯出匯入／rAF 暫停／奇客／無障礙）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v1.7.0：新手引導／第六章／教學重開）
  */
 (function () {
   'use strict';
@@ -160,7 +160,8 @@
       boardLetterDone: false,
       duoBondDone: [],
       metScenes: [],
-      combatBuffs: []
+      combatBuffs: [],
+      hubTourDone: false
     };
   }
 
@@ -270,6 +271,20 @@
     s.combatBuffs = s.combatBuffs.filter(function (b) {
       return b && typeof b.battlesLeft === 'number' && b.battlesLeft > 0;
     });
+    // v1.7 新手 Hub 引導：舊檔若已有進度則視為完成，免打擾老玩家
+    if (typeof s.hubTourDone !== 'boolean') {
+      const progressed = (s.battlesWon > 0) || (s.guestsServed > 0) ||
+        (Array.isArray(s.storyRead) && s.storyRead.length > 0) ||
+        (Number(s.silver) > 40);
+      s.hubTourDone = !!progressed;
+    }
+    // 戰鬥速度：缺省／非法一律回 1×（可讀預設）
+    {
+      const speeds = (GAME.combatSpeeds || [0.5, 1, 1.5, 2]);
+      let sp = Number(s.combatSpeed);
+      if (!(sp > 0) || speeds.indexOf(Math.round(sp * 2) / 2) < 0) s.combatSpeed = 1;
+      else s.combatSpeed = Math.round(sp * 2) / 2;
+    }
 
     return s;
   }
@@ -2296,6 +2311,126 @@
     if (name === 'log') renderLog();
   }
 
+
+  // ——— v1.7 Hub 三步新手引導 ———
+  const HUB_TOUR_STEPS = [
+    {
+      hotspot: 'counter',
+      title: '櫃檯·經營',
+      body: '點大廳櫃檯：升級設施、接待客人、累積銀兩與聲望。客棧係一切根基。'
+    },
+    {
+      hotspot: 'heroes',
+      title: '俠客席·養成',
+      body: '點右側俠客席：編隊、練功、招募。出巡前先睇好隊伍。'
+    },
+    {
+      hotspot: 'door',
+      title: '大門·出巡',
+      body: '點左側大門進入戰場。自動走位：靠近 → 讀招 → 判定。速度預設 1×，可再調。'
+    }
+  ];
+  let hubTourIndex = 0;
+  let hubTourBound = false;
+
+  function hubTourActive() {
+    const el = $('hub-tour');
+    return !!(el && !el.classList.contains('hidden') && !el.hidden);
+  }
+
+  function hideHubTour() {
+    const el = $('hub-tour');
+    if (el) {
+      el.classList.add('hidden');
+      el.hidden = true;
+    }
+    document.body.classList.remove('hub-tour-active');
+    if (!document.body.classList.contains('sheet-open') && activeTab === 'hub') {
+      syncHubSelectedHotspot(null);
+    }
+  }
+
+  function finishHubTour(skipped) {
+    state.hubTourDone = true;
+    hideHubTour();
+    save(true);
+    const hint = $('hub-hint');
+    if (hint && !hint.classList.contains('hub-hint-hot')) {
+      hint.textContent = skipped
+        ? '已跳過引導 · 移近熱點睇提示（日誌可重開）'
+        : '引導完成 · 移近熱點睇提示（日誌可重開）';
+    }
+    showUiToast('🧭 引導', skipped ? '已跳過，隨時喺日誌重開' : '三步完成，江湖路起', 'system');
+  }
+
+  function renderHubTourStep() {
+    const step = HUB_TOUR_STEPS[hubTourIndex];
+    if (!step) {
+      finishHubTour(false);
+      return;
+    }
+    const el = $('hub-tour');
+    const title = $('hub-tour-title');
+    const body = $('hub-tour-body');
+    const kicker = $('hub-tour-step');
+    const nextBtn = $('btn-hub-tour-next');
+    if (!el) return;
+    el.classList.remove('hidden');
+    el.hidden = false;
+    document.body.classList.add('hub-tour-active');
+    if (kicker) kicker.textContent = '引導 ' + (hubTourIndex + 1) + '／' + HUB_TOUR_STEPS.length;
+    if (title) title.textContent = step.title;
+    if (body) body.textContent = step.body;
+    if (nextBtn) nextBtn.textContent = hubTourIndex >= HUB_TOUR_STEPS.length - 1 ? '完成' : '下一步';
+    syncHubSelectedHotspot(step.hotspot);
+    const hint = $('hub-hint');
+    if (hint) {
+      hint.textContent = '引導：' + step.title + ' — 可點場景熱點或按下一步';
+      hint.classList.add('hub-hint-hot');
+    }
+  }
+
+  function startHubTour(force) {
+    if (!force && state.hubTourDone) return;
+    if (battle) return;
+    hubTourIndex = 0;
+    setTab('hub');
+    renderHubTourStep();
+  }
+
+  function advanceHubTour() {
+    if (!hubTourActive()) return;
+    hubTourIndex += 1;
+    if (hubTourIndex >= HUB_TOUR_STEPS.length) finishHubTour(false);
+    else renderHubTourStep();
+  }
+
+  function bindHubTourOnce() {
+    if (hubTourBound) return;
+    hubTourBound = true;
+    const nextBtn = $('btn-hub-tour-next');
+    const skipBtn = $('btn-hub-tour-skip');
+    if (nextBtn) nextBtn.addEventListener('click', function () {
+      audioUiClick();
+      advanceHubTour();
+    });
+    if (skipBtn) skipBtn.addEventListener('click', function () {
+      audioUiClick();
+      finishHubTour(true);
+    });
+  }
+
+  function maybeStartHubTour() {
+    bindHubTourOnce();
+    if (state.hubTourDone || battle) return;
+    // 稍延遲等 Hub mount／熱點就緒
+    window.setTimeout(function () {
+      if (state.hubTourDone || battle) return;
+      if (document.body.classList.contains('combat-open')) return;
+      startHubTour(false);
+    }, 480);
+  }
+
   const LS_COMBAT_TUTOR = 'wuxia-inn-combat-tutor-v1';
   const LS_COMBAT_AUTOTIP = 'wuxia-inn-combat-auto-tip-v1';
 
@@ -2310,6 +2445,19 @@
   }
   function setCombatAutoTipHidden() {
     try { localStorage.setItem(LS_COMBAT_AUTOTIP, '1'); } catch (e) { /* ignore */ }
+  }
+  function clearCombatTutorDone() {
+    try { localStorage.removeItem(LS_COMBAT_TUTOR); } catch (e) { /* ignore */ }
+  }
+  function clearCombatAutoTipHidden() {
+    try { localStorage.removeItem(LS_COMBAT_AUTOTIP); } catch (e) { /* ignore */ }
+  }
+  function reopenCombatTeaching() {
+    clearCombatTutorDone();
+    clearCombatAutoTipHidden();
+    syncCombatAutoTipUI();
+    // 下次開戰會再彈教學；若而家喺戰場亦即時顯示
+    syncCombatTutorUI(!!battle);
   }
 
   function syncCombatTutorUI(forceShow) {
@@ -2633,7 +2781,15 @@
       WuxiaStages.Inn.setAmbientHeroes(ids.length ? ids : ['qingyi']);
     }
     if (WuxiaStages.Inn.setHotspotHandler) {
-      WuxiaStages.Inn.setHotspotHandler((openId) => {
+      WuxiaStages.Inn.setHotspotHandler((openId, hotspot) => {
+        if (hubTourActive()) {
+          const step = HUB_TOUR_STEPS[hubTourIndex];
+          const hid = hotspot && hotspot.id;
+          if (step && (hid === step.hotspot || openId === ({ counter: 'inn', heroes: 'heroes', door: 'combat' })[step.hotspot])) {
+            advanceHubTour();
+            return;
+          }
+        }
         if (openId === 'table') return;
         if (openId === 'library') {
           openSheet('inn');
@@ -3426,6 +3582,18 @@
       <div class="log-list">${state.log.map((e) =>
         `<div class="log-line ${e.kind}"><span class="t">${e.t}</span>${e.msg}</div>`
       ).join('') || '<p class="muted">尚無記錄</p>'}</div>
+      <div class="card panel-block prefs-io">
+        <header class="panel-sec">
+          <h3>⚙️ 提示與引導</h3>
+          <p class="muted panel-lead">戰鬥教學芯片關咗可以喺度重開；新手引導亦可再行一次。戰鬥速度預設 <b>1×</b>。</p>
+        </header>
+        <div class="btn-row">
+          <button type="button" class="btn primary" id="btn-reopen-combat-teach" aria-label="重開戰鬥教學芯片">重開戰鬥教學</button>
+          <button type="button" class="btn" id="btn-replay-hub-tour" aria-label="重播 Hub 三步引導">重播 Hub 引導</button>
+          <button type="button" class="btn" id="btn-reset-combat-speed" aria-label="戰鬥速度重設為 1 倍">速度重設 1×</button>
+        </div>
+        <p class="muted small" id="prefs-io-status" aria-live="polite"></p>
+      </div>
       <div class="card panel-block save-io">
         <header class="panel-sec">
           <h3>💾 存檔匯出／匯入</h3>
@@ -3477,6 +3645,31 @@
       if (!confirm('最後確認：此操作唔可復原。真係重置？')) return;
       resetGame();
       setIoStatus('已重置為新遊戲');
+      maybeStartHubTour();
+    };
+    const prefsStatus = $('prefs-io-status');
+    function setPrefsStatus(msg) { if (prefsStatus) prefsStatus.textContent = msg || ''; }
+    const btnTeach = $('btn-reopen-combat-teach');
+    if (btnTeach) btnTeach.onclick = () => {
+      audioUiClick();
+      reopenCombatTeaching();
+      setPrefsStatus('已重開：下次出巡顯示教學芯片；自動走位提示亦復原');
+      showUiToast('⚔ 教學', '戰鬥芯片已重開', 'system');
+    };
+    const btnTour = $('btn-replay-hub-tour');
+    if (btnTour) btnTour.onclick = () => {
+      audioUiClick();
+      state.hubTourDone = false;
+      save(true);
+      setPrefsStatus('即將重播 Hub 三步引導');
+      startHubTour(true);
+    };
+    const btnSp = $('btn-reset-combat-speed');
+    if (btnSp) btnSp.onclick = () => {
+      audioUiClick();
+      setCombatSpeed(1);
+      setPrefsStatus('戰鬥速度已重設為 1×');
+      showUiToast('⚔ 速度', '已回 1×', 'system');
     };
   }
 
@@ -3544,6 +3737,11 @@
     // Esc／點場景空白：關浮層（戰鬥中 Esc 唔強退）
     document.addEventListener('keydown', (ev) => {
       if (ev.key !== 'Escape') return;
+      if (hubTourActive()) {
+        finishHubTour(true);
+        ev.preventDefault();
+        return;
+      }
       const menu = $('hub-menu');
       if (menu && !menu.classList.contains('hidden')) {
         closeMenu();
@@ -3611,6 +3809,8 @@
     }
 
     renderAll();
+    syncCombatSpeedUI();
+    maybeStartHubTour();
     tickTimer = setInterval(gameTick, GAME.tickMs);
     setInterval(() => { updateTopbar(); save(true); refreshHubBgm(false); }, 15000);
 

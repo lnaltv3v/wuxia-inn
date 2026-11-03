@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v1.6.0
+ * v1.7.0
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '1.6.0',
+    version: '1.7.0',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -812,6 +812,23 @@
         { speaker: '琴心師太', text: '燈火若長明，邪影難近門。掌櫃，告示欄那邊……還有人求援。' },
         { speaker: '掌櫃', text: '本棧燈不滅。密信收下——江湖支線，告示欄上見。' },
         { speaker: '旁白', text: '—— 第五章完。邊關與青石分舵獨特加成更清晰；告示欄可觸「燈火密信」支線。' }
+      ]
+    },
+    {
+      id: 'ch6_ember_road',
+      title: '第六章 · 餘燼之路（開頭）',
+      subtitle: '結局預告',
+      emoji: '🌫️',
+      unlock: { innLevel: 3, reputation: 170, battlesWon: 14, chapterRead: 'ch5_lantern_long' },
+      bossId: null,
+      reward: { silver: 80, reputation: 12 },
+      lines: [
+        { speaker: '旁白', text: '邊關密信的蠟印裂開時，裡面只有半句：「燈熄之處，影自為王。」' },
+        { speaker: '青衣劍客', text: '黑風、邪醫、血影……像被人一串串牽著，朝同一處餘燼走。' },
+        { speaker: '浪人刀客', text: '那地方有名嗎？還是只剩地名燒剩的灰？' },
+        { speaker: '琴心師太', text: '梵音聽得見風聲裡有人笑。不是善類。' },
+        { speaker: '掌櫃', text: '本棧燈還亮。結局未至——但路，已經從今夜開頭。' },
+        { speaker: '旁白', text: '—— 第六章開頭。更大的影尚在霧中；守住燈火，下回再拆結局。' }
       ]
     }
   ];

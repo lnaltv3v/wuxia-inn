@@ -2059,3 +2059,53 @@ body.combat-open .hub-shell {
   outline: 2px solid #7cb87c;
   outline-offset: 1px;
 }
+
+
+/* ——— v1.7 新手 Hub 三步引導 ——— */
+.hub-tour {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 64px;
+  z-index: 12;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.hub-tour.hidden,
+.hub-tour[hidden] { display: none !important; }
+.hub-tour-card {
+  pointer-events: auto;
+  max-width: 420px;
+  width: 100%;
+  padding: 12px 14px;
+  background: rgba(244, 230, 196, 0.96);
+  border: 3px solid var(--ink);
+  box-shadow: 0 0 0 2px var(--wood), 4px 4px 0 rgba(26,21,16,0.4);
+  color: var(--ink);
+}
+.hub-tour-kicker {
+  margin: 0 0 4px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+.hub-tour-card h3 {
+  margin: 0 0 6px;
+  font-family: var(--font-title);
+  font-size: 1.15rem;
+}
+.hub-tour-body {
+  margin: 0 0 10px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.hub-tour-actions {
+  justify-content: flex-end;
+  gap: 8px;
+}
+body.hub-tour-active .hub-stage-wrap .px-stage {
+  box-shadow: 0 0 0 2px rgba(232, 200, 106, 0.55);
+}
