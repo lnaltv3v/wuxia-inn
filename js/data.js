@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v1.4.0
+ * v1.5.0
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '1.4.0',
+    version: '1.5.0',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -968,7 +968,8 @@
       growth: { force: 1.5, nei: 2.5, hp: 10 },
       defaultActive: 'tiesha',
       defaultPassive: 'tuna',
-      lore: '醫武雙修，掌力綿裡藏針，常為客棧療傷。'
+      lore: '醫武雙修，掌力綿裡藏針，常為客棧療傷。',
+      unlockHint: '銀兩足夠即可請入；入駐後有藥香抵達短景。'
     },
     {
       id: 'langren',
@@ -981,7 +982,8 @@
       growth: { force: 2.8, nei: 1.2, hp: 15 },
       defaultActive: 'langren_slash',
       defaultPassive: null,
-      lore: '來歷不明的浪客，刀勢狂烈，酒後更兇。'
+      lore: '來歷不明的浪客，刀勢狂烈，酒後更兇。',
+      unlockHint: '銀兩足夠即可請入；入駐後有對刀抵達短景。'
     },
     {
       id: 'qinshi',
@@ -991,11 +993,12 @@
       unlocked: false,
       unlockCost: 450,
       unlockReq: { reputation: 60, anyFavor: 40, innLevel: 2 },
+      unlockHint: '需客棧 Lv.2、聲望 60、任一名已入駐俠客好感達 40（談心／出巡可累積）。達標後入駐有梵音抵達演出。',
       base: { force: 10, nei: 18, hp: 85, favor: 0 },
       growth: { force: 1.6, nei: 3.0, hp: 11 },
       defaultActive: 'fanyin',
       defaultPassive: 'jinzhong',
-      lore: '雲遊至此的師太，琴音可亂敵心神。聲望與情誼達標可請入駐。'
+      lore: '雲遊至此的師太，琴音可亂敵心神。聲望、客棧等級與情誼達標可請入駐。'
     }
   ];
 
@@ -1069,6 +1072,148 @@
       }
     ]
   };
+
+
+  /** v1.5 雙人羈絆／情愛事件（Hub 場景＋選擇；可帶短暫戰鬥加成） */
+  const DUO_BOND_EVENTS = [
+    {
+      id: 'duo_sword_herb',
+      title: '劍與藥',
+      heroes: ['qingyi', 'tiezhang'],
+      favorNeed: { qingyi: 40, tiezhang: 35 },
+      caption: '雅座一角，青衣與鐵掌並坐…',
+      interactive: true,
+      weight: 50,
+      walkers: [
+        { id: 'qingyi', x: 300, y: 340, tx: 360, ty: 350 },
+        { id: 'tiezhang', x: 520, y: 350, tx: 430, ty: 352 }
+      ],
+      beats: [
+        { at: 0, caption: '藥香混著劍穗清氣', line: '你的腕力又緊了。', walker: 1, life: 1.2 },
+        { at: 900, line: '……習慣。有你在，傷好得快些。', walker: 0, life: 1.25 },
+        { at: 1900, caption: '二人望向掌櫃', line: '掌櫃可願聽我們一樁心事？', walker: 1, life: 1.2 },
+        { at: 2700, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'hear_both',
+          label: '靜聽心事（雙方好感＋）',
+          effects: {
+            favorHero: 'qingyi', favor: 5,
+            favorHero2: 'tiezhang', favor2: 5,
+            combatBuff: { id: 'buff_sword_herb', label: '劍藥同心', forceMul: 1.08, battles: 2, heroes: ['qingyi', 'tiezhang'] }
+          },
+          resultLine: '青衣輕笑，鐵掌為二人搭脈。來日出巡，劍鋒與藥力似更合拍。'
+        },
+        {
+          id: 'toast_pair',
+          label: '敬二人一盞（-22 兩 · 戰意）',
+          effects: {
+            silver: -22, reputation: 2,
+            favorHero: 'qingyi', favor: 4,
+            favorHero2: 'tiezhang', favor2: 4,
+            combatBuff: { id: 'buff_sword_herb_toast', label: '燈下共盞', forceMul: 1.12, battles: 3, heroes: ['qingyi', 'tiezhang'] }
+          },
+          resultLine: '盞碰盞。鐵掌低聲：「傷好了，便一起守這盞燈。」短暫戰意高昂。'
+        },
+        {
+          id: 'step_aside',
+          label: '不便打擾（小好感）',
+          effects: { favorHero: 'qingyi', favor: 1, favorHero2: 'tiezhang', favor2: 1 },
+          resultLine: '你默默添茶離開。二人交換一眼，似有默契未說完。'
+        }
+      ]
+    },
+    {
+      id: 'duo_blade_moon',
+      title: '刀劍邀月',
+      heroes: ['qingyi', 'langren'],
+      favorNeed: { qingyi: 45, langren: 40 },
+      caption: '月下庭階，青衣與浪人對立而立…',
+      interactive: true,
+      weight: 48,
+      walkers: [
+        { id: 'qingyi', x: 280, y: 320, tx: 340, ty: 330 },
+        { id: 'langren', x: 560, y: 330, tx: 460, ty: 332 }
+      ],
+      beats: [
+        { at: 0, caption: '刀光與劍影錯落', line: '再來一招？', walker: 1, life: 1.15 },
+        { at: 850, line: '今夜月好。掌櫃若在，便算有見證。', walker: 0, life: 1.25 },
+        { at: 1800, caption: '二人收勢', line: '你說——刀與劍，可否同路？', walker: 1, life: 1.2 },
+        { at: 2600, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'witness',
+          label: '願作見證（雙方好感＋）',
+          effects: {
+            favorHero: 'qingyi', favor: 5,
+            favorHero2: 'langren', favor2: 5,
+            combatBuff: { id: 'buff_blade_moon', label: '刀劍同輝', forceMul: 1.09, battles: 2, heroes: ['qingyi', 'langren'] }
+          },
+          resultLine: '浪人收刀大笑，青衣點頭。月下並肩之感，帶入下一場出巡。'
+        },
+        {
+          id: 'spar_wager',
+          label: '加注切磋彩頭（-18 兩）',
+          effects: {
+            silver: -18, reputation: 3,
+            favorHero: 'qingyi', favor: 3,
+            favorHero2: 'langren', favor2: 6,
+            combatBuff: { id: 'buff_blade_wager', label: '月下彩頭', forceMul: 1.11, battles: 3, heroes: ['qingyi', 'langren'] }
+          },
+          resultLine: '彩頭入櫃。二人又過三招，汗意與笑意同起——戰意未散。'
+        },
+        {
+          id: 'call_rest',
+          label: '勸二人歇手（穩）',
+          effects: { favorHero: 'qingyi', favor: 2, favorHero2: 'langren', favor2: 2, reputation: 1 },
+          resultLine: '青衣收劍：「掌櫃說得是。」浪人嘟囔著去討酒，卻沒有真惱。'
+        }
+      ]
+    }
+  ];
+
+  /** 招募抵達短景（Hub 泡泡／行人） */
+  const RECRUIT_ARRIVALS = {
+    tiezhang: {
+      id: 'arrive_tiezhang',
+      caption: '鐵掌醫女入駐…',
+      walkers: [
+        { id: 'tiezhang', x: 80, y: 360, tx: 280, ty: 350 },
+        { id: 'xiaoer', x: 400, y: 320, tx: 340, ty: 340 }
+      ],
+      beats: [
+        { at: 0, caption: '藥箱落櫃', line: '傷藥帶齊了。有傷，找我。', walker: 0, life: 1.35 },
+        { at: 1100, line: '醫女姐姐好！小二給您拂席！', walker: 1, life: 1.2, end: true }
+      ]
+    },
+    langren: {
+      id: 'arrive_langren',
+      caption: '浪人刀客入駐…',
+      walkers: [
+        { id: 'langren', x: 900, y: 340, tx: 520, ty: 350 },
+        { id: 'xiaoer', x: 300, y: 330, tx: 400, ty: 340 }
+      ],
+      beats: [
+        { at: 0, caption: '刀鞘磕門檻', line: '有酒麼？沒酒也成——有架打就行。', walker: 0, life: 1.35 },
+        { at: 1200, line: '刀客爺，雅座這邊！先登記……', walker: 1, life: 1.2, end: true }
+      ]
+    },
+    qinshi: {
+      id: 'arrive_qinshi',
+      caption: '琴心師太入駐…',
+      walkers: [
+        { id: 'qinshi', x: 100, y: 300, tx: 360, ty: 340 },
+        { id: 'xiaoer', x: 500, y: 340, tx: 420, ty: 350 }
+      ],
+      beats: [
+        { at: 0, caption: '梵音初起', line: '施主有緣。容貧尼借一角清靜。', walker: 0, life: 1.4 },
+        { at: 1200, line: '師太裏面請！小二去焚一炷香。', walker: 1, life: 1.25, end: true }
+      ]
+    }
+  };
+
 
   const ENEMY_WAVES = [
     {
@@ -1292,6 +1437,8 @@
     MARTIAL_ARTS,
     BOND_TIERS,
     BOND_EVENTS,
+    DUO_BOND_EVENTS,
+    RECRUIT_ARRIVALS,
     LIBRARY,
     OUTPOSTS,
     FACILITIES,

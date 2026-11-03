@@ -1,12 +1,12 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v1.2.0：客人偏好／茶寮／招架反打）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v1.5.0：雙人羈絆／招募抵達／圖鑑摘要）
  */
 (function () {
   'use strict';
 
   const {
     GAME, INN_LEVELS, GUESTS, RUMORS, XIAOER_LINES, GUEST_EVENTS, SCENE_EVENTS, HERO_TEMPLATES, ENEMY_WAVES, TRAIN,
-    MARTIAL_ARTS, BOND_EVENTS, LIBRARY, formatWavePreview, waveRiskStars, guestPhaseMul, XIAOER_PHASE_LINES,
+    MARTIAL_ARTS, BOND_EVENTS, DUO_BOND_EVENTS, RECRUIT_ARRIVALS, LIBRARY, formatWavePreview, waveRiskStars, guestPhaseMul, XIAOER_PHASE_LINES,
     OUTPOSTS, FACILITIES, QUEST_TEMPLATES,
     STORY_CHAPTERS, BOSS_ENCOUNTERS, ACHIEVEMENTS,
     weightedPick, randInt, heroStatsAtLevel,
@@ -156,7 +156,10 @@
       combatSpeed: 1,
       countersLanded: 0,
       marketTips: 0,
-      boardLetterDone: false
+      boardLetterDone: false,
+      duoBondDone: [],
+      metScenes: [],
+      combatBuffs: []
     };
   }
 
@@ -259,6 +262,13 @@
     if (typeof s.countersLanded !== 'number') s.countersLanded = 0;
     if (typeof s.marketTips !== 'number') s.marketTips = 0;
     if (typeof s.boardLetterDone !== 'boolean') s.boardLetterDone = false;
+    // v1.5 雙人羈絆／圖鑑／短暫戰意
+    if (!Array.isArray(s.duoBondDone)) s.duoBondDone = [];
+    if (!Array.isArray(s.metScenes)) s.metScenes = [];
+    if (!Array.isArray(s.combatBuffs)) s.combatBuffs = [];
+    s.combatBuffs = s.combatBuffs.filter(function (b) {
+      return b && typeof b.battlesLeft === 'number' && b.battlesLeft > 0;
+    });
 
     return s;
   }
@@ -661,19 +671,111 @@
   }
 
   function canRecruit(t) {
-    if (!t.unlockReq) return { ok: true };
+    if (!t.unlockReq) return { ok: true, reasons: [], progress: [] };
     const req = t.unlockReq;
     const reasons = [];
-    if (req.reputation != null && state.reputation < req.reputation) {
-      reasons.push(`聲望 ${req.reputation}`);
+    const progress = [];
+    if (req.reputation != null) {
+      const cur = state.reputation || 0;
+      progress.push({ key: '聲望', cur: cur, need: req.reputation, ok: cur >= req.reputation });
+      if (cur < req.reputation) reasons.push('聲望 ' + cur + '/' + req.reputation);
     }
-    if (req.innLevel != null && state.innLevel < req.innLevel) {
-      reasons.push(`客棧 Lv.${req.innLevel}`);
+    if (req.innLevel != null) {
+      const cur = state.innLevel || 1;
+      progress.push({ key: '客棧', cur: cur, need: req.innLevel, ok: cur >= req.innLevel });
+      if (cur < req.innLevel) reasons.push('客棧 Lv.' + cur + '/' + req.innLevel);
     }
-    if (req.anyFavor != null && maxFavorAmongRecruited() < req.anyFavor) {
-      reasons.push(`任俠客好感 ${req.anyFavor}`);
+    if (req.anyFavor != null) {
+      const cur = maxFavorAmongRecruited();
+      progress.push({ key: '好感', cur: cur, need: req.anyFavor, ok: cur >= req.anyFavor });
+      if (cur < req.anyFavor) reasons.push('任俠客好感 ' + cur + '/' + req.anyFavor);
     }
-    return { ok: reasons.length === 0, reasons };
+    return { ok: reasons.length === 0, reasons: reasons, progress: progress };
+  }
+
+  function markMetScene(id) {
+    if (!id) return;
+    if (!Array.isArray(state.metScenes)) state.metScenes = [];
+    if (state.metScenes.indexOf(id) < 0) state.metScenes.push(id);
+  }
+
+  function pushCombatBuff(buff) {
+    if (!buff || !buff.id) return;
+    if (!Array.isArray(state.combatBuffs)) state.combatBuffs = [];
+    // 同 id 刷新場次
+    state.combatBuffs = state.combatBuffs.filter(function (b) { return b.id !== buff.id; });
+    state.combatBuffs.push({
+      id: buff.id,
+      label: buff.label || buff.id,
+      forceMul: buff.forceMul || 1.05,
+      battlesLeft: Math.max(1, buff.battles || buff.battlesLeft || 1),
+      heroes: buff.heroes ? buff.heroes.slice() : null
+    });
+  }
+
+  function heroCombatBuffMul(heroId) {
+    let m = 1;
+    (state.combatBuffs || []).forEach(function (b) {
+      if (!b || !(b.battlesLeft > 0)) return;
+      if (b.heroes && b.heroes.indexOf(heroId) < 0) return;
+      m *= (b.forceMul || 1);
+    });
+    return m;
+  }
+
+  function tickCombatBuffsAfterBattle() {
+    if (!Array.isArray(state.combatBuffs) || !state.combatBuffs.length) return;
+    state.combatBuffs = state.combatBuffs.map(function (b) {
+      return Object.assign({}, b, { battlesLeft: (b.battlesLeft || 1) - 1 });
+    }).filter(function (b) { return b.battlesLeft > 0; });
+  }
+
+  function duoEventReady(ev) {
+    if (!ev || !ev.heroes) return false;
+    if ((state.duoBondDone || []).indexOf(ev.id) >= 0) return false;
+    for (let i = 0; i < ev.heroes.length; i++) {
+      const hid = ev.heroes[i];
+      const h = state.heroes[hid];
+      if (!h || !h.recruited) return false;
+      const need = (ev.favorNeed && ev.favorNeed[hid]) || 0;
+      if ((h.favor || 0) < need) return false;
+    }
+    return true;
+  }
+
+  function pickReadyDuoEvent() {
+    const list = (typeof DUO_BOND_EVENTS !== 'undefined' && DUO_BOND_EVENTS) ? DUO_BOND_EVENTS : [];
+    const ready = list.filter(duoEventReady);
+    if (!ready.length) return null;
+    // 權重
+    let total = 0;
+    ready.forEach(function (e) { total += (e.weight || 1); });
+    let r = Math.random() * total;
+    for (let i = 0; i < ready.length; i++) {
+      r -= (ready[i].weight || 1);
+      if (r <= 0) return ready[i];
+    }
+    return ready[0];
+  }
+
+  function playRecruitArrival(heroId) {
+    const map = (typeof RECRUIT_ARRIVALS !== 'undefined' && RECRUIT_ARRIVALS) ? RECRUIT_ARRIVALS : {};
+    const sc = map[heroId];
+    if (!sc || !globalThis.WuxiaStages || !WuxiaStages.Inn || !WuxiaStages.Inn.playSceneEvent) return false;
+    try {
+      hideHubChoices();
+      WuxiaStages.Inn.playSceneEvent(sc);
+      markMetScene(sc.id || ('arrive_' + heroId));
+      const hint = document.getElementById('hub-hint');
+      if (hint) hint.textContent = sc.caption || '新俠客抵達…';
+      if (WuxiaStages.Inn.greetXiaoer && sc.beats && sc.beats[0] && sc.beats[0].line) {
+        // 小二／本人泡泡已由場景負責；額外 toast
+      }
+      showUiToast('🚪 抵達', (HERO_TEMPLATES.find(function (x) { return x.id === heroId; }) || {}).name || heroId, 'system');
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   // ——— 存檔 ———
@@ -940,6 +1042,10 @@
       pushLog('【羈絆·' + ev.title + '】' + ev.text, 'bond');
       showBondToast(ev.title, ev.text);
     });
+    const duoNudge = pickReadyDuoEvent();
+    if (duoNudge && evs.length) {
+      showUiToast('💞 雙人可觸', duoNudge.title || duoNudge.id, 'bond');
+    }
   }
 
   function applySceneChoiceEffects(effects) {
@@ -956,6 +1062,11 @@
     }
     if (effects.favorHero2 && effects.favor2) {
       applyFavorDelta(effects.favorHero2, effects.favor2);
+    }
+    if (effects.combatBuff) {
+      pushCombatBuff(effects.combatBuff);
+      const b = effects.combatBuff;
+      showUiToast('⚔ 戰意', (b.label || '同心') + ' ×' + (b.forceMul || 1) + ' · ' + (b.battles || 1) + ' 場', 'skill');
     }
     updateTopbar();
     save(true);
@@ -977,11 +1088,19 @@
           : null;
         hideHubChoices();
         if (picked) {
-          if (sceneId === 'board_secret_letter' || (picked.sceneId === 'board_secret_letter')) {
+          const sid = sceneId || picked.sceneId || null;
+          if (sid === 'board_secret_letter') {
             state.boardLetterDone = true;
           }
+          if (sid && String(sid).indexOf('duo_') === 0) {
+            if (!Array.isArray(state.duoBondDone)) state.duoBondDone = [];
+            if (state.duoBondDone.indexOf(sid) < 0) state.duoBondDone.push(sid);
+            markMetScene(sid);
+            pushLog('【雙人羈絆】' + (picked.resultLine || picked.label), 'bond');
+          } else {
+            pushLog('【江湖一景】' + (picked.resultLine || picked.label), 'system');
+          }
           applySceneChoiceEffects(picked.effects);
-          pushLog('【江湖一景】' + (picked.resultLine || picked.label), 'system');
           const hint = document.getElementById('hub-hint');
           if (hint) hint.textContent = picked.resultLine || picked.label;
           checkAchievements();
@@ -995,16 +1114,26 @@
     const now = Date.now();
     if (!globalThis.WuxiaStages || !WuxiaStages.Inn) return;
     const busy = WuxiaStages.Inn.isScenePlaying && WuxiaStages.Inn.isScenePlaying();
-    // 場景化江湖事件：Hub 內泡泡＋行人短暫演出（約 55s）
-    if (!busy && now - lastSceneAt > 55000 && Math.random() < 0.55) {
-      const sc = pickSceneEvent();
+    // 雙人羈絆優先（條件達成就提高觸發）；其後一般江湖一景
+    if (!busy && now - lastSceneAt > 42000) {
+      const duo = pickReadyDuoEvent();
+      const tryDuo = duo && Math.random() < 0.72;
+      const tryScene = !tryDuo && Math.random() < 0.55 && (now - lastSceneAt > 55000);
+      let sc = null;
+      if (tryDuo) sc = duo;
+      else if (tryScene) sc = pickSceneEvent();
       if (sc && WuxiaStages.Inn.playSceneEvent) {
         lastSceneAt = now;
         hideHubChoices();
         WuxiaStages.Inn.playSceneEvent(sc);
-        pushLog('【江湖一景】' + (sc.caption || sc.id), 'system');
+        markMetScene(sc.id);
+        const tag = (sc.id && String(sc.id).indexOf('duo_') === 0) ? '【雙人羈絆】' : '【江湖一景】';
+        pushLog(tag + (sc.caption || sc.title || sc.id), sc.id && String(sc.id).indexOf('duo_') === 0 ? 'bond' : 'system');
         const hint = document.getElementById('hub-hint');
-        if (hint) hint.textContent = sc.caption || '江湖一景…';
+        if (hint) hint.textContent = sc.caption || sc.title || '江湖一景…';
+        if (sc.id && String(sc.id).indexOf('duo_') === 0) {
+          showUiToast('💞 雙人', sc.title || '心事一樁', 'bond');
+        }
         return;
       }
     }
@@ -1126,6 +1255,13 @@
     checkAchievements();
     save();
     renderAll();
+    // 回到 Hub 播抵達短景
+    activeTab = 'hub';
+    closeSheet();
+    if (!battle) closeCombatOverlay(true);
+    setTimeout(function () {
+      playRecruitArrival(id);
+    }, 220);
   }
 
   function trainPreview(id, kind) {
@@ -1616,7 +1752,13 @@
     const allies = state.party.map((id) => {
       const rt = heroRuntime(id);
       if (!rt) return null;
-      return buildAllyCombatant(rt, bondInfo.mul);
+      const unit = buildAllyCombatant(rt, bondInfo.mul);
+      const bm = heroCombatBuffMul(id);
+      if (unit && bm !== 1) {
+        unit.force = Math.max(1, Math.round(unit.force * bm));
+        unit._buffMul = bm;
+      }
+      return unit;
     }).filter(Boolean);
     if (allies.some((a) => a.hp <= 0)) {
       pushLog('有俠客氣血耗盡，請先回客棧休養生息。', 'warn');
@@ -1802,6 +1944,7 @@
       subtitle = rewardOpts.isBoss && rewardOpts.boss ? ('Boss「' + rewardOpts.boss.name + '」') : '出巡';
       pushLog(rewardOpts.isBoss ? 'Boss 戰失利，俠客帶傷而回……' : '出巡失利，俠客帶傷而回……', 'lose');
     }
+    tickCombatBuffsAfterBattle();
     audioPlay(result === 'win' ? 'victory' : 'defeat');
     save(true);
     showBattleSettlement({
@@ -2809,9 +2952,15 @@
       toastHtml = `<div class="card bond-toast"><h3>💬 ${bondToast.title}</h3><p>${bondToast.text}</p></div>`;
     }
 
+    const duoReadyN = ((typeof DUO_BOND_EVENTS !== 'undefined' && DUO_BOND_EVENTS) ? DUO_BOND_EVENTS : []).filter(duoEventReady).length;
+    const duoDoneN = (state.duoBondDone || []).length;
+    const buffN = (state.combatBuffs || []).length;
     let html = `${toastHtml}<div class="card panel-block ink-card"><header class="panel-sec"><h2>${pxIcon('⚔️')} 俠客名冊</h2>
       <p class="muted panel-lead">欄位 ${Object.values(state.heroes).filter((h) => h.recruited).length}/${inn.heroSlots} · 出戰 ${GAME.maxParty} 人內
-        ${mods.gainBonus ? ` · 練武場費×${mods.costMul.toFixed(2)}／修為+${mods.gainBonus}` : ''}</p></header>
+        ${mods.gainBonus ? ` · 練武場費×${mods.costMul.toFixed(2)}／修為+${mods.gainBonus}` : ''}
+        ${duoReadyN ? ` · <span class="pill cinnabar">雙人可觸 ${duoReadyN}</span>` : ''}
+        ${duoDoneN ? ` · 雙人已歷 ${duoDoneN}` : ''}
+        ${buffN ? ` · 戰意 ${buffN}` : ''}</p></header>
       <div class="party-bar">出戰：${state.party.length ? state.party.map((id) => {
         const r = heroRuntime(id);
         return r ? `<span class="tag">${pxIcon(r.emoji)}${r.name}</span>` : '';
@@ -2824,13 +2973,16 @@
 
       if (!recruited) {
         const gate = canRecruit(t);
+        const prog = (gate.progress || []).map(function (row) {
+          const pct = Math.min(100, Math.round((row.cur / Math.max(1, row.need)) * 100));
+          return '<div class="recruit-prog ' + (row.ok ? 'ok' : '') + '"><span>' + row.key + ' ' + row.cur + '/' + row.need + '</span><div class="bar thin"><i style="width:' + pct + '%"></i></div></div>';
+        }).join('');
         const reqLine = t.unlockReq
-          ? `<p class="muted">條件：${[
-              t.unlockReq.reputation != null ? `聲望≥${t.unlockReq.reputation}` : null,
-              t.unlockReq.innLevel != null ? `客棧Lv≥${t.unlockReq.innLevel}` : null,
-              t.unlockReq.anyFavor != null ? `任俠客好感≥${t.unlockReq.anyFavor}` : null
-            ].filter(Boolean).join('、')} ${gate.ok ? '✅' : '（未達）'}</p>`
-          : '';
+          ? ('<div class="recruit-reqs"><p class="muted">招募條件 ' + (gate.ok ? '<span class="pill jade">已達標</span>' : '<span class="pill cinnabar">未足</span>') + '</p>' + prog + '</div>')
+          : '<p class="muted">無額外門檻 · 銀兩足夠即可請入</p>';
+        const hint = t.unlockHint ? ('<p class="muted recruit-hint">' + t.unlockHint + '</p>') : '';
+        const canPay = state.silver >= t.unlockCost;
+        const btnLabel = !gate.ok ? '條件未足' : (!canPay ? '銀兩不足' : '招募入駐');
         html += `<div class="card hero-card locked">
           <div class="hero-head-row">
             ${heroAvatarHtml(t.id, t.emoji)}
@@ -2840,8 +2992,9 @@
             </div>
           </div>
           ${reqLine}
-          <p>招募費用：<b>${t.unlockCost}</b> 兩</p>
-          <button class="btn" data-recruit="${t.id}" ${gate.ok ? '' : 'disabled'}>${gate.ok ? '招募' : '條件未足'}</button>
+          ${hint}
+          <p>招募費用：<b>${t.unlockCost}</b> 兩（現有 ${state.silver}）</p>
+          <button class="btn ${gate.ok && canPay ? 'primary' : ''}" data-recruit="${t.id}" ${gate.ok && canPay ? '' : 'disabled'}>${btnLabel}</button>
         </div>`;
         return;
       }
@@ -2920,6 +3073,11 @@
     const waves = ENEMY_WAVES.filter((w) => w.minInnLevel <= state.innLevel + 1);
     const favors = state.party.map((id) => (state.heroes[id] ? state.heroes[id].favor : 0));
     const bondInfo = pairBondMul(favors);
+    const buffLine = (state.combatBuffs || []).length
+      ? '<p class="muted">戰意：' + state.combatBuffs.map(function (b) {
+          return (b.label || b.id) + '×' + (b.forceMul || 1) + '（餘' + b.battlesLeft + '）';
+        }).join('、') + '</p>'
+      : '';
     const partyHtml = state.party.length
       ? state.party.map((id) => {
           const r = heroRuntime(id);
@@ -2977,6 +3135,7 @@
           <p class="muted panel-lead">羈絆：${state.party.length >= 2 ? `「${bondInfo.tier.name}」×${bondInfo.mul.toFixed(2)}` : '需 ≥2 人同隊'}</p>
         </header>
         <div class="party-bar">隊伍：${partyHtml}</div>
+        ${buffLine}
         ${battle ? '<div class="btn-row"><button class="btn danger" id="btn-flee">鳴金收兵</button></div>' : `
         <h4 class="subhead">普通敵軍</h4>
         <div class="wave-list" id="wave-list"></div>
@@ -3158,7 +3317,49 @@
   function renderLog() {
     const el = $('panel-log');
     if (!el) return;
-    el.innerHTML = `<div class="card panel-block">
+    const bondTitles = [];
+    Object.keys(BOND_EVENTS || {}).forEach(function (hid) {
+      (BOND_EVENTS[hid] || []).forEach(function (ev) {
+        if (state.seenEvents.indexOf(ev.id) >= 0) bondTitles.push(ev.title);
+      });
+    });
+    const duoList = ((typeof DUO_BOND_EVENTS !== 'undefined' && DUO_BOND_EVENTS) ? DUO_BOND_EVENTS : []);
+    const duoDoneTitles = duoList.filter(function (d) {
+      return (state.duoBondDone || []).indexOf(d.id) >= 0;
+    }).map(function (d) { return d.title; });
+    const duoReadyTitles = duoList.filter(duoEventReady).map(function (d) { return d.title; });
+    const met = state.metScenes || [];
+    const buffs = state.combatBuffs || [];
+    function pills(arr, cls) {
+      if (!arr.length) return '<span class="muted">—</span>';
+      return arr.map(function (x) { return '<span class="pill ' + (cls || '') + '">' + x + '</span>'; }).join(' ');
+    }
+    const summary = [
+      '<div class="card panel-block ink-card codex-summary">',
+      '  <header class="panel-sec">',
+      '    <h2>' + pxIcon('📘') + ' 江湖圖鑑摘要</h2>',
+      '    <p class="muted panel-lead">勝仗／事件／羈絆一覽</p>',
+      '  </header>',
+      '  <div class="codex-grid">',
+      '    <div class="codex-cell"><span class="label">出巡勝仗</span><b>' + (state.battlesWon || 0) + '</b></div>',
+      '    <div class="codex-cell"><span class="label">Boss 討伐</span><b>' + (state.bossesDefeated || []).length + '/' + BOSS_ENCOUNTERS.length + '</b></div>',
+      '    <div class="codex-cell"><span class="label">接客</span><b>' + (state.guestsServed || 0) + '</b></div>',
+      '    <div class="codex-cell"><span class="label">成就</span><b>' + state.achievements.length + '/' + ACHIEVEMENTS.length + '</b></div>',
+      '    <div class="codex-cell"><span class="label">劇情章</span><b>' + state.storyRead.length + '/' + STORY_CHAPTERS.length + '</b></div>',
+      '    <div class="codex-cell"><span class="label">已遇場景</span><b>' + met.length + '</b></div>',
+      '  </div>',
+      '  <div class="codex-block"><h4>單人羈絆已觸</h4><p>' + pills(bondTitles, 'jade') + '</p></div>',
+      '  <div class="codex-block"><h4>雙人事件</h4><p>已歷：' + pills(duoDoneTitles, 'jade') +
+        (duoReadyTitles.length ? '<br>可觸：' + pills(duoReadyTitles, 'cinnabar') : '') + '</p></div>',
+      '  <div class="codex-block"><h4>短暫戰意</h4><p>' +
+        (buffs.length ? buffs.map(function (b) {
+          return '<span class="pill">' + (b.label || b.id) + ' ×' + (b.forceMul || 1) + ' · 餘' + b.battlesLeft + '場</span>';
+        }).join(' ') : '<span class="muted">無</span>') + '</p></div>',
+      '  <div class="codex-block"><h4>近遇場景</h4><p class="muted small">' +
+        (met.length ? met.slice(-12).join(' · ') : '—') + '</p></div>',
+      '</div>'
+    ].join('');
+    el.innerHTML = summary + `<div class="card panel-block">
       <header class="panel-sec">
         <h2>${pxIcon('📜')} 江湖日誌</h2>
         <p class="muted panel-lead">成就 ${state.achievements.length}/${ACHIEVEMENTS.length} · 章 ${state.storyRead.length}/${STORY_CHAPTERS.length} · Boss ${state.bossesDefeated.length}/${BOSS_ENCOUNTERS.length}</p>

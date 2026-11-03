@@ -1987,3 +1987,31 @@ body.combat-open .hub-shell {
   background: rgba(201, 80, 60, 0.08);
 }
 .achieve-row .btn[data-claim-ach] { margin-top: 6px; }
+
+
+/* ——— v1.5 圖鑑摘要／招募進度／雙人 ——— */
+.codex-summary .codex-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.codex-cell {
+  background: rgba(0,0,0,.22);
+  border: 1px solid rgba(201,162,39,.28);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.codex-cell .label { display: block; font-size: 0.75rem; color: #c9a227; margin-bottom: 2px; }
+.codex-cell b { font-size: 1.1rem; }
+.codex-block { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(201,162,39,.25); }
+.codex-block h4 { margin: 0 0 6px; font-size: 0.85rem; color: #c9a227; }
+.codex-block .small { font-size: 0.78rem; word-break: break-all; }
+.recruit-reqs { margin: 6px 0; }
+.recruit-prog { margin: 4px 0; font-size: 0.85rem; }
+.recruit-prog.ok span { color: #8ecf8e; }
+.bar.thin { height: 6px; margin-top: 2px; }
+.recruit-hint { font-size: 0.8rem; line-height: 1.35; }
+@media (max-width: 720px) {
+  .codex-summary .codex-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

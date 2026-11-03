@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v1.4.0：成就領獎／結算卡／敵人剪影接入／guest_walk 64／養成泡泡／Hub v2.1／960×540）
+ * 俠客棧 — 墨點江湖舞台（v1.5.0：成就領獎／結算卡／敵人剪影接入／guest_walk 64／養成泡泡／Hub v2.1／960×540）
  * Hub 面板開仍呼吸；熱點墨框／硃標；戰鬥 shake 下調；招名飄字；戰場分層
  */
 (function (global) {
@@ -216,7 +216,18 @@
     return FRAME;
   }
 
-  function drawSheetFrame(ctx, img, frameIndex, dx, dy, opts) {
+  /** 短表 256×64（4 幀）：0 idle｜1 windup｜2 strike｜3 hurt — 跟 combatState／animName */
+  function shortCombatFrame(u, animName, pose, frames) {
+    const n = Math.max(1, frames | 0);
+    const st = (u && (u.combatState || u.intent)) || '';
+    if (!u || u.dead || animName === 'hurt' || pose === 'hurt' || st === 'hurt') return Math.min(n - 1, 3);
+    if (animName === 'strike' || pose === 'strike' || st === 'strike') return Math.min(n - 1, 2);
+    if (animName === 'windup' || pose === 'windup' || st === 'windup' || (u && u.telegraph)) return Math.min(n - 1, 1);
+    // approach／walk：短表無獨立走幀，用 idle 微呼吸（幀 0）
+    return 0;
+  }
+
+    function drawSheetFrame(ctx, img, frameIndex, dx, dy, opts) {
     if (!img) return false;
     const o = opts || {};
     const native = o.frameSize || sheetNativeSize(img);
@@ -2231,13 +2242,7 @@
       if (enemyImg && u.side === 'enemy') {
         const native = enemyImg.height || 64;
         const frames = Math.max(1, Math.floor(enemyImg.width / native));
-        // v1.4 敵人 256×64＝4 幀：0 idle｜1 windup｜2 strike｜3 hurt
-        let fi = 0;
-        if (u.dead || animName === 'hurt' || pose === 'hurt') fi = Math.min(frames - 1, 3);
-        else if (animName === 'strike' || pose === 'strike') fi = Math.min(frames - 1, 2);
-        else if (animName === 'windup' || u.telegraph) fi = Math.min(frames - 1, 1);
-        else if (animName === 'walk') fi = Math.floor(tick / 10) % Math.min(frames, 2);
-        else fi = 0;
+        const fi = shortCombatFrame(u, animName, pose, frames);
         const sc = (native === 64) ? CHAR_SCALE_64 : ((native === 32) ? CHAR_SCALE_32 : CHAR_SCALE_64);
         const out = native * sc;
         const ox = dx - Math.round(out * 0.12);
@@ -2265,23 +2270,20 @@
           ctx.globalAlpha = 1;
         }
       } else if (bossImg) {
-        const bs = bossImg.height || 64;
-        const sc = (bs === 64) ? CHAR_SCALE_64 : ((bs === 32) ? CHAR_SCALE_32 : CHAR_SCALE_64);
-        const out = bs * sc;
+        // Boss 短表同規格 256×64：跟 combatState 播幀，唔好永遠 sx=0
+        const native = bossImg.height || 64;
+        const frames = Math.max(1, Math.floor(bossImg.width / native));
+        const fi = shortCombatFrame(u, animName, pose, frames);
+        const sc = (native === 64) ? CHAR_SCALE_64 : ((native === 32) ? CHAR_SCALE_32 : CHAR_SCALE_64);
+        const out = native * sc;
         const ox = dx - Math.round(out * 0.12);
         const oy = dy - Math.round(out * 0.06);
-        ctx.save();
-        ctx.imageSmoothingEnabled = false;
-        if (flash) ctx.globalAlpha = 0.95;
-        if (flip) {
-          ctx.translate(ox + out, oy);
-          ctx.scale(-1, 1);
-          ctx.drawImage(bossImg, 0, 0, bs, bs, 0, 0, out, out);
-        } else {
-          ctx.drawImage(bossImg, 0, 0, bs, bs, ox, oy, out, out);
-        }
-        ctx.restore();
-        drew = true;
+        drew = drawSheetFrame(ctx, bossImg, fi, ox, oy, {
+          scale: sc,
+          flip: flip,
+          alpha: flash ? 0.95 : (u.dead ? 0.35 : 1),
+          frameSize: native
+        });
       }
       if (!drew) {
         // 通用敵／缺表：加厚色塊剪影（唔冒充精修）＋腳底影
