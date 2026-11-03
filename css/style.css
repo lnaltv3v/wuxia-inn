@@ -1,4 +1,4 @@
-/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.7.1（Hub／戰鬥 960×540／橫屏優先） */
+/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.8.0（戰鬥狀態機／960×540） */
 :root {
   /* 嚴格色盤 — 禁止盤外色 */
   --ink: #1A1510;
@@ -1317,4 +1317,9 @@ body.hub-mode .app { max-width: 1100px; }
   }
   .hub-hint { font-size: 0.88rem; padding: 8px 10px; }
   .hub-menu .tab-btn { font-size: 0.82rem; padding: 8px 6px; }
+}
+
+/* v0.8 戰鬥讀招提示（舞台內已畫；外層輕框） */
+.combat-overlay .combat-stage-host {
+  outline: 0 solid var(--gold);
 }

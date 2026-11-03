@@ -2513,7 +2513,7 @@
     el.innerHTML = `
       <div class="card battle-card stage-first">
         <h3>${pxIcon('🗡️')} 戰場舞台</h3>
-        <p class="muted tiny-tip">960×540 像素舞台：貼身交鋒、撞刃 clash、擊退彈回。上方可調 0.5×–2× 戰鬥速度（記住偏好）。</p>
+        <p class="muted tiny-tip">960×540｜狀態機：讀招→判定→硬直；近戰須接觸；撞刃 clash。上方 0.5×–2× 速度（記住偏好）。</p>
         <div id="combat-stage-host" class="stage-host combat-stage-host" aria-label="戰鬥舞台"></div>
         <div id="battle-field" class="battle-field battle-field-compact">${battle ? prevField : '<p class="muted">尚未交鋒——選敵開打後舞台會動起來</p>'}</div>
         <div id="combat-log" class="combat-log combat-log-compact">${prevLog}</div>

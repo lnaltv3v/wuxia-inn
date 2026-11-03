@@ -19,7 +19,11 @@
     parry: ['parry'],
     heal: [],
     shield: [],
-    ko: ['hit']
+    ko: ['hit'],
+    windup: ['sword_slash'],
+    strike: ['sword_slash'],
+    clash: ['parry', 'hit'],
+    recover: []
   };
 
   /** Hub phase → 建議音效 id（開發可於 phase 切換時呼叫） */

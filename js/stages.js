@@ -1,6 +1,6 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.7.1：Hub／戰鬥 960×540／橫屏優先／64 整數倍）
- * Hub 960×540：場景 v2.0；優先 assets/sprites/64/；戰鬥原生 960×540（角色 ×2）
+ * 俠客棧 — 墨點江湖舞台（v0.8.0：戰鬥狀態機手感／Hub・戰鬥 960×540）
+ * Hub 960×540：場景 v2.0；優先 assets/sprites/64/；戰鬥 FSM：windup→strike→recover
  */
 (function (global) {
   'use strict';
@@ -80,7 +80,7 @@
   /** 資產快取戳：跟 GAME.version 對齊，確保 v1.2.1 精靈表換檔後瀏覽器重拉 */
   const ASSET_VER = (typeof global !== 'undefined' && global.WuxiaData && global.WuxiaData.GAME && global.WuxiaData.GAME.version)
     ? global.WuxiaData.GAME.version
-    : '0.7.0';
+    : '0.8.0';
 
   function loadImg(src) {
     return new Promise(function (resolve) {
@@ -1434,8 +1434,11 @@
           shield: u.shield || 0,
           heroId: u.id,
           intent: u.intent || 'hold',
+          combatState: u.combatState || u.intent || 'idle',
+          telegraph: !!u.telegraph,
           ranged: !!u.ranged,
           engage: !!u.engage,
+          contact: !!u.contact,
           invuln: u.invuln || 0,
           x: x,
           y: y,
@@ -1477,8 +1480,11 @@
           shield: u.shield || 0,
           heroId: heroId,
           intent: u.intent || 'hold',
+          combatState: u.combatState || u.intent || 'idle',
+          telegraph: !!u.telegraph,
           ranged: !!u.ranged,
           engage: !!u.engage,
+          contact: !!u.contact,
           invuln: u.invuln || 0,
           x: x,
           y: y,
@@ -1495,6 +1501,58 @@
       if (!evt) return;
       const atk = units.find((u) => u.id === evt.attackerId);
       const tgt = units.find((u) => u.id === evt.targetId);
+
+      // v0.8：讀招 telegraph
+      if (evt.kind === 'windup' && atk) {
+        const dir = atk.side === 'ally' ? 1 : -1;
+        anims[atk.id] = { kind: 'windup', t: 0, dur: scaleDur(42), dir: dir, ranged: !!evt.ranged };
+        atk.flash = Math.max(atk.flash || 0, 8);
+        fx.push({
+          kind: 'burst', x: atk.x + (dir > 0 ? 18 : -6), y: atk.y + 8,
+          life: scaleDur(20), max: scaleDur(20), color: evt.skillName ? C.gold : C.cream
+        });
+        pushFxSheet('slash', atk.x + (dir > 0 ? 10 : -14), atk.y - 4, {
+          flip: dir < 0, dur: scaleDur(14), scale: 0.85
+        });
+        if (evt.skillName) {
+          fx.push({
+            kind: 'text', text: '「' + evt.skillName + '」',
+            x: atk.x - 20, y: atk.y - 36, life: scaleDur(40), max: scaleDur(40), color: C.gold
+          });
+        }
+        return;
+      }
+
+      if (evt.kind === 'strike' && atk) {
+        const dir = atk.side === 'ally' ? 1 : -1;
+        const dx = tgt ? Math.abs(tgt.x - atk.x) : 80;
+        const reach = evt.ranged
+          ? Math.min(24, Math.max(8, dx * 0.15))
+          : Math.min(68, Math.max(28, dx * 0.72 + 12));
+        anims[atk.id] = { kind: 'lunge', t: 0, dur: scaleDur(evt.ranged ? 40 : 52), dir: dir, ranged: !!evt.ranged, reach: reach };
+        spawnBladeFx(atk, tgt, false, false);
+        return;
+      }
+
+      if (evt.kind === 'recover' && atk) {
+        if (anims[atk.id] && anims[atk.id].kind === 'windup') delete anims[atk.id];
+        return;
+      }
+
+      if (evt.kind === 'clash') {
+        const mx = evt.ax != null ? evt.ax : ((atk && tgt) ? (atk.x + tgt.x) / 2 : 480);
+        const my = evt.ay != null ? evt.ay : ((atk && tgt) ? (atk.y + tgt.y) / 2 : 320);
+        pushFxSheet('clash', mx - 16, my - 14, { dur: scaleDur(22), scale: 1.55 });
+        pushFxSheet('spark', mx - 8, my - 8, { dur: scaleDur(16), scale: 1.35 });
+        fx.push({ kind: 'burst', x: mx, y: my, life: scaleDur(16), max: scaleDur(16), color: C.gold });
+        fx.push({ kind: 'text', text: '撞刃', x: mx - 16, y: my - 28, life: scaleDur(36), max: scaleDur(36), color: C.gold });
+        screenFlash = Math.max(screenFlash, 8);
+        hitStop = Math.max(hitStop, scaleStop(14));
+        shake = Math.max(shake, 5.5);
+        if (atk) atk.flash = Math.max(atk.flash || 0, 14);
+        if (tgt) tgt.flash = Math.max(tgt.flash || 0, 14);
+        return;
+      }
 
       if (evt.kind === 'heal' || evt.kind === 'shield') {
         if (atk) {
@@ -1515,14 +1573,17 @@
 
       if (atk && (evt.kind === 'hit' || evt.kind === 'skill' || evt.kind === 'miss' || evt.kind === 'parry')) {
         const dir = atk.side === 'ally' ? 1 : -1;
-        // 對齊實際距離：遠程／技能少衝刺，近戰撲到貼身重疊
-        const dx = tgt ? Math.abs((tgt.x) - (atk.x)) : 80;
-        const lungeDur = scaleDur(evt.ranged ? 48 : (dx > 80 ? 56 : 48));
-        const reach = evt.ranged
-          ? Math.min(24, Math.max(8, dx * 0.15))
-          : Math.min(68, Math.max(28, dx * 0.72 + 12));
-        anims[atk.id] = { kind: 'lunge', t: 0, dur: lungeDur, dir: dir, ranged: !!evt.ranged, reach: reach };
-        if (evt.skillName) {
+        const alreadyLunging = anims[atk.id] && anims[atk.id].kind === 'lunge';
+        // v0.8：strike 事件已開 lunge；命中事件只補目標／VFX，避免重播亂揮
+        if (!alreadyLunging) {
+          const dx = tgt ? Math.abs((tgt.x) - (atk.x)) : 80;
+          const lungeDur = scaleDur(evt.ranged ? 48 : (dx > 80 ? 56 : 48));
+          const reach = evt.ranged
+            ? Math.min(24, Math.max(8, dx * 0.15))
+            : Math.min(68, Math.max(28, dx * 0.72 + 12));
+          anims[atk.id] = { kind: 'lunge', t: 0, dur: lungeDur, dir: dir, ranged: !!evt.ranged, reach: reach };
+        }
+        if (evt.skillName && !alreadyLunging) {
           fx.push({ kind: 'burst', x: atk.x + 12, y: atk.y + 8, life: 24, max: 24, color: evt.kind === 'skill' ? C.cinnabarBright : C.gold });
           fx.push({ kind: 'text', text: '「' + evt.skillName + '」', x: atk.x - 24, y: atk.y - 40, life: 58, max: 58, color: C.gold });
         }
@@ -1538,7 +1599,12 @@
             life: 28, max: 28,
             color: evt.kind === 'skill' ? C.cinnabarBright : C.cream
           });
-          spawnBladeFx(atk, tgt, evt.kind === 'skill', bossBoost);
+          if (!alreadyLunging || evt.clash) spawnBladeFx(atk, tgt, evt.kind === 'skill', bossBoost);
+          else {
+            // 判定幀補一層火花／hit_ring
+            pushFxSheet('spark', tgt.x, tgt.y, { dur: scaleDur(14), scale: evt.kind === 'skill' ? 1.35 : 1.15 });
+            pushFxSheet('hit_ring', tgt.x - 4, tgt.y - 4, { dur: scaleDur(12), scale: 1.2 });
+          }
         } else if (evt.kind === 'parry' || evt.kind === 'miss') {
           spawnBladeFx(atk, tgt, false, bossBoost);
         }
@@ -1657,9 +1723,10 @@
       const r = (FIELD.meleeRange || 58) * 0.5;
       const cx = u.x + 16;
       const cy = u.y + 52;
-      const active = u.engage || u.contact || u.intent === 'approach' || u.intent === 'hold';
+      const st = u.combatState || u.intent || '';
+      const active = u.engage || u.contact || u.telegraph || st === 'approach' || st === 'windup' || st === 'strike' || st === 'hold' || st === 'idle';
       if (!active && !(u.invuln > 0)) return;
-      const a = (u.contact || u.engage) ? 0.55 : (u.invuln > 0 ? 0.5 : 0.22);
+      const a = u.telegraph ? 0.7 : ((u.contact || u.engage) ? 0.55 : (u.invuln > 0 ? 0.5 : 0.22));
       ctx.globalAlpha = a;
       const col = u.invuln > 0 ? C.sky : (u.side === 'ally' ? C.jadeBright : C.cinnabarBright);
       for (let i = 0; i < 16; i++) {
@@ -1761,17 +1828,55 @@
           flash = p > 0.15 && p < 0.65;
           animName = 'parry';
           frameOverride = ANIM.parry[Math.min(2, Math.floor(p * 3))];
+        } else if (an.kind === 'windup') {
+          dx = u.ox - an.dir * (6 + 4 * Math.sin(p * Math.PI));
+          dy = u.oy - 4 * Math.sin(p * Math.PI);
+          pose = 'parry';
+          animName = 'parry';
+          frameOverride = ANIM.parry[Math.min(1, Math.floor(p * 2))];
+          flash = flash || (p > 0.2 && p < 0.85);
         }
       } else {
-        if (u.intent === 'approach' || u.intent === 'retreat' || u.intent === 'strafe') {
+        const st = u.combatState || u.intent || 'idle';
+        if (st === 'approach' || st === 'retreat' || st === 'strafe'
+          || u.intent === 'approach' || u.intent === 'retreat' || u.intent === 'strafe') {
           animName = 'walk';
           frameOverride = ANIM.walk[Math.floor(tick / 8) % 4];
+        } else if (st === 'windup') {
+          animName = 'parry';
+          frameOverride = ANIM.parry[Math.floor(tick / 10) % 2];
+          flash = true;
+        } else if (st === 'strike') {
+          animName = 'attack';
+          frameOverride = ANIM.attack[1 + (Math.floor(tick / 6) % 3)];
+          pose = 'strike';
+        } else if (st === 'recover') {
+          animName = 'idle';
+          frameOverride = ANIM.idle[0];
+        } else if (st === 'hurt') {
+          animName = 'hurt';
+          frameOverride = ANIM.hurt[Math.floor(tick / 8) % 2];
+          pose = 'hurt';
+          flash = true;
+        } else if (st === 'parry') {
+          animName = 'parry';
+          frameOverride = ANIM.parry[Math.min(2, Math.floor(tick / 8) % 3)];
+          pose = 'parry';
+        } else if (st === 'dodge') {
+          animName = 'walk';
+          frameOverride = ANIM.walk[Math.floor(tick / 6) % 4];
         } else {
           frameOverride = ANIM.idle[Math.floor(tick / 18) % 2];
         }
       }
 
       if (u.dead) ctx.globalAlpha = 0.35;
+      if (u.telegraph && !u.dead) {
+        ctx.globalAlpha = 0.35;
+        drawRect(ctx, dx - 10, dy - 10, 8, 8, C.gold);
+        drawRect(ctx, dx + 100, dy - 10, 8, 8, C.gold);
+        ctx.globalAlpha = u.dead ? 0.35 : 1;
+      }
 
       const flip = u.side === 'enemy';
       const sheet = Assets.sheets[u.heroId];

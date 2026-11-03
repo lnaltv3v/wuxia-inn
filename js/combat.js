@@ -1,13 +1,14 @@
 /**
- * 俠客棧 — 自動即時走位戰鬥（v0.7.1）
- * 戰場對齊 CombatStage 960×540；meleeRange≈58；速度 0.5–2×；行路加快
+ * 俠客棧 — 自動即時走位戰鬥（v0.8.0）
+ * 戰場 960×540；狀態機：idle→approach→windup→strike→recover（hurt／parry／dodge）
+ * 僅 strike 判定幀可造成傷害；近戰必須接觸；速度 0.5–2×
  */
 (function (global) {
   'use strict';
 
   const { randInt, getMartial } = global.WuxiaData;
 
-  /** 戰場座標（對齊 CombatStage 960×540；X×2／Y×2.5；速度高於等比例） */
+  /** 戰場座標（對齊 CombatStage 960×540） */
   const FIELD = {
     W: 960,
     allyMinX: 68,
@@ -32,6 +33,42 @@
     iFrameParry: 2
   };
 
+  /**
+   * 戰鬥手感參數（tick 為單位；baseTickMs≈900，速度鈕縮短 wall-clock）
+   * windup 可見讀招；strike 第 activeFrame 幀判定；recover／hurt 硬直
+   */
+  const FEEL = {
+    windupTicks: 1,
+    strikeTicks: 1,
+    recoverTicks: 1,
+    hurtTicks: 2,
+    parryTicks: 2,
+    dodgeTicks: 2,
+    activeFrame: 0,
+    hitStopOnHit: 1,
+    hitStopOnSkill: 2,
+    hitStopOnClash: 2,
+    hitStopOnKo: 3,
+    windupMoveScale: 0.22,
+    strikeMoveScale: 0.08,
+    recoverMoveScale: 0.3,
+    hurtMoveScale: 0.05,
+    defendMoveScale: 0.15,
+    contactSlack: 8,
+    clashWindow: true
+  };
+
+  const STATES = {
+    IDLE: 'idle',
+    APPROACH: 'approach',
+    WINDUP: 'windup',
+    STRIKE: 'strike',
+    RECOVER: 'recover',
+    HURT: 'hurt',
+    PARRY: 'parry',
+    DODGE: 'dodge'
+  };
+
   function isRangedUnit(u) {
     if (!u) return false;
     if (u.ranged) return true;
@@ -48,9 +85,34 @@
     const i = slotIndex || 0;
     if (n === 1) return FIELD.yBase + (side === 'enemy' ? 5 : 0);
     if (n === 2) return FIELD.yBase + (i === 0 ? -42 : 42);
-    // 3+：上中下錯開，避免全擠同一點
     const spread = [-55, 0, 55, -28, 28];
     return FIELD.yBase + (spread[i % spread.length] || ((i % 2) * 30 - 15));
+  }
+
+  function setState(u, state, dur) {
+    u.combatState = state;
+    u.stateT = 0;
+    u.stateDur = Math.max(1, dur || 1);
+    // 兼容舊舞台：intent 映射
+    if (state === STATES.APPROACH) u.intent = 'approach';
+    else if (state === STATES.WINDUP) u.intent = 'windup';
+    else if (state === STATES.STRIKE) u.intent = 'strike';
+    else if (state === STATES.RECOVER) u.intent = 'recover';
+    else if (state === STATES.HURT) u.intent = 'hurt';
+    else if (state === STATES.PARRY) u.intent = 'parry';
+    else if (state === STATES.DODGE) u.intent = 'dodge';
+    else u.intent = 'hold';
+  }
+
+  function inBusyState(u) {
+    const s = u.combatState;
+    return s === STATES.WINDUP || s === STATES.STRIKE || s === STATES.RECOVER
+      || s === STATES.HURT || s === STATES.PARRY || s === STATES.DODGE;
+  }
+
+  function canControlMove(u) {
+    const s = u.combatState;
+    return s === STATES.IDLE || s === STATES.APPROACH;
   }
 
   function cloneUnit(src, side, slotIndex, slotCount) {
@@ -86,9 +148,16 @@
       vx: 0,
       vy: 0,
       intent: 'approach',
+      combatState: STATES.APPROACH,
+      stateT: 0,
+      stateDur: 1,
       facing: side === 'ally' ? 1 : -1,
       invuln: 0,
-      engage: false
+      engage: false,
+      contact: false,
+      pending: null,
+      hitDone: false,
+      telegraph: false
     };
     return u;
   }
@@ -259,11 +328,17 @@
     function emitAction(evt) {
       if (hooks && hooks.onAction) hooks.onAction(evt);
       if (!evt) return;
-      // hold 以 tick 計；速度倍率會自然縮短 wall-clock
-      if (evt.kind === 'hit') holdTicks = Math.max(holdTicks, evt.contact ? 2 : 1);
-      else if (evt.kind === 'skill' || evt.kind === 'parry') holdTicks = Math.max(holdTicks, 3);
-      else if (evt.kind === 'ko') holdTicks = Math.max(holdTicks, 4);
-      else if (evt.kind === 'move') { /* no hold */ }
+      if (evt.kind === 'hit') holdTicks = Math.max(holdTicks, evt.clash ? FEEL.hitStopOnClash : FEEL.hitStopOnHit);
+      else if (evt.kind === 'skill') holdTicks = Math.max(holdTicks, FEEL.hitStopOnSkill);
+      else if (evt.kind === 'parry' || evt.kind === 'clash') holdTicks = Math.max(holdTicks, FEEL.hitStopOnClash);
+      else if (evt.kind === 'ko') holdTicks = Math.max(holdTicks, FEEL.hitStopOnKo);
+    }
+
+    function findById(id) {
+      for (let i = 0; i < units.length; i++) {
+        if (units[i].id === id) return units[i];
+      }
+      return null;
     }
 
     function separateAll() {
@@ -281,11 +356,15 @@
           const push = (minD - d) / minD * FIELD.sepForce * (same ? 1.15 : 0.55);
           const nx = dx / d;
           const ny = dy / d;
-          a.vx -= nx * push;
-          a.vy -= ny * push * 0.85;
-          b.vx += nx * push;
-          b.vy += ny * push * 0.85;
-          // 同隊再強制錯開 lane
+          // 攻擊判定中少推，保碰撞框重疊
+          const lockA = a.combatState === STATES.STRIKE || a.combatState === STATES.WINDUP;
+          const lockB = b.combatState === STATES.STRIKE || b.combatState === STATES.WINDUP;
+          const mulA = lockA ? 0.35 : 1;
+          const mulB = lockB ? 0.35 : 1;
+          a.vx -= nx * push * mulA;
+          a.vy -= ny * push * 0.85 * mulA;
+          b.vx += nx * push * mulB;
+          b.vy += ny * push * 0.85 * mulB;
           if (same && Math.abs(a.homeY - b.homeY) < 10) {
             a.vy -= 2.4;
             b.vy += 2.4;
@@ -294,45 +373,17 @@
       }
     }
 
-    function tryDefend(attacker, target, skillName) {
-      if (target.invuln > 0) {
-        // 無敵窗內強制當閃過
-        const back = target.side === 'ally' ? -1 : 1;
-        target.x = clampX(target, target.x + back * 16);
-        target.y = clampY(target.homeY + (Math.random() < 0.5 ? -FIELD.strafeY : FIELD.strafeY));
-        target.vx += back * 12;
-        target.intent = 'dodge';
-        log(target.emoji + target.name + ' 仍在身法之中，卸開 ' + attacker.name + '！', 'info');
-        emitAction({
-          kind: 'miss',
-          attackerId: attacker.id,
-          targetId: target.id,
-          skillName: skillName,
-          side: attacker.side,
-          damage: 0,
-          ax: attacker.x,
-          ay: attacker.y,
-          tx: target.x,
-          ty: target.y,
-          iFrame: true
-        });
-        return true;
-      }
-
-      const low = target.hp / target.maxHp < 0.35;
-      const base = skillName ? 0.10 : 0.18;
-      const chance = base + (low ? 0.08 : 0) + Math.min(0.08, (target.nei || 0) * 0.004);
-      if (Math.random() >= chance) return false;
-
-      const doParry = Math.random() < (low ? 0.35 : 0.5);
+    function enterDefend(target, kind, attacker, skillName) {
       const back = target.side === 'ally' ? -1 : 1;
-      if (doParry) {
+      if (kind === 'parry') {
         target.vx += back * 14;
         target.vy += (Math.random() < 0.5 ? -1 : 1) * 10;
         target.x = clampX(target, target.x + back * 24);
         target.y = clampY(target.homeY + (Math.random() < 0.5 ? -FIELD.strafeY : FIELD.strafeY));
-        target.intent = 'parry';
+        setState(target, STATES.PARRY, FEEL.parryTicks);
         target.invuln = Math.max(target.invuln, FIELD.iFrameParry);
+        target.pending = null;
+        target.telegraph = false;
         log(target.emoji + target.name + ' 提勁招架 ' + attacker.name + ' 的招！', 'info');
         emitAction({
           kind: 'parry',
@@ -341,19 +392,18 @@
           skillName: skillName,
           side: attacker.side,
           damage: 0,
-          ax: attacker.x,
-          ay: attacker.y,
-          tx: target.x,
-          ty: target.y
+          ax: attacker.x, ay: attacker.y, tx: target.x, ty: target.y
         });
       } else {
         target.vx += back * 22;
         target.vy += (Math.random() < 0.5 ? -1 : 1) * 14;
         target.x = clampX(target, target.x + back * (32 + Math.random() * 20));
         target.y = clampY(target.homeY + (Math.random() < 0.5 ? -FIELD.strafeY * 1.6 : FIELD.strafeY * 1.6));
-        target.intent = 'dodge';
+        setState(target, STATES.DODGE, FEEL.dodgeTicks);
         target.invuln = Math.max(target.invuln, FIELD.iFrameDodge);
-        log(target.emoji + target.name + ' 側身閃過 ' + attacker.name + ' 的招！', 'info');
+        target.pending = null;
+        target.telegraph = false;
+        log(target.emoji + target.name + (kind === 'iframe' ? ' 仍在身法之中，卸開 ' : ' 側身閃過 ') + attacker.name + '！', 'info');
         emitAction({
           kind: 'miss',
           attackerId: attacker.id,
@@ -361,59 +411,85 @@
           skillName: skillName,
           side: attacker.side,
           damage: 0,
-          ax: attacker.x,
-          ay: attacker.y,
-          tx: target.x,
-          ty: target.y
+          iFrame: kind === 'iframe',
+          ax: attacker.x, ay: attacker.y, tx: target.x, ty: target.y
         });
       }
+    }
+
+    function tryDefend(attacker, target, skillName) {
+      if (target.invuln > 0) {
+        enterDefend(target, 'iframe', attacker, skillName);
+        return true;
+      }
+      // 讀招中較易招架／閃
+      const reading = target.combatState === STATES.WINDUP || target.combatState === STATES.STRIKE;
+      const low = target.hp / target.maxHp < 0.35;
+      const base = skillName ? 0.10 : 0.18;
+      const chance = base + (low ? 0.08 : 0) + (reading ? 0.06 : 0) + Math.min(0.08, (target.nei || 0) * 0.004);
+      if (Math.random() >= chance) return false;
+      const doParry = Math.random() < (low ? 0.35 : 0.5);
+      enterDefend(target, doParry ? 'parry' : 'dodge', attacker, skillName);
       return true;
     }
 
-    function resolveAttack(attacker, target, usedSkill, skillMul, skillName) {
+    function applyHitKnock(attacker, target, wasContact) {
+      const knock = attacker.side === 'ally' ? -1 : 1;
+      if (attacker._lastRanged) return;
+      const pushAtk = wasContact ? 14 : 10;
+      const pushTgt = wasContact ? 28 : 20;
+      attacker.vx += knock * pushAtk;
+      target.vx -= knock * pushTgt;
+      attacker.vy += (Math.random() < 0.5 ? -1 : 1) * (wasContact ? 4.4 : 2.4);
+      target.vy += (Math.random() < 0.5 ? -1 : 1) * (wasContact ? 6.4 : 3.6);
+      attacker.x = clampX(attacker, attacker.x + knock * (wasContact ? 12 : 8));
+      target.x = clampX(target, target.x - knock * (wasContact ? 24 : 18));
+    }
+
+    function enterHurt(target, heavy) {
+      setState(target, STATES.HURT, heavy ? FEEL.hurtTicks + 1 : FEEL.hurtTicks);
+      target.pending = null;
+      target.telegraph = false;
+      target.hitDone = false;
+    }
+
+    function resolveStrikeHit(attacker, target, pending, clash) {
+      const skillMul = pending.skillMul || 1;
+      const skillName = pending.skillName || null;
+      const usedSkill = !!(pending.usedSkill && skillMul > 1);
+
       if (tryDefend(attacker, target, skillName)) {
-        attacker.atkCd = usedSkill ? 3 : 2;
-        return;
+        return { defended: true, clash: !!clash };
       }
+
       const dmg = calcDamage(attacker, target, skillMul);
       applyDamage(target, dmg);
       if (skillName && skillMul > 1) {
         log(attacker.emoji + attacker.name + '「' + skillName + '」→ ' + target.name + '，造成 ' + dmg + '！', 'skill');
-      } else if (!skillName) {
+      } else {
         log(attacker.emoji + attacker.name + ' 攻向 ' + target.name + '，傷害 ' + dmg, attacker.side);
       }
+
       const contactDist = dist(attacker, target);
-      const wasContact = !attacker._lastRanged && contactDist <= FIELD.contactRange + 8;
+      const wasContact = !pending.ranged && contactDist <= FIELD.contactRange + FEEL.contactSlack;
       emitAction({
-        kind: usedSkill && skillMul > 1 ? 'skill' : 'hit',
+        kind: usedSkill ? 'skill' : 'hit',
         attackerId: attacker.id,
         targetId: target.id,
         damage: dmg,
         skillName: skillName,
         side: attacker.side,
-        ranged: !!attacker._lastRanged,
-        contact: wasContact || !attacker._lastRanged,
-        ax: attacker.x,
-        ay: attacker.y,
-        tx: target.x,
-        ty: target.y
+        ranged: !!pending.ranged,
+        contact: wasContact || !pending.ranged,
+        clash: !!clash,
+        phase: 'strike',
+        ax: attacker.x, ay: attacker.y, tx: target.x, ty: target.y
       });
-      // 近身：雙方短推開再彈回／摩擦（接觸感）
-      const knock = attacker.side === 'ally' ? -1 : 1;
-      if (!attacker._lastRanged) {
-        const pushAtk = wasContact ? 14 : 10;
-        const pushTgt = wasContact ? 28 : 20;
-        attacker.vx += knock * pushAtk;
-        target.vx -= knock * pushTgt;
-        attacker.vy += (Math.random() < 0.5 ? -1 : 1) * (wasContact ? 4.4 : 2.4);
-        target.vy += (Math.random() < 0.5 ? -1 : 1) * (wasContact ? 6.4 : 3.6);
-        attacker.x = clampX(attacker, attacker.x + knock * (wasContact ? 12 : 8));
-        target.x = clampX(target, target.x - knock * (wasContact ? 24 : 18));
-        attacker.intent = 'hold';
-        target.intent = 'hold';
-      }
-      attacker.atkCd = usedSkill ? 3 : 2;
-      if (target.hp <= 0) {
+
+      applyHitKnock(attacker, target, wasContact);
+      if (target.hp > 0) {
+        enterHurt(target, usedSkill);
+      } else {
         log(target.emoji + target.name + ' 倒下！', 'ko');
         emitAction({
           kind: 'ko',
@@ -421,71 +497,136 @@
           targetId: target.id,
           side: attacker.side,
           damage: dmg,
-          ax: attacker.x,
-          ay: attacker.y,
-          tx: target.x,
-          ty: target.y
+          ax: attacker.x, ay: attacker.y, tx: target.x, ty: target.y
         });
       }
+      return { defended: false, clash: !!clash, damage: dmg };
     }
 
-    function decideAndMove(u) {
+    function beginWindup(attacker, target, opts) {
+      const o = opts || {};
+      const ranged = !!o.ranged;
+      // 近戰：進入讀招前盡量貼身
+      if (!ranged) {
+        const toward = target.x >= attacker.x ? 1 : -1;
+        let dNow = dist(attacker, target);
+        if (dNow > FIELD.contactRange) {
+          const close = Math.min(dNow - FIELD.contactRange + 2, 36);
+          attacker.vx += toward * 14;
+          attacker.x = clampX(attacker, attacker.x + toward * close);
+          attacker.y = clampY(attacker.y + ((target.y || target.homeY) - attacker.y) * 0.5);
+          dNow = dist(attacker, target);
+        }
+        if (dNow > FIELD.contactRange + FEEL.contactSlack) {
+          setState(attacker, STATES.APPROACH, 1);
+          attacker.vx += toward * 8;
+          return false;
+        }
+      }
+
+      attacker.pending = {
+        targetId: target.id,
+        skillMul: o.skillMul || 1,
+        skillName: o.skillName || null,
+        usedSkill: !!o.usedSkill,
+        ranged: ranged
+      };
+      attacker.hitDone = false;
+      attacker.telegraph = true;
+      attacker.facing = target.x >= attacker.x ? 1 : -1;
+      setState(attacker, STATES.WINDUP, FEEL.windupTicks);
+      emitAction({
+        kind: 'windup',
+        attackerId: attacker.id,
+        targetId: target.id,
+        skillName: o.skillName || null,
+        side: attacker.side,
+        ranged: ranged,
+        telegraph: true,
+        phase: 'windup',
+        ax: attacker.x, ay: attacker.y, tx: target.x, ty: target.y
+      });
+      return true;
+    }
+
+    function decideLocomotion(u) {
       if (u.hp <= 0) return;
-      if (u.invuln > 0) u.invuln -= 1;
+      if (!canControlMove(u)) {
+        // 忙碌狀態只做極弱歸位／摩擦
+        let scale = FEEL.recoverMoveScale;
+        if (u.combatState === STATES.WINDUP) scale = FEEL.windupMoveScale;
+        else if (u.combatState === STATES.STRIKE) scale = FEEL.strikeMoveScale;
+        else if (u.combatState === STATES.HURT) scale = FEEL.hurtMoveScale;
+        else if (u.combatState === STATES.PARRY || u.combatState === STATES.DODGE) scale = FEEL.defendMoveScale;
+        u.vx *= FIELD.friction * (0.85 + scale * 0.1);
+        u.vy = (u.vy + (u.homeY - u.y) * 0.12 * scale) * FIELD.friction;
+        // 讀招／出招時微微對準目標
+        if (u.pending && (u.combatState === STATES.WINDUP || u.combatState === STATES.STRIKE)) {
+          const tgt = findById(u.pending.targetId);
+          if (tgt && tgt.hp > 0) {
+            u.facing = tgt.x >= u.x ? 1 : -1;
+            u.vy += ((tgt.y || tgt.homeY) - u.y) * 0.08;
+          }
+        }
+        return;
+      }
 
       const foeSide = u.side === 'ally' ? 'enemy' : 'ally';
       const target = pickTarget(units, foeSide, u);
       if (!target) {
-        u.intent = 'hold';
+        setState(u, STATES.IDLE, 1);
         u.engage = false;
+        u.contact = false;
         u.vx *= FIELD.friction;
         u.vy *= FIELD.friction;
         return;
       }
+
       const d = dist(u, target);
       const ranged = isRangedUnit(u);
       const preferRange = ranged ? FIELD.rangedRange * 0.55 : FIELD.contactRange;
       const hpRatio = u.hp / u.maxHp;
-      const skillReady = u.skill && u.cd <= 0;
       u.engage = !ranged && d <= FIELD.meleeRange;
       u.contact = !ranged && d <= FIELD.contactRange + 1;
+      u.facing = target.x >= u.x ? 1 : -1;
 
-      if (hpRatio < 0.28 && d < FIELD.meleeRange + 40 && Math.random() < 0.7) {
-        u.intent = 'retreat';
-      } else if (ranged && d < FIELD.meleeRange + 16 && Math.random() < 0.55) {
-        u.intent = 'retreat';
+      let want = STATES.IDLE;
+      if (hpRatio < 0.28 && d < FIELD.meleeRange + 40 && Math.random() < 0.55) {
+        want = 'retreat';
+      } else if (ranged && d < FIELD.meleeRange + 16 && Math.random() < 0.45) {
+        want = 'retreat';
       } else if (d > (ranged ? FIELD.rangedRange * 0.9 : FIELD.meleeRange)) {
-        u.intent = 'approach';
-      } else if (d < preferRange - 16 && !ranged && Math.random() < 0.28) {
-        u.intent = 'strafe';
+        want = STATES.APPROACH;
+      } else if (d < preferRange - 16 && !ranged && Math.random() < 0.22) {
+        want = 'strafe';
       } else {
-        u.intent = 'hold';
+        want = STATES.IDLE;
       }
 
-      if (skillReady && d <= FIELD.skillRange && d > FIELD.meleeRange && Math.random() < 0.45) {
-        u.intent = 'hold';
+      if (want === STATES.APPROACH) setState(u, STATES.APPROACH, 1);
+      else if (want === STATES.IDLE || want === 'retreat' || want === 'strafe') {
+        if (u.combatState !== STATES.IDLE && want === STATES.IDLE) setState(u, STATES.IDLE, 1);
+        u.intent = want === 'retreat' ? 'retreat' : (want === 'strafe' ? 'strafe' : 'hold');
+        if (want === STATES.IDLE) u.combatState = STATES.IDLE;
       }
 
       const toward = target.x >= u.x ? 1 : -1;
-      u.facing = toward;
       let ax = 0;
       let ay = 0;
       const speedScale = 0.85 + Math.random() * 0.3;
 
-      if (u.intent === 'approach') {
-        // 貼身接近額外提速（高於等比例場放大）
+      if (want === STATES.APPROACH || u.combatState === STATES.APPROACH) {
         ax = toward * FIELD.accel * 1.25 * speedScale;
-        ay += ((u.homeY) - u.y) * 0.28;
+        ay += (u.homeY - u.y) * 0.28;
         ay += ((target.y || target.homeY) - u.y) * 0.1;
-      } else if (u.intent === 'retreat') {
+      } else if (want === 'retreat') {
         ax = -toward * FIELD.accel * 1.1 * speedScale;
         ay += (u.homeY - u.y) * 0.3;
-      } else if (u.intent === 'strafe') {
+      } else if (want === 'strafe') {
         ax = toward * FIELD.accel * 0.18;
         const side = (u.lane % 2 === 0) ? -1 : 1;
         ay += side * FIELD.accel * 0.7 + (u.homeY - u.y) * 0.15;
       } else {
-        ax *= 0.2;
         ay += (u.homeY - u.y) * 0.35;
         if (u.engage && Math.random() < 0.35) {
           ay += (Math.random() < 0.5 ? -1 : 1) * 2.4;
@@ -508,13 +649,10 @@
       u.y = clampY(u.y + u.vy);
     }
 
-    function tryAct(attacker) {
+    function tryStartAttack(attacker) {
       if (attacker.hp <= 0) return false;
+      if (!canControlMove(attacker)) return false;
       if (attacker.atkCd > 0) return false;
-      // 閃避／招架硬直短窗：唔好邊閃邊砍
-      if (attacker.intent === 'dodge' || attacker.intent === 'parry') {
-        if (attacker.invuln > 0) return false;
-      }
 
       if (attacker.regen > 0 && attacker.hp < attacker.maxHp && turn % 3 === 0) {
         const healAmt = Math.max(1, Math.round(attacker.maxHp * attacker.regen));
@@ -555,8 +693,7 @@
             heal: healAmt,
             skillName: skillName,
             side: attacker.side,
-            ax: attacker.x,
-            ay: attacker.y
+            ax: attacker.x, ay: attacker.y
           });
         }
         if (attacker.skill.shield) {
@@ -570,8 +707,7 @@
             shield: sh,
             skillName: skillName,
             side: attacker.side,
-            ax: attacker.x,
-            ay: attacker.y
+            ax: attacker.x, ay: attacker.y
           });
         }
         if (attacker.skill.weaken) {
@@ -589,49 +725,192 @@
 
       if (didHealOnly) return true;
 
-      // 普攻：近戰必須距離內；遠程單位可在 rangedRange；技能傷害可遠放
       const canBasic = ranged ? rangedOk : meleeOk;
       const canSkillHit = usedSkill && skillMul > 1 && skillOk;
+      if (!canBasic && !canSkillHit) return false;
 
-      if (!canBasic && !canSkillHit) {
-        return false;
-      }
+      if (!ranged && !canSkillHit && d > FIELD.meleeRange) return false;
 
-      // 近戰隔空保險：再量一次距離，唔夠唔砍（技能／遠程除外）
-      if (!ranged && !canSkillHit && dist(attacker, target) > FIELD.meleeRange) {
-        return false;
-      }
+      const asRanged = (ranged || canSkillHit) && d > FIELD.meleeRange;
+      attacker._lastRanged = asRanged;
+      return beginWindup(attacker, target, {
+        skillMul: canSkillHit ? skillMul : 1,
+        skillName: canSkillHit ? skillName : null,
+        usedSkill: canSkillHit,
+        ranged: asRanged
+      });
+    }
 
-      if (canSkillHit || canBasic) {
-        attacker._lastRanged = (ranged || canSkillHit) && d > FIELD.meleeRange;
-        // 近戰：出手前撲到貼身，唔好隔空揮
-        if (!attacker._lastRanged) {
-          const toward = target.x >= attacker.x ? 1 : -1;
-          let dNow = dist(attacker, target);
-          if (dNow > FIELD.contactRange) {
-            const close = Math.min(dNow - FIELD.contactRange + 2, 36);
-            attacker.vx += toward * 14;
-            attacker.x = clampX(attacker, attacker.x + toward * close);
-            attacker.y = clampY(attacker.y + ((target.y || target.homeY) - attacker.y) * 0.5);
-            dNow = dist(attacker, target);
+    function advanceCombatStates() {
+      const strikers = [];
+
+      units.forEach(function (u) {
+        if (u.hp <= 0) return;
+        if (u.invuln > 0) u.invuln -= 1;
+
+        const s = u.combatState;
+        if (!inBusyState(u) && s !== STATES.APPROACH && s !== STATES.IDLE) {
+          // 兜底
+          setState(u, STATES.IDLE, 1);
+        }
+
+        if (s === STATES.WINDUP) {
+          u.telegraph = true;
+          u.stateT += 1;
+          if (u.stateT >= u.stateDur) {
+            // → strike
+            u.telegraph = false;
+            u.hitDone = false;
+            setState(u, STATES.STRIKE, FEEL.strikeTicks);
+            emitAction({
+              kind: 'strike',
+              attackerId: u.id,
+              targetId: u.pending ? u.pending.targetId : null,
+              side: u.side,
+              ranged: !!(u.pending && u.pending.ranged),
+              phase: 'strike',
+              ax: u.x, ay: u.y
+            });
           }
-          // 仍唔貼身就唔斬（比 meleeRange 更緊，避免隔空揮）
-          if (dNow > FIELD.contactRange + 8) {
-            attacker.intent = 'approach';
-            attacker.vx += toward * 8;
-            return false;
+        } else if (s === STATES.STRIKE) {
+          strikers.push(u);
+          // 判定幀處理喺下面統一做
+        } else if (s === STATES.RECOVER || s === STATES.HURT || s === STATES.PARRY || s === STATES.DODGE) {
+          u.stateT += 1;
+          if (u.stateT >= u.stateDur) {
+            u.pending = null;
+            u.telegraph = false;
+            u.hitDone = false;
+            setState(u, STATES.IDLE, 1);
           }
         }
-        resolveAttack(attacker, target, usedSkill && skillMul > 1, skillMul, skillName);
-        return true;
+      });
+
+      // Clash：雙方同時 strike 且互指
+      const clashPairs = {};
+      if (FEEL.clashWindow) {
+        for (let i = 0; i < strikers.length; i++) {
+          for (let j = i + 1; j < strikers.length; j++) {
+            const a = strikers[i];
+            const b = strikers[j];
+            if (a.side === b.side) continue;
+            if (!a.pending || !b.pending) continue;
+            if (a.pending.targetId === b.id && b.pending.targetId === a.id) {
+              clashPairs[a.id] = b.id;
+              clashPairs[b.id] = a.id;
+            }
+          }
+        }
       }
-      return false;
+
+      const clashedEmitted = {};
+      strikers.forEach(function (u) {
+        if (u.hitDone) {
+          u.stateT += 1;
+          if (u.stateT >= u.stateDur) {
+            setState(u, STATES.RECOVER, FEEL.recoverTicks);
+            u.pending = null;
+            emitAction({
+              kind: 'recover',
+              attackerId: u.id,
+              side: u.side,
+              phase: 'recover',
+              ax: u.x, ay: u.y
+            });
+          }
+          return;
+        }
+
+        // 僅 activeFrame 可造成傷害
+        if (u.stateT !== FEEL.activeFrame) {
+          u.stateT += 1;
+          return;
+        }
+
+        const pending = u.pending;
+        if (!pending) {
+          u.hitDone = true;
+          u.stateT += 1;
+          return;
+        }
+
+        const target = findById(pending.targetId);
+        if (!target || target.hp <= 0) {
+          u.hitDone = true;
+          u.stateT += 1;
+          setState(u, STATES.RECOVER, FEEL.recoverTicks);
+          u.pending = null;
+          return;
+        }
+
+        // 近戰必須接觸；遠程／技能例外
+        if (!pending.ranged) {
+          const dNow = dist(u, target);
+          if (dNow > FIELD.contactRange + FEEL.contactSlack) {
+            // 揮空：無傷害，進 recover
+            log(u.emoji + u.name + ' 一招落空！', 'info');
+            emitAction({
+              kind: 'miss',
+              attackerId: u.id,
+              targetId: target.id,
+              side: u.side,
+              damage: 0,
+              whiff: true,
+              phase: 'strike',
+              ax: u.x, ay: u.y, tx: target.x, ty: target.y
+            });
+            u.hitDone = true;
+            u.atkCd = 2;
+            u.stateT += 1;
+            setState(u, STATES.RECOVER, FEEL.recoverTicks);
+            u.pending = null;
+            return;
+          }
+        }
+
+        const isClash = !!clashPairs[u.id];
+        if (isClash && !clashedEmitted[u.id] && !clashedEmitted[clashPairs[u.id]]) {
+          const other = findById(clashPairs[u.id]);
+          const mx = (u.x + (other ? other.x : u.x)) / 2;
+          const my = (u.y + (other ? other.y : u.y)) / 2;
+          emitAction({
+            kind: 'clash',
+            attackerId: u.id,
+            targetId: other ? other.id : pending.targetId,
+            side: u.side,
+            phase: 'strike',
+            ax: mx, ay: my, tx: mx, ty: my
+          });
+          clashedEmitted[u.id] = true;
+          if (other) clashedEmitted[other.id] = true;
+        }
+
+        u._lastRanged = !!pending.ranged;
+        resolveStrikeHit(u, target, pending, isClash);
+        u.hitDone = true;
+        u.atkCd = pending.usedSkill ? 3 : 2;
+        u.stateT += 1;
+
+        // strike 結束後若仲喺 strike 狀態（冇被改成 hurt／parry），轉 recover
+        if (u.combatState === STATES.STRIKE && u.stateT >= u.stateDur) {
+          setState(u, STATES.RECOVER, FEEL.recoverTicks);
+          u.pending = null;
+          emitAction({
+            kind: 'recover',
+            attackerId: u.id,
+            side: u.side,
+            phase: 'recover',
+            ax: u.x, ay: u.y
+          });
+        }
+      });
     }
 
     function step() {
       if (finished) return;
       if (holdTicks > 0) {
         holdTicks -= 1;
+        // hit-stop：凍結動作推進，但仍刷新畫面
         emit();
         return;
       }
@@ -643,23 +922,30 @@
         return;
       }
 
-      // 1) 意圖＋加速度
-      alive.forEach(decideAndMove);
-      // 2) 分離力（防疊）
+      // 1) 推進攻擊／硬直狀態（含判定幀）
+      advanceCombatStates();
+
+      // 2) 自由單位走位意圖
+      alive.forEach(decideLocomotion);
+
+      // 3) 分離
       separateAll();
-      // 3) 積分位移
+
+      // 4) 位移
       alive.forEach(integrateMove);
 
+      // 5) CD
       alive.forEach(function (u) {
-        if (u.atkCd > 0) u.atkCd -= 1;
+        if (u.atkCd > 0 && canControlMove(u)) u.atkCd -= 1;
       });
 
-      const order = alive.slice().sort(function (a, b) {
+      // 6) 自由單位開讀招（每 tick 最多 2 人）
+      const order = alive.filter(canControlMove).slice().sort(function (a, b) {
         return (b.nei + b.force * 0.5) - (a.nei + a.force * 0.5) + (Math.random() - 0.5);
       });
-      let acted = 0;
-      for (let i = 0; i < order.length && acted < 2; i++) {
-        if (tryAct(order[i])) acted += 1;
+      let started = 0;
+      for (let i = 0; i < order.length && started < 2; i++) {
+        if (tryStartAttack(order[i])) started += 1;
       }
 
       if (!living(units, 'enemy').length) {
@@ -680,7 +966,7 @@
       turn = 0;
       holdTicks = 0;
       log('戰鼓擂響，俠客出巡！', 'system');
-      log('雙方自動走位——貼身交鋒；遠程／技能可遠放。速度 ×' + speedMul, 'system');
+      log('狀態機交鋒：讀招→判定→硬直；近戰須接觸。速度 ×' + speedMul, 'system');
       const withBond = units.filter(function (u) {
         return u.side === 'ally' && u.bondMul > 1;
       });
@@ -704,7 +990,6 @@
       if (!(m > 0)) m = 1;
       if (m < 0.5) m = 0.5;
       if (m > 2) m = 2;
-      // 吸附到 0.5 檔
       m = Math.round(m * 2) / 2;
       speedMul = m;
       restartTimer();
@@ -756,6 +1041,8 @@
     buildAllyCombatant: buildAllyCombatant,
     randInt: randInt,
     getMartial: getMartial,
-    FIELD: FIELD
+    FIELD: FIELD,
+    FEEL: FEEL,
+    STATES: STATES
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -59,11 +59,32 @@
 | 俠客 | 青衣劍客、鐵掌醫女、浪人刀客、琴心師太 |
 | 羈絆 | 疏遠／相識／知己／生死之交；事件對話；同隊攻擊加成 |
 | 武學 | 7 本秘籍；主動傷害／治療／削弱；被動內力／減傷／護盾／觸發率 |
-| 戰鬥 | 即時走位近戰（meleeRange≈58／960場）；速度 0.5–2× 存檔；技能／遠程可遠放；VFX／clash |
+| 戰鬥 | **v0.8 狀態機手感**：idle→approach→windup→strike→recover（hurt／parry／dodge）；僅判定幀傷害；960×540；速度 0.5–2× |
 | 劇情 | 3 章對話；條件解鎖；閱覽發獎；關聯 Boss |
 | Boss | 黑風寨主、邪醫·腐骨；技能／護盾；首次獨特獎勵 |
 | 成就 | 12 項；toast＋江湖分頁／日誌統計 |
 | 存檔 | 相容 v0.1–v0.3；缺欄位自動填預設 |
+
+
+## 戰鬥手感 v0.8
+
+自動即時戰鬥改為可讀狀態機（每單位獨立）：
+
+`idle` → `approach` → `windup` → `strike` → `recover`；另有 `hurt`／`parry`／`dodge`。
+
+| 規則 | 說明 |
+|------|------|
+| 判定幀 | **只有 `strike` 且落在 `FEEL.activeFrame`** 先可以造成傷害 |
+| 近戰接觸 | 判定時須 `dist ≤ contactRange + slack`；否則揮空 `whiff` |
+| 遠程／技能 | 可在 ranged／skill 距離出手，唔強制接觸 |
+| 讀招 | `windup` 發 `windup` 事件：姿勢＋刀光預兆＋短 telegraph |
+| Hit-stop | 命中／技能／撞刃／KO 凍結數 tick（`holdTicks`）；舞台同步 shake／閃白 |
+| Clash | 雙方同 tick 互指 `strike` → `clash` VFX＋額外停頓 |
+| iFrame | 招架／閃避仍設 invuln；受傷進 `hurt` 硬直 |
+| 速度 | 0.5–2× 存檔不變；縮短 wall-clock tick |
+| 場地／精靈 | 維持 960×540；64 精靈戰鬥 ×2＋pixelated |
+
+手感常數見 `WuxiaCombat.FEEL`（`windupTicks`／`strikeTicks`／`recoverTicks`／`hurtTicks`／`hitStop*`）。
 
 ## 劇情章節（v0.4）
 | 章節 | 解鎖條件 | 閱覽獎勵 | Boss |
@@ -226,6 +247,7 @@
 - [x] 大門開合與進出更明顯；日夜／燈火色溫緩變  
 - [x] 戰鬥舞台升至 **480×216**；攻擊／受擊多幀；招架姿態；技能軌跡；震屏擊退調校  
 - [x] **v0.7.1** 戰鬥舞台升至 **960×540**（原生）；行路 maxSpeed／accel 加快；距離參數按場重調
+- [x] **v0.8.0** 戰鬥狀態機手感（windup／判定幀／hit-stop／clash）
 - [x] `renderCombat` 保留 Canvas；Hub／Combat mount 防重複拆建；狀態機註明  
 - [x] DESIGN／footer／`GAME.version` → 0.5.1  
 
