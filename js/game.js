@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v2.3.1：刀梵夜語合擊）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v2.4.0：合擊圖鑑＋六合連枝）
  */
 (function () {
   'use strict';
@@ -591,6 +591,13 @@
         return !!state.boardLetterDone;
       case 'market_tip_3':
         return (state.marketTips || 0) >= 3;
+      case 'duo_bonds_all': {
+        const need = (typeof DUO_COMBOS !== 'undefined' && DUO_COMBOS) ? DUO_COMBOS : [];
+        const done = state.duoBondDone || [];
+        return need.length > 0 && need.every(function (c) {
+          return c && c.duoId && done.indexOf(c.duoId) >= 0;
+        });
+      }
       default:
         return false;
     }
@@ -609,7 +616,9 @@
   }
 
   function claimAchievement(id) {
-    if (!id || state.achievements.indexOf(id) < 0) return false;
+    if (!id) return false;
+    if (!Array.isArray(state.achievements)) state.achievements = [];
+    if (state.achievements.indexOf(id) < 0) return false;
     if (!Array.isArray(state.achievementClaims)) state.achievementClaims = [];
     if (state.achievementClaims.indexOf(id) >= 0) return false;
     const a = ACHIEVEMENTS.find((x) => x.id === id);
@@ -3919,30 +3928,62 @@
       });
     });
     const duoList = ((typeof DUO_BOND_EVENTS !== 'undefined' && DUO_BOND_EVENTS) ? DUO_BOND_EVENTS : []);
+    const comboList = ((typeof DUO_COMBOS !== 'undefined' && DUO_COMBOS) ? DUO_COMBOS : []);
+    const duoDone = state.duoBondDone || [];
     const duoDoneTitles = duoList.filter(function (d) {
-      return (state.duoBondDone || []).indexOf(d.id) >= 0;
+      return duoDone.indexOf(d.id) >= 0;
     }).map(function (d) { return d.title; });
     const duoReadyTitles = duoList.filter(duoEventReady).map(function (d) { return d.title; });
+    const duoUnlockedN = comboList.filter(function (c) {
+      return c && c.duoId && duoDone.indexOf(c.duoId) >= 0;
+    }).length;
+    const bondById = {};
+    duoList.forEach(function (d) { if (d && d.id) bondById[d.id] = d; });
+    const comboRows = comboList.map(function (c) {
+      if (!c) return '';
+      const bond = bondById[c.duoId] || null;
+      const bondTitle = (bond && bond.title) || c.duoId || '雙人羈絆';
+      const comboName = c.name || '合擊';
+      const unlocked = !!(c.duoId && duoDone.indexOf(c.duoId) >= 0);
+      const status = unlocked
+        ? '<span class="pill jade">已解鎖</span>'
+        : '<span class="pill">未解鎖</span>';
+      return '<div class="codex-duo-row' + (unlocked ? ' unlocked' : '') + '">' +
+        '<span class="codex-duo-bond">' + bondTitle + '</span>' +
+        '<span class="codex-duo-arrow">→</span>' +
+        '<span class="codex-duo-combo">合擊「' + comboName + '」</span>' +
+        status +
+        '</div>';
+    }).join('') || '<p class="muted">暫無合擊資料</p>';
     const met = state.metScenes || [];
     const buffs = state.combatBuffs || [];
     function pills(arr, cls) {
       if (!arr.length) return '<span class="muted">—</span>';
       return arr.map(function (x) { return '<span class="pill ' + (cls || '') + '">' + x + '</span>'; }).join(' ');
     }
+    const achN = (state.achievements || []).length;
+    const achTotal = (ACHIEVEMENTS || []).length;
+    const storyN = (state.storyRead || []).length;
+    const storyTotal = (STORY_CHAPTERS || []).length;
+    const bossN = (state.bossesDefeated || []).length;
+    const bossTotal = (BOSS_ENCOUNTERS || []).length;
     const summary = [
       '<div class="card panel-block ink-card codex-summary">',
       '  <header class="panel-sec">',
       '    <h2>' + pxIcon('📘') + ' 江湖圖鑑摘要</h2>',
-      '    <p class="muted panel-lead">勝仗／事件／羈絆一覽</p>',
+      '    <p class="muted panel-lead">勝仗／事件／羈絆／合擊一覽</p>',
       '  </header>',
       '  <div class="codex-grid">',
       '    <div class="codex-cell"><span class="label">出巡勝仗</span><b>' + (state.battlesWon || 0) + '</b></div>',
-      '    <div class="codex-cell"><span class="label">Boss 討伐</span><b>' + (state.bossesDefeated || []).length + '/' + BOSS_ENCOUNTERS.length + '</b></div>',
+      '    <div class="codex-cell"><span class="label">Boss 討伐</span><b>' + bossN + '/' + bossTotal + '</b></div>',
       '    <div class="codex-cell"><span class="label">接客</span><b>' + (state.guestsServed || 0) + '</b></div>',
-      '    <div class="codex-cell"><span class="label">成就</span><b>' + state.achievements.length + '/' + ACHIEVEMENTS.length + '</b></div>',
-      '    <div class="codex-cell"><span class="label">劇情章</span><b>' + state.storyRead.length + '/' + STORY_CHAPTERS.length + '</b></div>',
-      '    <div class="codex-cell"><span class="label">已遇場景</span><b>' + met.length + '</b></div>',
+      '    <div class="codex-cell"><span class="label">成就</span><b>' + achN + '/' + achTotal + '</b></div>',
+      '    <div class="codex-cell"><span class="label">劇情章</span><b>' + storyN + '/' + storyTotal + '</b></div>',
+      '    <div class="codex-cell"><span class="label">雙人合擊</span><b>' + duoUnlockedN + '/' + (comboList.length || 6) + '</b></div>',
       '  </div>',
+      '  <div class="codex-block"><h4>合擊／羈絆圖鑑</h4>',
+      '    <p class="muted small">六組雙人羈絆解鎖狀態與對應合擊名</p>',
+      '    <div class="codex-duo-list">' + comboRows + '</div></div>',
       '  <div class="codex-block"><h4>單人羈絆已觸</h4><p>' + pills(bondTitles, 'jade') + '</p></div>',
       '  <div class="codex-block"><h4>雙人事件</h4><p>已歷：' + pills(duoDoneTitles, 'jade') +
         (duoReadyTitles.length ? '<br>可觸：' + pills(duoReadyTitles, 'cinnabar') : '') + '</p></div>',
@@ -3957,7 +3998,7 @@
     el.innerHTML = summary + `<div class="card panel-block">
       <header class="panel-sec">
         <h2>${pxIcon('📜')} 江湖日誌</h2>
-        <p class="muted panel-lead">成就 ${state.achievements.length}/${ACHIEVEMENTS.length} · 章 ${state.storyRead.length}/${STORY_CHAPTERS.length} · Boss ${state.bossesDefeated.length}/${BOSS_ENCOUNTERS.length}</p>
+        <p class="muted panel-lead">成就 ${(state.achievements || []).length}/${(ACHIEVEMENTS || []).length} · 章 ${(state.storyRead || []).length}/${(STORY_CHAPTERS || []).length} · Boss ${(state.bossesDefeated || []).length}/${(BOSS_ENCOUNTERS || []).length} · 合擊 ${((state.duoBondDone || []).length)}/${((typeof DUO_COMBOS !== 'undefined' && DUO_COMBOS) ? DUO_COMBOS.length : 6)}</p>
       </header>
       <div class="log-list">${state.log.map((e) =>
         `<div class="log-line ${e.kind}"><span class="t">${e.t}</span>${e.msg}</div>`
@@ -4208,12 +4249,13 @@
       try { WuxiaAudio.preload(); } catch (e) { /* ignore */ }
     }
 
+    const verLabel = (GAME && GAME.version) ? String(GAME.version) : '2.4.0';
     const footVer = $('footer-version');
-    if (footVer) footVer.textContent = 'v' + GAME.version;
+    if (footVer) footVer.textContent = 'v' + verLabel;
     try {
       const brand = document.querySelector('.brand');
-      if (brand) brand.title = '俠客棧 v' + GAME.version + ' · 墨點江湖';
-      document.title = '俠客棧 v' + GAME.version;
+      if (brand) brand.title = '俠客棧 v' + verLabel + ' · 墨點江湖';
+      document.title = '俠客棧 v' + verLabel;
     } catch (e) { /* ignore */ }
     renderAll();
     syncCombatSpeedUI();

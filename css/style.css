@@ -2031,6 +2031,17 @@ body.combat-open .hub-shell {
 .codex-block { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(201,162,39,.25); }
 .codex-block h4 { margin: 0 0 6px; font-size: 0.85rem; color: #c9a227; }
 .codex-block .small { font-size: 0.78rem; word-break: break-all; }
+.codex-duo-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.codex-duo-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;
+  padding: 6px 8px; border-radius: 8px;
+  background: rgba(0,0,0,.18); border: 1px solid rgba(201,162,39,.2);
+  font-size: 0.82rem;
+}
+.codex-duo-row.unlocked { border-color: rgba(142,207,142,.45); background: rgba(40,60,40,.22); }
+.codex-duo-bond { font-weight: 600; color: #f0e6d0; }
+.codex-duo-arrow { color: #8a7a60; }
+.codex-duo-combo { color: #c9a227; }
 .recruit-reqs { margin: 6px 0; }
 .recruit-prog { margin: 4px 0; font-size: 0.85rem; }
 .recruit-prog.ok span { color: #8ecf8e; }

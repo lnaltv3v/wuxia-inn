@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v2.3.1
+ * v2.4.0
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '2.3.1',
+    version: '2.4.0',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -1152,7 +1152,8 @@
     { id: 'qingshi_open', name: '青石夜市', desc: '解鎖青石鎮分舵', emoji: '🏘️', reward: { silver: 50, reputation: 7 } },
     { id: 'bianguan_open', name: '邊關戍衛', desc: '解鎖邊關哨站', emoji: '🏰', reward: { silver: 70, reputation: 9 } },
     { id: 'board_letter', name: '密信有回', desc: '於告示完成「燈火密信」任一選擇', emoji: '✉️', reward: { silver: 45, reputation: 8 } },
-    { id: 'market_tip_3', name: '夜市抽成', desc: '青石夜市抽成累計入帳 3 次', emoji: '🪙', reward: { silver: 60, reputation: 6 } }
+    { id: 'market_tip_3', name: '夜市抽成', desc: '青石夜市抽成累計入帳 3 次', emoji: '🪙', reward: { silver: 60, reputation: 6 } },
+    { id: 'duo_bonds_all', name: '六合連枝', desc: '解鎖全部六組雙人羈絆合擊', emoji: '☯️', reward: { silver: 120, reputation: 15 } }
   ];
 
   const BOND_TIERS = [
