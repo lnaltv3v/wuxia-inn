@@ -1,9 +1,10 @@
-# 俠客棧 — 設計說明（v0.6.4）
+# 俠客棧 — 設計說明（v0.7.0）
 
 ## 產品定位（上市方向）
 目標做成**可上市**的武俠經營遊戲，模式對齊《大俠立志傳》：**場景驅動**，而非文字 Tab 網頁模擬。
 
-- **主介面 = 客棧內部大場景**（Canvas Hub 480×270，整數倍放大顯示）
+- **主介面 = 客棧內部大場景**（Canvas Hub **960×540**，整數倍放大；**橫屏優先**，直屏提示轉橫）
+- **解析度**：場景正式 v2.0 未到前以 nearest-neighbor 由 480×270 橋接；角色正式 64px 未到前 32×2
 - 經營／俠客／戰鬥／江湖／據點 = **場景熱點或快捷鈕開啟的疊層面板**；舊頂部四大文字分頁降為次要「選單」
 - 戰鬥為**全屏疊層舞台**，結束後返回客棧大廳
 - 美術嚴格跟 **[ART.md](./ART.md)「墨點江湖」**；系統邏輯與 `localStorage` 存檔（`wuxia-inn-save-v1`）相容
@@ -14,7 +15,7 @@
 │ 頂欄（銀兩／聲望／客棧等級／存檔）— 精簡保留 │
 ├─────────────────────────────────────────────┤
 │                                             │
-│     客棧內部像素場景 480×270（主畫面）        │
+│     客棧內部像素場景 960×540（主畫面）        │
 │     · 櫃檯／桌椅／燈籠／大門／告示／地圖／書架 │
 │     · 店員＋俠客走動＋客人進出（接客演出）    │
 │     · 熱點：櫃檯→經營｜俠客席→養成｜大門→出巡 │
@@ -135,8 +136,8 @@
 ## 舞台系統（v0.5.7）
 | 舞台 | 實作 | 表現 |
 |------|------|------|
-| **客棧 Hub** | `js/stages.js` → `WuxiaStages.Inn` Canvas **480×270** | **分層場景 Hub v1.3**；**sprites v1.2**；進場 **walk→guest_sit 入座**；**小二** 走廊／枱間 wipe／serve；熱點半透明提示；接客小事件；傳聞／小二對白池 |
-| 戰鬥對峙 | `WuxiaStages.Combat` Canvas **400×180** | 俠客 **v1.2.1** attack／hurt；**刀光弧／火花**；hit-stop／閃白；單人逐步；招架對撞 |
+| **客棧 Hub** | `js/stages.js` → `WuxiaStages.Inn` Canvas **960×540** | **分層場景 Hub v1.3**；**sprites v1.2**；進場 **walk→guest_sit 入座**；**小二** 走廊／枱間 wipe／serve；熱點半透明提示；接客小事件；傳聞／小二對白池 |
+| 戰鬥對峙 | `WuxiaStages.Combat` Canvas **480×216** | 俠客 **v1.2.1** attack／hurt；**刀光弧／火花**；hit-stop／閃白；單人逐步；招架對撞 |
 
 - 戰鬥數值由 `combat.js` 驅動；`onAction` 含 `hit`／`skill`／`miss`／`parry`／`heal`／`shield`／`ko`  
 - Hub 常駐 `#hub-stage-host`；`renderCombat` **保留**舞台 DOM，避免重繪斷動畫  
@@ -144,7 +145,7 @@
 
 ## 美術方向 — 墨點江湖（Ink-Pixel Inn）
 規範全文見 **[ART.md](./ART.md)**。  
-頭像 32×32→64×64；Hub 場景 480×270；禁止混用高清寫實立繪。  
+頭像 32×32→64×64；Hub 場景 960×540；禁止混用高清寫實立繪。  
 音效規範見 **[AUDIO.md](./AUDIO.md)**（自製 ogg＋`js/audio.js`）。
 
 ## 設計原則
@@ -155,27 +156,27 @@
 - **存檔相容**
 
 ## 版本進度
-### v0.6.4-bond-ch4（本輪）
+### v0.7.0-bond-ch4（本輪）
 - [x] 羈絆短事件＋選擇：`moon_sword`（青衣論劍）、`wine_oath`（浪人酒約；可連帶醫女好感）
 - [x] 場景選擇正確套用羈絆＋觸發 `BOND_EVENTS` toast（修 `checkBondEvents` 缺參 bug）；支援 `favorHero2`
 - [x] 第四章骨架「血影樓訊」＋第三 Boss「血影樓主」可挑戰（需擊敗邪醫＋客棧 Lv.3 等）；秘籍「血影雙刃」
 - [x] UI：戰鬥速度鈕加框／加大；頂欄日夜時辰 chip（晨／晝／昏／夜）
 - [x] `GAME.version`／footer → **0.6.4**；音效暫緩
 
-### v0.6.3-daynight-event（本輪）
+### v0.7.0-daynight-event（本輪）
 - [x] 日夜循環更明顯：週期約 64s、夜間窗加長、`hub_lanterns_night`＋硬邊燈暈／天色罩；換晝夜有 caption／日誌
 - [x] 營業小費波動：`getTipMul`（晨 0.85／日 1／昏 1.3／夜 1.55）套用雅座賞銀＋接客收入／tip 事件
 - [x] 新場景互動事件「夜路信使」`night_courier`（保管／拆看／拒收）
 - [x] 戰鬥確認：`combatSpeed` 存檔 migrate；`meleeRange=24` 常數；出手後貼身閘 `contactRange+4` 防隔空砍
 - [x] `GAME.version`／footer → **0.6.3**；音效暫緩
 
-### v0.6.2-speed-contact（本輪）
+### v0.7.0-speed-contact（本輪）
 - [x] 自動戰鬥速度 **0.5×／1×／1.5×／2×**（overlay 可點；影響 tick／動畫／hit-stop；存入 `combatSpeed`）
 - [x] 近身接觸感：`meleeRange` 收窄、出手前撲貼身、命中 knockback 彈回、身體接觸框
 - [x] 接入 `assets/sprites/fx/clash.png`（交刃／招架接觸點 one-shot；可同 spark／parry_flash 錯 1 tick）
 - [x] `GAME.version`／footer → **0.6.2**；音效暫緩
 
-### v0.6.0-realtime-hub15（本輪）
+### v0.7.0-realtime-hub15（本輪）
 - [x] 戰鬥改**自動即時走位**：靠近→近戰普攻；技能／遠程可遠放；AI 閃避／招架／後退  
 - [x] 招架雙向 `parry_flash`；Boss 更大 slash／多 spark  
 - [x] Hub **v1.5**：`hub_fg` 前景、`hub_lanterns_night` 夜燈；z＝wall→floor→furniture→counter→角色→lanterns→fg  
@@ -223,12 +224,12 @@
 ### v0.5.1 polish
 - [x] 雅座熱點：催單加速接客／小費演出（銀兩入帳）  
 - [x] 大門開合與進出更明顯；日夜／燈火色溫緩變  
-- [x] 戰鬥舞台升至 **400×180**；攻擊／受擊多幀；招架姿態；技能軌跡；震屏擊退調校  
+- [x] 戰鬥舞台升至 **480×216**；攻擊／受擊多幀；招架姿態；技能軌跡；震屏擊退調校  
 - [x] `renderCombat` 保留 Canvas；Hub／Combat mount 防重複拆建；狀態機註明  
 - [x] DESIGN／footer／`GAME.version` → 0.5.1  
 
 ### v0.5.0-hub
-- [x] 主畫面大型客棧內部場景（480×270）  
+- [x] 主畫面大型客棧內部場景（960×540）  
 - [x] 場景熱點＋快捷鈕；舊 Tab 收進選單  
 - [x] 接客接上 Hub；戰鬥全屏疊層  
 
@@ -249,11 +250,11 @@
   css/style.css
   js/data.js
   js/combat.js
-  js/stages.js        # Hub 480×270 ＋ Combat 舞台
+  js/stages.js        # Hub 960×540 ＋ Combat 舞台
   js/audio.js         # WuxiaAudio（Web Audio；見 AUDIO.md）
   js/game.js          # 導航改為場景／疊層
   assets/audio/       # sfx／bgm 自製 ogg（暫緩打磨）
-  assets/scenes/      # Hub 分層 480×270
+  assets/scenes/      # Hub 分層 960×540
   assets/sprites/     # 俠客／小二 sheet＋Boss 剪影
   tools/gen_ink_pixel_assets.py
   ART.md

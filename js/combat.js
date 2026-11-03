@@ -1,33 +1,33 @@
 /**
- * 俠客棧 — 自動即時走位戰鬥（v0.6.3）
- * meleeRange=24 固定；貼身近戰／knockback；速度 0.5–2×（存檔）；隔空砍再收緊
+ * 俠客棧 — 自動即時走位戰鬥（v0.7.0）
+ * 戰場對齊 CombatStage 480×216；meleeRange≈29；速度 0.5–2×
  */
 (function (global) {
   'use strict';
 
   const { randInt, getMartial } = global.WuxiaData;
 
-  /** 戰場座標（對齊 CombatStage 400×180） */
+  /** 戰場座標（對齊 CombatStage 480×216） */
   const FIELD = {
-    W: 400,
-    allyMinX: 28,
-    allyMaxX: 210,
-    enemyMinX: 190,
-    enemyMaxX: 372,
-    meleeRange: 24,
-    contactRange: 16,
-    skillRange: 118,
-    rangedRange: 168,
-    maxSpeed: 11,
-    accel: 3.2,
+    W: 480,
+    allyMinX: 34,
+    allyMaxX: 252,
+    enemyMinX: 228,
+    enemyMaxX: 446,
+    meleeRange: 29,
+    contactRange: 19,
+    skillRange: 142,
+    rangedRange: 202,
+    maxSpeed: 13,
+    accel: 3.8,
     friction: 0.78,
-    sepDist: 26,
-    sepForce: 4.2,
-    foeSepDist: 11,
-    strafeY: 10,
-    yMin: 96,
-    yMax: 140,
-    yBase: 108,
+    sepDist: 31,
+    sepForce: 5.0,
+    foeSepDist: 13,
+    strafeY: 12,
+    yMin: 115,
+    yMax: 168,
+    yBase: 130,
     iFrameDodge: 3,
     iFrameParry: 2
   };
@@ -47,17 +47,17 @@
     const n = Math.max(1, slotCount || 1);
     const i = slotIndex || 0;
     if (n === 1) return FIELD.yBase + (side === 'enemy' ? 2 : 0);
-    if (n === 2) return FIELD.yBase + (i === 0 ? -14 : 14);
+    if (n === 2) return FIELD.yBase + (i === 0 ? -17 : 17);
     // 3+：上中下錯開，避免全擠同一點
-    const spread = [-18, 0, 18, -9, 9];
+    const spread = [-22, 0, 22, -11, 11];
     return FIELD.yBase + (spread[i % spread.length] || ((i % 2) * 12 - 6));
   }
 
   function cloneUnit(src, side, slotIndex, slotCount) {
     const n = Math.max(1, slotCount || 1);
     const i = slotIndex || 0;
-    const gap = n <= 1 ? 0 : (n === 2 ? 48 : 40);
-    const baseX = side === 'ally' ? 56 : 320;
+    const gap = n <= 1 ? 0 : (n === 2 ? 58 : 48);
+    const baseX = side === 'ally' ? 67 : 384;
     const start = baseX - ((n - 1) * gap) / 2;
     const y = laneY(side, i, n);
     const u = {

@@ -1,4 +1,4 @@
-/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.6.0（見 ART.md／DESIGN.md／AUDIO.md） */
+/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.7.0（Hub 960×540／橫屏優先） */
 :root {
   /* 嚴格色盤 — 禁止盤外色 */
   --ink: #1A1510;
@@ -879,22 +879,22 @@ body.hub-mode .app { max-width: 1100px; }
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 400 / 180;
+  aspect-ratio: 480 / 216;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
   background: var(--wood);
 }
 .hub-stage-wrap .px-stage {
-  aspect-ratio: 480 / 270;
+  aspect-ratio: 960 / 540;
 }
 .combat-stage-wrap .px-stage {
-  aspect-ratio: 400 / 180;
+  aspect-ratio: 480 / 216;
 }
 .stage-caption {
   line-height: 1.4;
-  padding: 6px 8px;
-  font-size: 0.78rem;
+  padding: 10px 12px;
+  font-size: 0.95rem;
   font-family: var(--font-title);
   color: var(--cream);
   background: var(--night);
@@ -929,40 +929,41 @@ body.hub-mode .app { max-width: 1100px; }
 }
 .hub-stage-wrap .px-stage,
 .hub-stage-wrap .hub-canvas {
-  aspect-ratio: 480 / 270 !important;
+  aspect-ratio: 960 / 540 !important;
   width: 100%;
-  max-height: min(72vh, 620px);
+  max-height: min(82vh, 960px);
   object-fit: contain;
   background: var(--loess);
 }
 .hub-hint {
-  margin: 8px 0 6px;
-  padding: 6px 10px;
+  margin: 10px 0 8px;
+  padding: 10px 14px;
   font-family: var(--font-title);
-  font-size: 0.85rem;
+  font-size: 1.05rem;
   color: var(--ink-soft);
   background: var(--paper-dark);
-  border: 2px solid var(--frame);
-  border-left: 6px solid var(--gold);
+  border: 3px solid var(--frame);
+  border-left: 8px solid var(--gold);
   letter-spacing: 0.04em;
 }
 .hub-quickbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 10px;
+  margin-top: 8px;
 }
 .hub-qbtn {
   flex: 1;
-  min-width: 72px;
+  min-width: 96px;
+  min-height: 52px;
   border: 3px solid var(--ink);
   background: var(--paper-light);
   color: var(--ink);
-  padding: 8px 6px;
+  padding: 12px 10px;
   font-family: var(--font-title);
-  font-size: 0.95rem;
+  font-size: 1.12rem;
   cursor: pointer;
-  box-shadow: 3px 3px 0 var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
   border-radius: 0;
   image-rendering: pixelated;
 }
@@ -1062,7 +1063,7 @@ body.hub-mode .app { max-width: 1100px; }
   margin: 0 auto;
 }
 .combat-overlay .combat-stage-host .px-stage {
-  max-height: min(52vh, 480px);
+  max-height: min(58vh, 560px);
   width: 100%;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
@@ -1091,14 +1092,14 @@ body.hub-mode .app { max-width: 1100px; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.45em;
-  height: 1.45em;
+  width: 1.7em;
+  height: 1.7em;
   padding: 0;
   overflow: hidden;
 }
 .hub-qbtn .px-ico img {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   display: block;
@@ -1257,4 +1258,59 @@ body.hub-mode .app { max-width: 1100px; }
   background: #1A1510;
   color: #D4A017;
   box-shadow: inset 0 0 0 1px #D4A017;
+}
+
+
+/* —— v0.7.0 landscape 橫屏優先＋直屏簡化 —— */
+.landscape-nudge {
+  display: none;
+  margin: 8px 12px;
+  padding: 10px 14px;
+  font-family: var(--font-title);
+  font-size: 0.95rem;
+  color: var(--cream);
+  background: var(--night);
+  border: 3px solid var(--gold);
+  box-shadow: 4px 4px 0 var(--ink);
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+@media (orientation: landscape) {
+  .hub-stage-wrap .px-stage,
+  .hub-stage-wrap .hub-canvas {
+    max-height: min(86vh, 980px);
+  }
+  .hub-shell {
+    max-width: min(1200px, 96vw);
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .hub-qbtn {
+    min-height: 56px;
+    font-size: 1.15rem;
+    padding: 14px 12px;
+  }
+  .topbar-slim .brand { font-size: 1.35rem; }
+  .landscape-nudge { display: none !important; }
+}
+
+@media (orientation: portrait) and (max-width: 900px) {
+  .landscape-nudge { display: block; }
+  .hub-stage-wrap .px-stage,
+  .hub-stage-wrap .hub-canvas {
+    max-height: min(48vh, 420px);
+  }
+  .hub-quickbar {
+    gap: 6px;
+  }
+  .hub-qbtn {
+    min-width: 64px;
+    min-height: 44px;
+    font-size: 0.88rem;
+    padding: 8px 6px;
+    flex: 1 1 30%;
+  }
+  .hub-hint { font-size: 0.88rem; padding: 8px 10px; }
+  .hub-menu .tab-btn { font-size: 0.82rem; padding: 8px 6px; }
 }

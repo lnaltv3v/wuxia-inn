@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v0.6.4
+ * v0.7.0
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '0.6.4',
+    version: '0.7.0',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -99,13 +99,13 @@
       id: 'door_spar',
       caption: '門前兩俠比劃兩招…',
       walkers: [
-        { id: 'langren', x: 36, y: 168, tx: 110, ty: 176 },
-        { id: 'qingyi', x: 170, y: 176, tx: 118, ty: 170 }
+        { id: 'langren', x: 72, y: 336, tx: 220, ty: 352 },
+        { id: 'qingyi', x: 340, y: 352, tx: 236, ty: 340 }
       ],
       beats: [
         { at: 0, caption: '門前刀光一閃——', line: '領教！', walker: 0, life: 1.1 },
-        { at: 700, line: '好刀法！', walker: 1, life: 1.1, move: { i: 0, tx: 130, ty: 174 } },
-        { at: 1500, line: '點到即止。', walker: 0, life: 1.0, move: { i: 1, tx: 100, ty: 168 } },
+        { at: 700, line: '好刀法！', walker: 1, life: 1.1, move: { i: 0, tx: 260, ty: 348 } },
+        { at: 1500, line: '點到即止。', walker: 0, life: 1.0, move: { i: 1, tx: 200, ty: 336 } },
         { at: 2400, line: '改日再戰。', walker: 1, life: 1.0, end: true }
       ]
     },
@@ -113,8 +113,8 @@
       id: 'tea_rumor',
       caption: '雅座茶客低聲議論…',
       walkers: [
-        { id: 'qinshi', x: 300, y: 180, tx: 260, ty: 186 },
-        { id: 'tiezhang', x: 220, y: 188, tx: 250, ty: 184 }
+        { id: 'qinshi', x: 600, y: 360, tx: 520, ty: 372 },
+        { id: 'tiezhang', x: 440, y: 376, tx: 500, ty: 368 }
       ],
       beats: [
         { at: 0, caption: '茶香裡飄來江湖話', line: '聽說黑風又動。', walker: 1, life: 1.2 },
@@ -126,12 +126,12 @@
       id: 'merchant_boast',
       caption: '行商在櫃前誇貨…',
       walkers: [
-        { id: 'langren', x: 200, y: 160, tx: 230, ty: 168 }
+        { id: 'langren', x: 400, y: 320, tx: 460, ty: 336 }
       ],
       beats: [
-        { at: 0, caption: '櫃前一陣喧嘩', line: '總有一款適合您！', x: 240, y: 100, life: 1.2 },
+        { at: 0, caption: '櫃前一陣喧嘩', line: '總有一款適合您！', x: 480, y: 200, life: 1.2 },
         { at: 800, line: '江湖隱藏各路高手。', walker: 0, life: 1.15 },
-        { at: 1700, line: '客官裏面請。', x: 210, y: 140, life: 1.0, end: true }
+        { at: 1700, line: '客官裏面請。', x: 420, y: 280, life: 1.0, end: true }
       ]
     },
     {
@@ -139,12 +139,12 @@
       caption: '負傷遊俠踉蹌入門…',
       interactive: true,
       walkers: [
-        { id: 'langren', x: 20, y: 172, tx: 150, ty: 178 },
-        { id: 'tiezhang', x: 280, y: 186, tx: 200, ty: 180 }
+        { id: 'langren', x: 40, y: 344, tx: 300, ty: 356 },
+        { id: 'tiezhang', x: 560, y: 372, tx: 400, ty: 360 }
       ],
       beats: [
         { at: 0, caption: '大門一陣急腳步', line: '咳……可有歇腳處？', walker: 0, life: 1.25 },
-        { at: 900, line: '先坐下，我來瞧瞧傷口。', walker: 1, life: 1.2, move: { i: 0, tx: 168, ty: 176 } },
+        { at: 900, line: '先坐下，我來瞧瞧傷口。', walker: 1, life: 1.2, move: { i: 0, tx: 336, ty: 352 } },
         { at: 1800, caption: '遊俠望向掌櫃——', line: '江湖救急，後日必報。', walker: 0, life: 1.3 },
         { at: 2600, prompt: true, end: true }
       ],
@@ -175,12 +175,12 @@
       caption: '夜路信使叩門…',
       interactive: true,
       walkers: [
-        { id: 'qingyi', x: 24, y: 170, tx: 140, ty: 176 },
-        { id: 'xiaoer', x: 260, y: 168, tx: 210, ty: 172 }
+        { id: 'qingyi', x: 48, y: 340, tx: 280, ty: 352 },
+        { id: 'xiaoer', x: 520, y: 336, tx: 420, ty: 344 }
       ],
       beats: [
         { at: 0, caption: '更鼓剛響，有人輕叩大門', line: '掌櫃可在？有急件。', walker: 0, life: 1.25 },
-        { at: 900, line: '夜深路滑，先喝口熱茶。', walker: 1, life: 1.15, move: { i: 0, tx: 168, ty: 174 } },
+        { at: 900, line: '夜深路滑，先喝口熱茶。', walker: 1, life: 1.15, move: { i: 0, tx: 336, ty: 348 } },
         { at: 1800, caption: '信使捧出油布小包——', line: '不知可否代為暫存？', walker: 0, life: 1.3 },
         { at: 2600, prompt: true, end: true }
       ],
@@ -210,8 +210,8 @@
       caption: '廊下青衣邀你月下論劍…',
       interactive: true,
       walkers: [
-        { id: 'qingyi', x: 40, y: 170, tx: 150, ty: 176 },
-        { id: 'xiaoer', x: 280, y: 168, tx: 220, ty: 172 }
+        { id: 'qingyi', x: 80, y: 340, tx: 300, ty: 352 },
+        { id: 'xiaoer', x: 560, y: 336, tx: 440, ty: 344 }
       ],
       beats: [
         { at: 0, caption: '月色灑在廊下青石', line: '掌櫃可敢接我一劍？', walker: 0, life: 1.25 },
@@ -245,12 +245,12 @@
       caption: '浪人拍桌邀酒結義…',
       interactive: true,
       walkers: [
-        { id: 'langren', x: 300, y: 178, tx: 230, ty: 182 },
-        { id: 'tiezhang', x: 80, y: 180, tx: 150, ty: 184 }
+        { id: 'langren', x: 600, y: 356, tx: 460, ty: 364 },
+        { id: 'tiezhang', x: 160, y: 360, tx: 300, ty: 368 }
       ],
       beats: [
         { at: 0, caption: '雅座忽然喧鬧', line: '掌櫃！來喝！刀酒同盟！', walker: 0, life: 1.25 },
-        { at: 900, line: '少灌，傷肝。', walker: 1, life: 1.15, move: { i: 0, tx: 200, ty: 180 } },
+        { at: 900, line: '少灌，傷肝。', walker: 1, life: 1.15, move: { i: 0, tx: 400, ty: 360 } },
         { at: 1800, caption: '浪人舉碗相邀——', line: '你敢陪，我便護這棧。', walker: 0, life: 1.3 },
         { at: 2600, prompt: true, end: true }
       ],

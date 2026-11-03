@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Generate Ink-Pixel Inn assets: Ink-Pixel palette-locked hard-edge sprites/scenes.
 
-Same 32×32 / 480×270 constraints (hard edge, palette-locked, no AA).
+Sprites 32×32; Hub scenes native 960×540 (v2.0, hard edge, palette-locked, no AA).
 Sprites owned by 墨點美術; Hub scenes by 墨點場景.
+Native 64×64 sheets: tools/gen_sprites_64.py → assets/sprites/64/ (do not NN-upscale 32).
 Use --scenes-only to regenerate assets/scenes/ + hub previews without touching sprites.
 """
 from __future__ import annotations
@@ -1327,20 +1328,21 @@ def make_guest_walk() -> Image.Image:
 # ---------- Hub ----------
 
 def draw_wood_floor(img, y0, y1):
-    fill_rect(img, 0, y0, 480, y1, WOOD)
+    W = img.width
+    fill_rect(img, 0, y0, W, y1, WOOD)
     row_h = 7
     for y in range(y0, y1, row_h):
-        hline(img, 0, 480, y, INK_SOFT)
-        hline(img, 0, 480, y + row_h - 1, NIGHT)
+        hline(img, 0, W, y, INK_SOFT)
+        hline(img, 0, W, y + row_h - 1, NIGHT)
         off = 0 if ((y - y0) // row_h) % 2 == 0 else 10
-        for x in range(off, 480, 20):
+        for x in range(off, W, 20):
             vline(img, x, y, min(y + row_h, y1), NIGHT)
             # plank seam nails / grain
-            if x + 3 < 480:
+            if x + 3 < W:
                 px(img, x + 3, y + 2, WOOD_L)
-            if x + 8 < 480:
+            if x + 8 < W:
                 px(img, x + 8, y + 4, FRAME)
-            if x + 14 < 480 and (x + y) % 5 == 0:
+            if x + 14 < W and (x + y) % 5 == 0:
                 px(img, x + 14, y + 3, INK_SOFT)
 
 
@@ -1697,12 +1699,16 @@ def draw_lantern(img, lx, ly, hanging=True, night=False):
 
 
 def make_hub_layers():
-    """Hub v1.5 — throng props / hub_fg / night lanterns; keep hotspot + corridor."""
-    W, H = 480, 270
-    layers = {}
+    """Hub v2.0 — native 960×540 (draw logical 480×270 then NEAREST ×2).
+    Throng ~halved; hotspot breathing room; corridor mid clear (logical x 195–275 → 390–550).
+    """
+    # Draw at logical base, then integer-scale to native output size.
+    BW, BH = 480, 270
+    OW, OH = 960, 540
+    layers_base = {}
 
     # ----- FLOOR -----
-    floor = Image.new("RGBA", (W, H), TRANS)
+    floor = Image.new("RGBA", (BW, BH), TRANS)
     draw_wood_floor(floor, 148, 270)
     for y in range(158, 248):
         for x in range(70, 410):
@@ -1710,25 +1716,21 @@ def make_hub_layers():
                 r, g, b, a = floor.getpixel((x, y))
                 if a and (r, g, b) == WOOD[:3]:
                     floor.putpixel((x, y), WOOD_L)
-    # guest rugs (left / right dining)
-    draw_hard_shadow(floor, 78, 200, 62, 20, ox=2, oy=2, col=INK_SOFT)
-    draw_rug(floor, 78, 200, 62, 20)
-    draw_hard_shadow(floor, 78, 236, 50, 16, ox=2, oy=2, col=INK_SOFT)
-    draw_rug(floor, 78, 236, 50, 16)
-    draw_hard_shadow(floor, 300, 200, 56, 18, ox=2, oy=2, col=INK_SOFT)
-    draw_rug(floor, 300, 200, 56, 18)
-    draw_hard_shadow(floor, 310, 236, 48, 16, ox=2, oy=2, col=INK_SOFT)
-    draw_rug(floor, 310, 236, 48, 16)
-    # 俠客席 carpet — right of corridor, near weapon rack / screen
+    # guest rugs — fewer, leave breathing gaps near hotspots
+    draw_hard_shadow(floor, 78, 210, 58, 18, ox=2, oy=2, col=INK_SOFT)
+    draw_rug(floor, 78, 210, 58, 18)
+    draw_hard_shadow(floor, 300, 210, 52, 18, ox=2, oy=2, col=INK_SOFT)
+    draw_rug(floor, 300, 210, 52, 18)
+    # 俠客席 carpet
     draw_hard_shadow(floor, 338, 188, 72, 24, ox=3, oy=2, col=NIGHT)
     draw_hero_seat_marker(floor, 338, 188, 72, 24)
-    # door threshold (大門可點感)
+    # door threshold
     draw_hard_shadow(floor, 8, 146, 46, 4, ox=2, oy=1, col=NIGHT)
     draw_door_threshold(floor, 8, 54, 146)
-    # counter hard shadow footprint (經營熱點 grounding)
+    # counter hard shadow footprint
     draw_hard_shadow(floor, 155, 210, 180, 12, ox=4, oy=3, col=NIGHT)
     draw_hard_shadow(floor, 157, 200, 176, 8, ox=3, oy=2, col=INK_SOFT)
-    # central corridor walk-band x≈195–275 keep light / clear
+    # central corridor walk-band logical x≈195–275 keep light / clear
     for y in range(160, 268):
         for x in range(195, 276):
             if (x + y) % 7 == 0:
@@ -1738,11 +1740,11 @@ def make_hub_layers():
     for y in range(155, 270, 3):
         px(floor, 194, y, FRAME)
         px(floor, 276, y, FRAME)
-    layers["hub_floor.png"] = floor
+    layers_base["hub_floor.png"] = floor
 
     # ----- WALL -----
-    wall = Image.new("RGBA", (W, H), TRANS)
-    fill_rect(wall, 0, 0, W, 68, SKY)
+    wall = Image.new("RGBA", (BW, BH), TRANS)
+    fill_rect(wall, 0, 0, BW, 68, SKY)
     for i, (mx, mh) in enumerate([(0, 40), (40, 55), (90, 35), (130, 50), (180, 42),
                                    (230, 58), (280, 38), (320, 52), (370, 44), (420, 50)]):
         fill_rect(wall, mx, 68 - mh, mx + 55, 68, MTN)
@@ -1750,16 +1752,16 @@ def make_hub_layers():
             fill_rect(wall, mx + 10, 68 - mh + 8, mx + 40, 68, JADE)
         if i % 3 == 0:
             px(wall, mx + 20, 68 - mh + 4, MIST)
-    hline(wall, 0, W, 68, MIST)
-    fill_rect(wall, 0, 68, W, 148, NIGHT)
-    fill_rect(wall, 0, 88, W, 148, WOOD)
-    # wall panels: windows / scrolls / plaques — skip slots reserved for landmarks
-    for x in range(0, W, 36):
-        if 100 <= x <= 144:  # leave for notice board + bookshelf zone
+    hline(wall, 0, BW, 68, MIST)
+    fill_rect(wall, 0, 68, BW, 148, NIGHT)
+    fill_rect(wall, 0, 88, BW, 148, WOOD)
+    # wall panels — skip landmark slots + leave breathing
+    for x in range(0, BW, 36):
+        if 100 <= x <= 144:  # notice + bookshelf zone
             continue
-        if 360 <= x <= 396:  # leave for map rack
+        if 360 <= x <= 396:  # map rack
             continue
-        if x < 54:  # door zone handled below
+        if x < 54:  # door
             continue
         vline(wall, x, 88, 148, INK_SOFT)
         fill_rect(wall, x + 3, 92, x + 33, 140, FRAME)
@@ -1791,12 +1793,12 @@ def make_hub_layers():
                 vline(wall, x + 15, sy, sy + 5, INK)
                 vline(wall, x + 20, sy, sy + 5, INK_SOFT)
     # beam / lintel
-    fill_rect(wall, 0, 142, W, 150, INK_SOFT)
-    hline(wall, 0, W, 142, GOLD)
-    hline(wall, 0, W, 144, LOESS)
-    for bx in range(20, W, 48):
+    fill_rect(wall, 0, 142, BW, 150, INK_SOFT)
+    hline(wall, 0, BW, 142, GOLD)
+    hline(wall, 0, BW, 144, LOESS)
+    for bx in range(20, BW, 48):
         fill_rect(wall, bx, 138, bx + 10, 142, WOOD_L)
-    # ===== 大門 (left) — plaque + panels + knockers =====
+    # ===== 大門 =====
     fill_rect(wall, 6, 96, 52, 148, NIGHT)
     fill_rect(wall, 10, 100, 48, 148, WOOD_L)
     outline_rect(wall, 10, 100, 48, 148, INK)
@@ -1806,14 +1808,12 @@ def make_hub_layers():
         hline(wall, 32, 44, dy, WOOD)
         px(wall, 20, dy + 2, GOLD)
         px(wall, 38, dy + 2, GOLD)
-    # door rings (門環)
     fill_rect(wall, 22, 124, 28, 132, GOLD)
     outline_rect(wall, 22, 124, 28, 132, INK)
     px(wall, 24, 127, LOESS)
     fill_rect(wall, 32, 124, 38, 132, GOLD)
     outline_rect(wall, 32, 124, 38, 132, INK)
     px(wall, 34, 127, LOESS)
-    # door plaque 「俠客棧」abstract glyph blocks
     fill_rect(wall, 6, 82, 54, 98, CINN)
     outline_rect(wall, 6, 82, 54, 98, GOLD)
     hline(wall, 8, 52, 84, LOESS)
@@ -1821,7 +1821,6 @@ def make_hub_layers():
         vline(wall, px0, 86, 96, PAPER_L)
         px(wall, px0, 88, CREAM)
         px(wall, px0 + 1, 92, PAPER)
-    # flanking couplets
     fill_rect(wall, 56, 100, 66, 140, PAPER)
     outline_rect(wall, 56, 100, 66, 140, INK)
     for sy in range(106, 136, 5):
@@ -1829,41 +1828,31 @@ def make_hub_layers():
     fill_rect(wall, 0, 100, 6, 140, PAPER_D)
     for sy in range(106, 136, 5):
         hline(wall, 1, 5, sy, INK_SOFT)
-    # ===== 告示板 (wall mid-left, 江湖熱點) =====
+    # ===== 告示板 / 地圖架 =====
     draw_notice_board(wall, 108, 92, 44, 48)
-    # ===== 地圖架 (right wall, 據點熱點) =====
     draw_map_rack(wall, 362, 94, 46, 50)
-    # beam ornaments denser
-    for bx in range(12, W, 40):
+    for bx in range(12, BW, 40):
         fill_rect(wall, bx, 136, bx + 8, 142, WOOD_L)
         px(wall, bx + 3, 138, GOLD)
-    # ===== v1.4 豎旗／布幌 on wall (density, not covering hotspots) =====
+    # 豎旗／布幌 — keep but not packed (v2.0 減雜)
     draw_banner(wall, 70, 100, 11, 34, cloth=PAPER_L, accent=CINN)
-    draw_banner(wall, 158, 98, 12, 38, cloth=PAPER, accent=JADE)
     draw_banner(wall, 196, 96, 10, 40, cloth=CREAM, accent=TEAL)
     draw_banner(wall, 280, 98, 11, 36, cloth=PAPER_L, accent=BLOOD)
-    draw_banner(wall, 318, 100, 12, 34, cloth=PAPER_D, accent=CINN_B)
     draw_banner(wall, 412, 96, 11, 38, cloth=PAPER, accent=VIOLET)
-    # short 布幌 under beam gaps
     draw_hanging_cloth(wall, 78, 128, 24, 16, cloth=CINN)
-    draw_hanging_cloth(wall, 168, 126, 20, 14, cloth=JADE)
     draw_hanging_cloth(wall, 248, 124, 22, 15, cloth=TEAL)
-    draw_hanging_cloth(wall, 300, 126, 18, 14, cloth=CINN_B)
     draw_hanging_cloth(wall, 430, 128, 22, 16, cloth=BLOOD)
-    layers["hub_wall.png"] = wall
+    layers_base["hub_wall.png"] = wall
 
-    # ----- COUNTER (經營熱點) -----
-    counter = Image.new("RGBA", (W, H), TRANS)
+    # ----- COUNTER -----
+    counter = Image.new("RGBA", (BW, BH), TRANS)
     cx, cy, cw, ch = 155, 165, 180, 55
-    # hard shadow of counter body (opaque, on counter layer under body)
     draw_hard_shadow(counter, cx + 2, cy + 12, cw - 4, ch - 10, ox=4, oy=3, col=NIGHT)
-    # clickable top accent strip (more readable hotspot)
     fill_rect(counter, cx - 2, cy - 2, cx + cw + 2, cy + 14, FRAME)
     fill_rect(counter, cx, cy, cx + cw, cy + 12, WOOD_L)
     outline_rect(counter, cx, cy, cx + cw, cy + 12, INK)
     hline(counter, cx + 4, cx + cw - 4, cy + 5, WOOD)
     hline(counter, cx + 8, cx + cw - 8, cy + 8, FRAME)
-    # top-edge gold ticks mark interactable surface
     for tx in range(cx + 10, cx + cw - 8, 18):
         px(counter, tx, cy + 1, GOLD)
         px(counter, tx + 1, cy + 1, LOESS)
@@ -1873,7 +1862,6 @@ def make_hub_layers():
         fill_rect(counter, px0 + 2, cy + 18, px0 + 18, cy + ch - 6, WOOD)
         px(counter, px0 + 9, cy + 28, GOLD)
         hline(counter, px0 + 3, px0 + 17, cy + 22, INK_SOFT)
-    # open ledger
     fill_rect(counter, cx + 6, cy + 0, cx + 28, cy + 11, PAPER)
     fill_rect(counter, cx + 28, cy + 0, cx + 48, cy + 11, PAPER_L)
     outline_rect(counter, cx + 6, cy + 0, cx + 48, cy + 11, INK)
@@ -1883,7 +1871,6 @@ def make_hub_layers():
         hline(counter, cx + 32, cx + 46, cy + ly, INK_SOFT)
     px(counter, cx + 42, cy + 3, CINN)
     px(counter, cx + 43, cy + 4, CINN_B)
-    # teapot set
     fill_rect(counter, cx + 48, cy - 10, cx + 68, cy + 8, CINN)
     fill_rect(counter, cx + 50, cy - 8, cx + 66, cy + 6, CINN_B)
     fill_rect(counter, cx + 68, cy - 3, cx + 76, cy + 2, WOOD)
@@ -1894,7 +1881,6 @@ def make_hub_layers():
         fill_rect(counter, cx + cup_x, cy + 1, cx + cup_x + 8, cy + 9,
                   CREAM if cup_x != 92 else PAPER_L)
         outline_rect(counter, cx + cup_x, cy + 1, cx + cup_x + 8, cy + 9, INK)
-    # abacus
     fill_rect(counter, cx + 120, cy + 0, cx + 162, cy + 11, WOOD)
     outline_rect(counter, cx + 120, cy + 0, cx + 162, cy + 11, INK)
     hline(counter, cx + 122, cx + 160, cy + 5, INK_SOFT)
@@ -1904,7 +1890,6 @@ def make_hub_layers():
         px(counter, bx - 1, cy + 3, CINN)
         px(counter, bx - 1, cy + 7, GOLD)
         px(counter, bx - 1, cy + 8, LOESS)
-    # coin piles (銀兩)
     fill_rect(counter, cx + 162, cy + 1, cx + 176, cy + 10, GOLD)
     fill_rect(counter, cx + 164, cy - 2, cx + 174, cy + 2, LOESS)
     px(counter, cx + 166, cy + 3, WOOD_L)
@@ -1912,87 +1897,66 @@ def make_hub_layers():
     px(counter, cx + 168, cy + 6, CREAM)
     fill_rect(counter, cx + 150, cy + 3, cx + 160, cy + 10, GOLD)
     px(counter, cx + 154, cy + 5, LOESS)
-    # wine jar
     fill_rect(counter, cx + 4, cy - 16, cx + 18, cy + 2, JADE)
     fill_rect(counter, cx + 6, cy - 14, cx + 16, cy, JADE_B)
     fill_rect(counter, cx + 7, cy - 18, cx + 15, cy - 16, GOLD)
     px(counter, cx + 10, cy - 10, CREAM)
-    # brush pot
     fill_rect(counter, cx + 22, cy - 6, cx + 30, cy + 2, INK_SOFT)
     vline(counter, cx + 24, cy - 10, cy - 4, INK)
     vline(counter, cx + 27, cy - 9, cy - 4, WOOD)
-    # inkstone
     fill_rect(counter, cx + 32, cy + 2, cx + 42, cy + 9, NIGHT)
     outline_rect(counter, cx + 32, cy + 2, cx + 42, cy + 9, INK)
     px(counter, cx + 36, cy + 4, MIST)
-    # v1.4 counter-top extras: small basket + scroll + hanging cloth edge
+    # keep one basket + scroll on counter (readable, not throng)
     draw_basket(counter, cx + 108, cy - 8, 12, 9, fill=LOESS)
     draw_scroll_stack(counter, cx + 70, cy - 2, n=2)
-    draw_hanging_cloth(counter, cx + 40, cy + 12, 28, 12, cloth=CINN)
-    layers["hub_counter.png"] = counter
+    layers_base["hub_counter.png"] = counter
 
-    # ----- FURNITURE -----
-    furn = Image.new("RGBA", (W, H), TRANS)
-    # seating — leave CENTRAL CORRIDOR x≈195–275 clear
+    # ----- FURNITURE (breathing room; throng ~halved; clear hotspots + corridor) -----
+    furn = Image.new("RGBA", (BW, BH), TRANS)
     tables = [
-        (40, 168, 50, 18, True, "full"),
-        (48, 210, 46, 18, False, "full"),
-        (100, 182, 44, 16, True, "full"),
-        (95, 228, 42, 16, False, "full"),
-        (55, 248, 40, 14, False, "cup"),
-        (120, 250, 38, 14, False, "bowl"),
-        (290, 168, 52, 18, True, "full"),
-        (320, 210, 46, 18, False, "full"),
-        # 俠客席貴桌 (on hero seat carpet)
+        (40, 175, 50, 18, True, "full"),
+        (48, 220, 46, 18, False, "full"),
+        (100, 190, 44, 16, True, "full"),
+        (290, 175, 52, 18, True, "full"),
+        (320, 220, 46, 18, False, "full"),
+        # 俠客席貴桌
         (348, 178, 54, 18, True, "full"),
-        (400, 205, 44, 16, True, "full"),
-        (350, 240, 42, 16, False, "full"),
-        (410, 240, 40, 14, False, "cup"),
-        (300, 248, 38, 14, False, "bowl"),
-        (150, 248, 36, 14, False, "cup"),
-        (270, 250, 36, 14, False, "bowl"),
-        (430, 175, 40, 16, True, "full"),
+        (400, 220, 44, 16, True, "full"),
+        (55, 248, 40, 14, False, "cup"),
+        (350, 248, 42, 16, False, "full"),
+        (430, 185, 40, 16, True, "full"),
     ]
     for t in tables:
         tx, ty, tw, th = t[0], t[1], t[2], t[3]
         draw_hard_shadow(furn, tx + 2, ty + 8, tw - 4, th - 6, ox=3, oy=2, col=NIGHT)
         draw_table(furn, *t)
-    # stall cloths on a few tables (攤布 densify without cluttering corridor)
-    draw_stall_cloth(furn, 48, 210, 46, cloth=MIST)
-    draw_stall_cloth(furn, 320, 210, 46, cloth=PAPER_D)
-    draw_stall_cloth(furn, 95, 228, 42, cloth=FRAME)
+    draw_stall_cloth(furn, 48, 220, 46, cloth=MIST)
+    draw_stall_cloth(furn, 320, 220, 46, cloth=PAPER_D)
     stools = [
-        (30, 184), (86, 184), (36, 226), (90, 226),
-        (90, 198), (140, 198), (85, 244), (132, 244),
-        (45, 260), (90, 260), (110, 260),
-        (280, 186), (338, 186), (310, 226), (362, 226),
-        (375, 178), (432, 178), (390, 220), (440, 220),
-        (340, 254), (385, 254), (420, 254), (450, 254),
-        (290, 260), (318, 260),
-        (175, 255), (280, 255),
-        (155, 220), (165, 200),
-        (275, 200), (275, 220),
-        (420, 192), (455, 192), (60, 198),
-        # hero seat stools
+        (30, 190), (86, 190), (36, 236), (90, 236),
+        (90, 205), (140, 205),
+        (45, 260), (90, 260),
+        (280, 192), (338, 192), (310, 236), (362, 236),
+        # hero seat stools (clear around seat carpet)
         (340, 196), (400, 196),
+        (340, 254), (420, 254),
+        (420, 200), (60, 205),
     ]
     for s in stools:
         sx, sy = s
         draw_hard_shadow(furn, sx, sy + 5, 12, 8, ox=2, oy=2, col=NIGHT)
         draw_stool(furn, *s)
-    # floor jars — keep out of corridor mid
+    # floor jars — away from door / counter / corridor / map / seat clutter
     for jx, jy, col in [
-        (30, 200, JADE), (30, 230, CINN), (145, 215, JADE),
-        (278, 230, ROBE_R), (460, 230, JADE), (460, 250, CINN),
-        (180, 255, VIOLET), (250, 255, JADE),
-        (70, 175, TEAL), (445, 210, VIOLET),
-        # v1.4 denser jars at wall feet / table gaps (not corridor)
-        (18, 250, JADE_B), (132, 210, CINN), (290, 190, TEAL),
-        (470, 175, ROBE_R), (85, 175, VIOLET),
+        (30, 205, JADE), (30, 240, CINN),
+        (460, 235, JADE), (460, 255, CINN),
+        (70, 180, TEAL), (445, 215, VIOLET),
+        (18, 255, JADE_B),
     ]:
         draw_hard_shadow(furn, jx, jy + 4, 10, 10, ox=2, oy=2, col=NIGHT)
         draw_floor_jar(furn, jx, jy, col)
-    # wine shelf denser jars
+    # wine shelf
     draw_hard_shadow(furn, 48, 130, 57, 26, ox=3, oy=2, col=NIGHT)
     fill_rect(furn, 48, 118, 105, 156, WOOD)
     outline_rect(furn, 48, 118, 105, 156, INK)
@@ -2005,10 +1969,10 @@ def make_hub_layers():
             px(furn, jx + 2, y0 - 1, GOLD)
             if row == 0:
                 px(furn, jx + 3, y0 + 3, CREAM)
-    # ===== 書架 (藏書熱點) — left of counter / beside stove =====
+    # ===== 書架 =====
     draw_hard_shadow(furn, 108, 130, 40, 32, ox=3, oy=2, col=NIGHT)
     draw_bookshelf(furn, 108, 112, 40, 50)
-    # weapon rack denser (near 俠客席)
+    # weapon rack
     draw_hard_shadow(furn, 448, 130, 28, 34, ox=3, oy=2, col=NIGHT)
     fill_rect(furn, 448, 120, 476, 164, WOOD)
     outline_rect(furn, 448, 120, 476, 164, INK)
@@ -2019,7 +1983,7 @@ def make_hub_layers():
     px(furn, 454, 122, GOLD)
     px(furn, 460, 124, CINN_B)
     px(furn, 466, 122, GOLD)
-    # folding screen with ink landscape
+    # folding screen
     draw_hard_shadow(furn, 416, 120, 30, 46, ox=3, oy=2, col=NIGHT)
     fill_rect(furn, 416, 108, 446, 166, PAPER_D)
     outline_rect(furn, 416, 108, 446, 166, INK)
@@ -2031,7 +1995,7 @@ def make_hub_layers():
     fill_rect(furn, 434, 130, 443, 154, JADE)
     px(furn, 424, 140, SKY)
     px(furn, 438, 138, CINN)
-    # stove / hearth
+    # stove
     draw_hard_shadow(furn, 150, 156, 33, 14, ox=2, oy=2, col=NIGHT)
     fill_rect(furn, 150, 146, 183, 170, INK_SOFT)
     fill_rect(furn, 154, 150, 179, 166, NIGHT)
@@ -2040,7 +2004,6 @@ def make_hub_layers():
     px(furn, 167, 158, CREAM)
     px(furn, 163, 160, LOESS)
     fill_rect(furn, 157, 144, 176, 149, FRAME)
-    # pot on stove
     fill_rect(furn, 160, 140, 174, 148, INK_SOFT)
     fill_rect(furn, 162, 141, 172, 146, MIST)
     px(furn, 166, 142, CREAM)
@@ -2053,171 +2016,110 @@ def make_hub_layers():
     px(furn, 466, 208, GOLD)
     px(furn, 466, 224, GOLD)
     px(furn, 466, 240, GOLD)
-    # corner broom / misc (left near door, not blocking)
-    fill_rect(furn, 68, 200, 72, 230, WOOD_L)
-    px(furn, 70, 198, INK_SOFT)
-    fill_rect(furn, 66, 230, 76, 236, FRAME)
-    # chopstick caddy on a side table zone (prop)
-    fill_rect(furn, 132, 176, 142, 186, WOOD)
-    outline_rect(furn, 132, 176, 142, 186, INK)
-    vline(furn, 135, 172, 178, INK)
-    vline(furn, 138, 173, 178, INK_SOFT)
-    # ===== v1.4+ v1.5 throng props: crates / baskets / scrolls / bags / pots =====
+    # broom near door (not blocking)
+    fill_rect(furn, 68, 210, 72, 236, WOOD_L)
+    px(furn, 70, 208, INK_SOFT)
+    fill_rect(furn, 66, 236, 76, 242, FRAME)
+    # ===== throng ~half — wall feet / table gaps ONLY; no corridor edges; clear hotspots =====
     for cx0, cy0, cw0, ch0 in [
         (18, 218, 16, 12), (18, 236, 14, 10),
-        (148, 232, 16, 12), (278, 210, 15, 11),
-        (440, 248, 18, 12), (462, 210, 14, 10),
-        (72, 248, 14, 10), (400, 228, 16, 11),
-        # v1.5 extra crates — wall feet / table gaps / counter flanks
-        (8, 205, 14, 10), (8, 252, 16, 11),
-        (132, 248, 15, 11), (278, 248, 14, 10),
-        (420, 215, 14, 10), (450, 175, 15, 11),
-        (50, 185, 13, 10), (175, 235, 14, 10),
-        (285, 175, 14, 10), (330, 255, 16, 11),
+        (440, 248, 18, 12), (72, 248, 14, 10),
+        (8, 252, 16, 11), (420, 230, 14, 10),
+        (50, 188, 13, 10), (330, 255, 16, 11),
     ]:
         draw_hard_shadow(furn, cx0, cy0 + 2, cw0, ch0 - 2, ox=2, oy=2, col=NIGHT)
         draw_crate(furn, cx0, cy0, cw0, ch0)
     for bx0, by0, fill in [
-        (40, 196, JADE_B), (120, 200, LOESS), (300, 196, JADE),
-        (380, 248, CINN_B), (430, 230, JADE_B), (100, 248, TEAL_B),
-        (160, 236, LOESS), (290, 236, JADE),
-        # v1.5 throng baskets
-        (22, 185, JADE), (58, 230, LOESS), (110, 175, CINN_B),
-        (145, 200, JADE_B), (175, 220, TEAL_B), (280, 190, LOESS),
-        (310, 230, JADE), (360, 255, CINN_B), (390, 210, JADE_B),
-        (450, 240, TEAL), (470, 200, LOESS), (85, 210, JADE),
-        (188, 250, LOESS), (276, 250, JADE_B),  # corridor EDGE only
+        (40, 200, JADE_B), (120, 235, LOESS), (300, 200, JADE),
+        (380, 248, CINN_B), (430, 235, JADE_B), (100, 250, TEAL_B),
+        (22, 185, JADE), (310, 240, JADE),
     ]:
         draw_hard_shadow(furn, bx0, by0 + 3, 14, 7, ox=2, oy=2, col=NIGHT)
         draw_basket(furn, bx0, by0, 14, 10, fill=fill)
-    # produce baskets (蔬果)
     for px0, py0, fills in [
-        (35, 240, [JADE_B, LOESS, CINN_B, PAPER_L]),
-        (125, 220, [LOESS, JADE, CINN_B, CREAM]),
+        (35, 245, [JADE_B, LOESS, CINN_B, PAPER_L]),
+        (125, 250, [LOESS, JADE, CINN_B, CREAM]),
         (305, 255, [JADE_B, TEAL_B, LOESS, PAPER]),
-        (415, 195, [CINN_B, JADE, LOESS, PAPER_L]),
         (70, 260, [JADE, LOESS, CINN_B]),
-        (340, 220, [TEAL_B, JADE_B, PAPER_L]),
-        (188, 258, [LOESS, JADE_B]),  # corridor left edge
-        (276, 258, [CINN_B, JADE]),  # corridor right edge
     ]:
         draw_hard_shadow(furn, px0, py0 + 4, 16, 7, ox=2, oy=2, col=NIGHT)
         draw_produce_basket(furn, px0, py0, 16, 11, fills=fills)
-    # cloth bags 布包
     for gx, gy, cloth in [
-        (28, 210, PAPER_D), (95, 195, MIST), (140, 255, PAPER),
-        (285, 220, PAPER_D), (370, 235, FRAME), (445, 255, PAPER_D),
-        (160, 255, MIST), (320, 185, PAPER), (455, 185, PAPER_D),
-        (188, 240, FRAME), (276, 240, PAPER_D),  # corridor edges
+        (28, 225, PAPER_D), (95, 250, MIST),
+        (285, 235, PAPER_D), (370, 250, FRAME), (445, 255, PAPER_D),
+        (320, 190, PAPER),
     ]:
         draw_hard_shadow(furn, gx, gy + 3, 12, 7, ox=2, oy=2, col=NIGHT)
         draw_cloth_bag(furn, gx, gy, 12, 10, cloth=cloth)
-    # tiny ceramic pots 陶壺 — table feet / wall feet
     for qx, qy, col in [
-        (45, 205, FRAME), (80, 240, WOOD), (115, 235, FRAME),
-        (155, 210, CINN), (170, 245, FRAME), (290, 205, WOOD),
-        (335, 230, FRAME), (375, 200, CINN), (405, 245, FRAME),
-        (460, 220, WOOD), (20, 195, FRAME), (100, 260, WOOD),
-        (188, 230, FRAME), (276, 230, WOOD),  # corridor edges
-        (240, 255, FRAME), (250, 255, WOOD),  # bottom edge near corridor (y high, sparse)
+        (45, 210, FRAME), (80, 245, WOOD), (115, 245, FRAME),
+        (335, 240, FRAME), (405, 250, FRAME),
+        (460, 225, WOOD), (20, 200, FRAME), (100, 260, WOOD),
     ]:
         draw_hard_shadow(furn, qx, qy + 3, 7, 6, ox=2, oy=1, col=NIGHT)
         draw_small_pot(furn, qx, qy, col=col)
-    # more floor jars v1.5
-    for jx, jy, col in [
-        (12, 230, TEAL), (55, 215, ROBE_R), (135, 255, JADE),
-        (285, 255, CINN), (355, 170, JADE_B), (430, 255, VIOLET),
-        (165, 175, TEAL), (310, 175, ROBE_R),
-    ]:
-        draw_hard_shadow(furn, jx, jy + 4, 10, 10, ox=2, oy=2, col=NIGHT)
-        draw_floor_jar(furn, jx, jy, col)
-    # scroll stacks denser
     for sx, sy, n in [
-        (88, 170, 3), (140, 170, 2), (330, 168, 3), (420, 168, 2),
-        (60, 240, 2), (400, 252, 2),
-        (25, 170, 3), (100, 230, 2), (150, 175, 2),
-        (280, 175, 3), (350, 255, 2), (440, 200, 2),
-        (175, 230, 2), (290, 250, 2), (75, 195, 2),
-        (188, 215, 2), (276, 215, 2),  # corridor edge scrolls (low height)
+        (88, 170, 3), (330, 168, 3), (420, 168, 2),
+        (60, 245, 2), (400, 255, 2),
+        (25, 170, 3), (100, 235, 2),
+        (350, 255, 2),
     ]:
         draw_scroll_stack(furn, sx, sy, n=n)
-    # small hanging ornaments on furniture posts (掛飾)
-    for hx, hy, col in [(45, 160, GOLD), (295, 160, LOESS), (355, 170, GOLD), (435, 168, CINN_B),
-                        (110, 160, GOLD), (320, 160, CINN_B), (70, 165, LOESS)]:
+    for hx, hy, col in [(45, 160, GOLD), (295, 160, LOESS), (355, 170, GOLD),
+                        (110, 160, GOLD), (70, 165, LOESS)]:
         vline(furn, hx, hy, hy + 8, INK_SOFT)
         fill_rect(furn, hx - 2, hy + 8, hx + 3, hy + 14, col)
         px(furn, hx, hy + 10, CREAM)
-    layers["hub_furniture.png"] = furn
+    layers_base["hub_furniture.png"] = furn
 
-    # ----- LANTERNS + 旗串 (overhead density) — day default -----
-    lan = Image.new("RGBA", (W, H), TRANS)
-    # pennant strings across beam / under lanterns (市集旗串感)
-    draw_pennant_string(lan, 20, 74, 160, n=16, drop=9,
+    # ----- LANTERNS + 旗串 (keep, not packed) -----
+    lan = Image.new("RGBA", (BW, BH), TRANS)
+    draw_pennant_string(lan, 20, 74, 160, n=12, drop=9,
                         colors=[CINN, JADE, GOLD, PAPER_L, TEAL, CINN_B])
-    draw_pennant_string(lan, 170, 68, 310, n=18, drop=8,
+    draw_pennant_string(lan, 170, 68, 310, n=14, drop=8,
                         colors=[JADE, CINN, LOESS, TEAL, PAPER, BLOOD])
-    draw_pennant_string(lan, 320, 72, 470, n=16, drop=9,
+    draw_pennant_string(lan, 320, 72, 470, n=12, drop=9,
                         colors=[CINN_B, TEAL, GOLD, PAPER_L, VIOLET, JADE])
-    # diagonal-ish secondary strings (stepped y)
-    draw_pennant_string(lan, 60, 90, 140, n=10, drop=7,
-                        colors=[PAPER_L, CINN, JADE, GOLD])
-    draw_pennant_string(lan, 340, 88, 430, n=10, drop=7,
-                        colors=[TEAL, CINN_B, PAPER, LOESS])
     lanterns = [
         (55, 82), (95, 76), (140, 72), (185, 70), (230, 68),
         (275, 70), (320, 72), (365, 76), (410, 80), (450, 84),
-        (75, 98), (160, 92), (250, 88), (340, 92), (430, 98),
+        (75, 98), (250, 88), (340, 92), (430, 98),
         (30, 100), (470, 100),
-        (120, 88), (380, 86),
-        (200, 84), (290, 86), (100, 70), (400, 70),
-        # v1.5 a few more hanging lanterns
-        (45, 90), (215, 78), (355, 80), (465, 92),
+        (200, 84), (100, 70), (400, 70),
     ]
-    floor_lamps = (148, 250, 328, 360, 180, 300)
+    floor_lamps = (148, 250, 328, 360)
     for lx, ly in lanterns:
         draw_lantern(lan, lx, ly, hanging=True, night=False)
     for lx in floor_lamps:
         draw_hard_shadow(lan, lx - 1, 168, 6, 6, ox=2, oy=2, col=NIGHT)
         fill_rect(lan, lx, 150, lx + 4, 172, WOOD)
         draw_lantern(lan, lx - 2, 140, hanging=False, night=False)
-    layers["hub_lanterns.png"] = lan
+    layers_base["hub_lanterns.png"] = lan
 
-    # ----- NIGHT LANTERNS variant (same layout, brighter flame + hard glow blocks) -----
-    lan_n = Image.new("RGBA", (W, H), TRANS)
-    draw_pennant_string(lan_n, 20, 74, 160, n=16, drop=9,
+    lan_n = Image.new("RGBA", (BW, BH), TRANS)
+    draw_pennant_string(lan_n, 20, 74, 160, n=12, drop=9,
                         colors=[CINN, JADE, GOLD, PAPER_L, TEAL, CINN_B])
-    draw_pennant_string(lan_n, 170, 68, 310, n=18, drop=8,
+    draw_pennant_string(lan_n, 170, 68, 310, n=14, drop=8,
                         colors=[JADE, CINN, LOESS, TEAL, PAPER, BLOOD])
-    draw_pennant_string(lan_n, 320, 72, 470, n=16, drop=9,
+    draw_pennant_string(lan_n, 320, 72, 470, n=12, drop=9,
                         colors=[CINN_B, TEAL, GOLD, PAPER_L, VIOLET, JADE])
-    draw_pennant_string(lan_n, 60, 90, 140, n=10, drop=7,
-                        colors=[PAPER_L, CINN, JADE, GOLD])
-    draw_pennant_string(lan_n, 340, 88, 430, n=10, drop=7,
-                        colors=[TEAL, CINN_B, PAPER, LOESS])
     for lx, ly in lanterns:
         draw_lantern(lan_n, lx, ly, hanging=True, night=True)
     for lx in floor_lamps:
         draw_hard_shadow(lan_n, lx - 1, 168, 6, 6, ox=2, oy=2, col=NIGHT)
         fill_rect(lan_n, lx, 150, lx + 4, 172, WOOD)
         draw_lantern(lan_n, lx - 2, 140, hanging=False, night=True)
-    layers["hub_lanterns_night.png"] = lan_n
+    layers_base["hub_lanterns_night.png"] = lan_n
 
-    # ----- FOREGROUND hub_fg (closest to camera; after lanterns in z-order) -----
-    fg = Image.new("RGBA", (W, H), TRANS)
-    # bottom near-camera table corners / half tables
+    # ----- FOREGROUND (lighter throng) -----
+    fg = Image.new("RGBA", (BW, BH), TRANS)
     draw_hard_shadow(fg, 8, 258, 48, 10, ox=2, oy=2, col=NIGHT)
     draw_table(fg, 8, 252, 52, 16, fancy=False, dishes="cup")
-    draw_hard_shadow(fg, 70, 260, 40, 8, ox=2, oy=2, col=NIGHT)
-    draw_table(fg, 70, 256, 44, 14, fancy=False, dishes="bowl")
     draw_hard_shadow(fg, 380, 258, 48, 10, ox=2, oy=2, col=NIGHT)
     draw_table(fg, 380, 252, 50, 16, fancy=True, dishes="full")
-    draw_hard_shadow(fg, 430, 260, 40, 8, ox=2, oy=2, col=NIGHT)
-    draw_table(fg, 430, 256, 42, 14, fancy=False, dishes="cup")
-    # stools peeking at bottom
-    for sx, sy in [(20, 262), (55, 262), (100, 262), (400, 262), (445, 262), (460, 262)]:
+    for sx, sy in [(20, 262), (55, 262), (400, 262), (445, 262)]:
         draw_hard_shadow(fg, sx, sy + 3, 12, 6, ox=2, oy=1, col=NIGHT)
         draw_stool(fg, sx, sy)
-    # screen corner peek (right foreground)
     fill_rect(fg, 460, 200, 480, 270, PAPER_D)
     outline_rect(fg, 460, 200, 480, 270, INK)
     vline(fg, 470, 200, 270, WOOD)
@@ -2226,8 +2128,7 @@ def make_hub_layers():
         hline(fg, 472, 478, sy, MIST)
     fill_rect(fg, 463, 220, 468, 250, MTN)
     fill_rect(fg, 473, 225, 478, 255, JADE)
-    # lantern lower tassels / near-camera hanging lantern bottoms (partial)
-    for lx, ly in [(40, 230), (120, 235), (360, 232), (440, 228)]:
+    for lx, ly in [(40, 230), (440, 228)]:
         fill_rect(fg, lx, ly, lx + 9, ly + 10, CINN_B)
         fill_rect(fg, lx, ly, lx + 9, ly + 2, GOLD)
         fill_rect(fg, lx, ly + 8, lx + 9, ly + 10, GOLD)
@@ -2236,25 +2137,25 @@ def make_hub_layers():
         vline(fg, lx + 6, ly + 10, ly + 18, GOLD)
         px(fg, lx + 2, ly + 18, LOESS)
         px(fg, lx + 6, ly + 18, LOESS)
-    # throng props at very front edge (not mid-corridor)
     draw_basket(fg, 12, 245, 14, 10, fill=JADE_B)
     draw_crate(fg, 150, 258, 16, 12)
-    draw_cloth_bag(fg, 300, 258, 12, 10, cloth=PAPER_D)
     draw_produce_basket(fg, 330, 255, 16, 11, fills=[LOESS, JADE_B, CINN_B])
-    draw_scroll_stack(fg, 90, 262, n=2)
-    draw_small_pot(fg, 175, 260, col=FRAME)
-    draw_small_pot(fg, 285, 260, col=WOOD)
-    # left door-side broom tip / prop peek
     fill_rect(fg, 0, 240, 6, 270, WOOD)
     fill_rect(fg, 0, 255, 10, 268, FRAME)
-    layers["hub_fg.png"] = fg
+    layers_base["hub_fg.png"] = fg
 
-    composed = Image.new("RGBA", (W, H), NIGHT)
+    composed = Image.new("RGBA", (BW, BH), NIGHT)
     for key in ["hub_wall.png", "hub_floor.png", "hub_furniture.png", "hub_counter.png",
                 "hub_lanterns.png", "hub_fg.png"]:
-        composed.alpha_composite(layers[key])
-    layers["hub_composed.png"] = composed
+        composed.alpha_composite(layers_base[key])
+    layers_base["hub_composed.png"] = composed
+
+    # Native 960×540 via nearest-neighbor integer scale (hard edge, no AA)
+    layers = {}
+    for name, im in layers_base.items():
+        layers[name] = im.resize((OW, OH), Image.NEAREST)
     return layers
+
 
 
 
@@ -2327,10 +2228,10 @@ def write_scenes_only():
     """Regenerate Hub layers only — owned by 墨點場景. Does not touch sprites."""
     SCENES.mkdir(parents=True, exist_ok=True)
     PREVIEW.mkdir(parents=True, exist_ok=True)
-    report = ["# Ink-Pixel Inn Hub scenes report v1.5", ""]
+    report = ["# Ink-Pixel Inn Hub scenes report v2.0 (960×540)", ""]
     layers = make_hub_layers()
     for name, im in layers.items():
-        assert im.size == (480, 270), f"{name} size {im.size}"
+        assert im.size == (960, 540), f"{name} size {im.size}"
         opaque, oob, cols = audit(im, name)
         out = SCENES / name
         im.save(out)
@@ -2340,24 +2241,28 @@ def write_scenes_only():
         if oob:
             raise SystemExit(f"OOB colors in {name}: {cols}")
     hub = layers["hub_composed.png"]
-    hub.resize((hub.width * 2, hub.height * 2), Image.NEAREST).save(PREVIEW / "hub_composed_x2.png")
+    # readable preview: native 960 + optional ×2 for inspect
+    hub.save(PREVIEW / "hub_composed_x2.png")  # already 960; keep filename for pipeline
     hub.resize((hub.width * 2, hub.height * 2), Image.NEAREST).save(PREVIEW / "hub_read.png")
-    report.append("PREVIEWS: hub_composed_x2.png hub_read.png refreshed")
+    report.append("PREVIEWS: hub_composed_x2.png (=960 native) hub_read.png (1920×1080) refreshed")
     report.append("")
     report.append("## z-order（由底到頂）")
     report.append("wall → floor → furniture → counter → （角色）→ lanterns → fg")
     report.append("夜間：lanterns 換成 hub_lanterns_night.png")
     report.append("")
-    report.append("## 熱點錨點（維持）")
-    report.append("大門 6–54,82–150｜告示 108–152,92–140｜書架 108–148,112–162")
-    report.append("櫃檯 153–337,163–220｜地圖 362–408,91–144｜俠客席 338–410,178–212")
-    report.append("走廊中軸 195–275,160–250（邊緣可有零星 prop）")
+    report.append("## 熱點錨點（960×540 = 邏輯×2）")
+    report.append("大門 12–108,164–300｜告示 216–304,184–280｜書架 216–296,224–324")
+    report.append("櫃檯 306–674,326–440｜地圖 724–816,182–288｜俠客席 676–820,356–424")
+    report.append("走廊中軸 390–550,320–500（暢通，無 throng）")
     report.append("")
     report.append("## 重生")
     report.append("python3 tools/gen_ink_pixel_assets.py --scenes-only")
     print("PREVIEWS: hub_composed_x2.png hub_read.png refreshed")
     (SCENES / "_gen_report.txt").write_text("\n".join(report) + "\n", encoding="utf-8")
-    print("DONE v1.5 scenes-only")
+    print("DONE v2.0 scenes-only")
+
+
+
 
 
 def main(scenes_only=False):

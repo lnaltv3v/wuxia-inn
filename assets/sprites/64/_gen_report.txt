@@ -1,0 +1,10 @@
+qingyi: /workspace/wuxia-inn/assets/sprites/64/qingyi.png size=(1152, 64) oob=0 empty_frames=[]
+tiezhang: /workspace/wuxia-inn/assets/sprites/64/tiezhang.png size=(1152, 64) oob=0 empty_frames=[]
+langren: /workspace/wuxia-inn/assets/sprites/64/langren.png size=(1152, 64) oob=0 empty_frames=[]
+qinshi: /workspace/wuxia-inn/assets/sprites/64/qinshi.png size=(1152, 64) oob=0 empty_frames=[]
+xiaoer: /workspace/wuxia-inn/assets/sprites/64/xiaoer.png size=(1152, 64) oob=0 empty_frames=[]
+guest_sit: size=(384, 64) oob=0
+boss_heifeng: size=(64, 64) oob=0
+boss_xieyi: size=(64, 64) oob=0
+boss_xueying: size=(64, 64) oob=0
+TOTAL_OOB=0

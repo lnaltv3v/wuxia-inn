@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v0.6.4：羈絆場景／第四章血影／日夜指示／速度鈕）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v0.7.0：Hub 960×540／橫屏優先／速度鈕）
  */
 (function () {
   'use strict';
@@ -775,7 +775,7 @@
     } else if (ev.kind === 'meet') {
       note = '【偶遇】' + ev.text;
       if (WuxiaStages && WuxiaStages.Inn && WuxiaStages.Inn.showBubble) {
-        WuxiaStages.Inn.showBubble(ev.text, 300, 40, 1.4);
+        WuxiaStages.Inn.showBubble(ev.text, 600, 80, 1.4);
       }
     }
     return { pay: pay, note: note, kind: ev.kind };

@@ -1,3 +1,7 @@
+## 64×64（Hub 960）
+
+正式路徑：`assets/sprites/64/`（1152×64／guest_sit 384×64／boss 64×64）。遊戲優先載入；對幀不變，`sx = frameIndex * 64`。
+
 # 俠客棧精靈表 — 墨點江湖對幀說明（v1.2.1）
 
 > 原生像素 · Pillow 生成 · 僅盤內色 · 透明底 · 硬邊無抗鋸齒  
@@ -129,4 +133,10 @@ ctx.drawImage(guestWalk, sx, 0, FRAME, FRAME, dx, dy, FRAME, FRAME);
 | `fx/spark.png` | 160×32 | 5 | hurt／hit |
 | `fx/parry_flash.png` | 128×32 | 4 | parry |
 | `fx/hit_ring.png` | 96×32 | 3 | 可選受擊圈 |
+
+## 原生 64×64（Hub 960×540）
+
+目錄：[`64/`](./64/) · 生成：`tools/gen_sprites_64.py`  
+每角 **1152×64**（18×64），對幀同本文件 32 版。**原生重繪**（袍褶／武器厚度／茶盤），唔係 NN 放大。  
+Hub 顯示建議：`image-rendering: pixelated`，×1 或整數倍。詳見 [`64/README.md`](./64/README.md)。
 
