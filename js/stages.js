@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v2.1.0：廂房熱點／坐客點菜打磨）
+ * 俠客棧 — 墨點江湖舞台（v2.2.0：合擊招名／燈節）
  * Hub 面板開仍呼吸；熱點墨框／硃標；戰鬥 shake 下調；招名飄字；戰場分層
  */
 (function (global) {
@@ -83,12 +83,12 @@
     clash: { frames: 6 }
   };
 
-  /** 資產快取戳：GAME.version；四俠 sheet 另加 r3 戳，換檔後硬刷 */
+  /** 資產快取戳：GAME.version；四俠 sheet 另加 r31 戳，換檔後硬刷 */
   const ASSET_VER = (typeof global !== 'undefined' && global.WuxiaData && global.WuxiaData.GAME && global.WuxiaData.GAME.version)
     ? global.WuxiaData.GAME.version
     : '2.0.0';
   const HERO_SHEET_R3 = { qingyi: 1, tiezhang: 1, langren: 1, qinshi: 1 };
-  const HERO_SHEET_VER = 'r3';
+  const HERO_SHEET_VER = 'r31';
 
   function loadImg(src) {
     return new Promise(function (resolve) {
@@ -97,7 +97,7 @@
       img.onload = function () { resolve(img); };
       img.onerror = function () { resolve(null); };
       let ver = ASSET_VER;
-      // 四俠正式 64 sheet：?v=r3（兼帶 GAME.version）
+      // 四俠正式 64 sheet：?v=r31（兼帶 GAME.version）
       const m = /assets\/sprites\/64\/(qingyi|tiezhang|langren|qinshi)\.png/.exec(src);
       if (m && HERO_SHEET_R3[m[1]]) ver = HERO_SHEET_VER + '-' + ASSET_VER;
       const sep = src.indexOf('?') >= 0 ? '&' : '?';
@@ -1907,29 +1907,30 @@
 
       if (evt.kind === 'combo' && atk) {
         const dir = atk.side === 'ally' ? 1 : -1;
-        anims[atk.id] = { kind: 'lunge', t: 0, dur: scaleDur(56), dir: dir, ranged: false, reach: 72 };
+        anims[atk.id] = { kind: 'lunge', t: 0, dur: scaleDur(60), dir: dir, ranged: false, reach: 72 };
         const partner = evt.partnerId ? units.find(function (u) { return u.id === evt.partnerId; }) : null;
         if (partner) {
-          anims[partner.id] = { kind: 'lunge', t: 0, dur: scaleDur(52), dir: dir, ranged: false, reach: 56 };
+          anims[partner.id] = { kind: 'lunge', t: 0, dur: scaleDur(56), dir: dir, ranged: false, reach: 56 };
           partner.flash = Math.max(partner.flash || 0, 16);
         }
         spawnBladeFx(atk, tgt, true, true);
+        // v2.2：進場招名更清晰；hit-stop 略加長；減震維持 mid
         fx.push({
           kind: 'text', text: '合擊「' + (evt.skillName || '同心') + '」',
-          x: (tgt ? tgt.x : atk.x) - 28, y: (tgt ? tgt.y : atk.y) - 56,
-          life: scaleDur(55), max: scaleDur(55),
+          x: (tgt ? tgt.x : atk.x) - 30, y: (tgt ? tgt.y : atk.y) - 60,
+          life: scaleDur(68), max: scaleDur(68),
           color: C.gold, strong: true
         });
         if (evt.breakMit) {
           fx.push({
             kind: 'text', text: '破防',
             x: (tgt ? tgt.x : atk.x) + 8, y: (tgt ? tgt.y : atk.y) - 36,
-            life: scaleDur(40), max: scaleDur(40),
+            life: scaleDur(46), max: scaleDur(46),
             color: C.cinnabarBright, strong: true
           });
         }
-        screenFlash = Math.max(screenFlash, 8);
-        hitStop = Math.max(hitStop, scaleStop(14));
+        screenFlash = Math.max(screenFlash, 9);
+        hitStop = Math.max(hitStop, scaleStop(18));
         bumpCamera('mid'); // 減震維持：唔用 heavy
         if (atk) atk.flash = Math.max(atk.flash || 0, 18);
         if (tgt) tgt.flash = Math.max(tgt.flash || 0, 16);
@@ -1969,25 +1970,26 @@
 
       if (evt.kind === 'combo_windup' && atk) {
         const dir = atk.side === 'ally' ? 1 : -1;
-        anims[atk.id] = { kind: 'windup', t: 0, dur: scaleDur(56), dir: dir, ranged: false };
-        atk.flash = Math.max(atk.flash || 0, 16);
+        anims[atk.id] = { kind: 'windup', t: 0, dur: scaleDur(64), dir: dir, ranged: false };
+        atk.flash = Math.max(atk.flash || 0, 18);
+        // v2.2：讀招招名更大更耐睇（strong），唔加重震屏
         fx.push({
           kind: 'text', text: '合擊「' + (evt.skillName || '同心') + '」',
-          x: atk.x - 24, y: atk.y - 52, life: scaleDur(50), max: scaleDur(50),
+          x: atk.x - 28, y: atk.y - 56, life: scaleDur(64), max: scaleDur(64),
           color: C.gold, strong: true
         });
         pushFxSheet('slash', atk.x + (dir > 0 ? 10 : -18), atk.y - 4, {
-          flip: dir < 0, dur: scaleDur(22), scale: 1.3
+          flip: dir < 0, dur: scaleDur(26), scale: 1.35
         });
-        fx.push({ kind: 'burst', x: atk.x + 12, y: atk.y, life: scaleDur(28), max: scaleDur(28), color: C.gold });
+        fx.push({ kind: 'burst', x: atk.x + 12, y: atk.y, life: scaleDur(32), max: scaleDur(32), color: C.gold });
         if (evt.primary) {
           fx.push({
-            kind: 'text', text: '來！',
-            x: 440, y: 120, life: scaleDur(36), max: scaleDur(36),
+            kind: 'text', text: '齊進！',
+            x: 430, y: 112, life: scaleDur(42), max: scaleDur(42),
             color: C.cinnabarBright, strong: true
           });
         }
-        hitStop = Math.max(hitStop, scaleStop(8));
+        hitStop = Math.max(hitStop, scaleStop(12));
         bumpCamera('light');
         return;
       }

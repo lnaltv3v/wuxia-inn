@@ -147,3 +147,17 @@ ctx.drawImage(sheet, sx, 0, FRAME, FRAME, dx, dy, FRAME, FRAME);
 - 對幀不變；生成：`tools/gen_sprites_64_r3.py`
 - 報告：`_gen_report_r3.txt`；預覽：`assets/_preview/64_*_r3_compare.png`
 
+## r3.1 草稿（劍穗／甲片／拂塵加長 · 未接正式檔）
+
+喺已整合嘅 **r3 正式** `qingyi.png` 等之上疊加細節；**唔覆寫** 正式四俠檔。
+
+| 草稿檔 | 加料 |
+|--------|------|
+| `qingyi_r31.png` | 劍穗（金／硃／宣紙色珠串＋分叉尖） |
+| `langren_r31.png` | 刀穗＋肩／胸輕甲片＋加厚護腕 |
+| `tiezhang_r31.png` | 肩小片＋醫袍加厚護腕／胸扣（掌法不變） |
+| `qinshi_r31.png` | 拂塵尾加長＋1–2px 硬邊分叉 |
+
+- 生成：`tools/gen_sprites_64_r31.py`（讀正式 sheet 再疊）
+- 報告：`_gen_report_r31.txt`；預覽：`assets/_preview/64_*_r31_compare.png`
+

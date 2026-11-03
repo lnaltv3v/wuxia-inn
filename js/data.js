@@ -1,13 +1,13 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v2.1.0
+ * v2.2.0
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '2.1.0',
+    version: '2.2.0',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
@@ -613,6 +613,51 @@
           label: '當風聲罷了',
           effects: { reputation: -2 },
           resultLine: '眾人無言。風，卻好像又近了寸許。'
+        }
+      ]
+    },
+    {
+      id: 'fest_lantern_tea',
+      title: '燈節茶會',
+      caption: '客棧掛起紙燈，茶香裡有節慶氣…',
+      interactive: true,
+      once: true,
+      fest: true,
+      preferPhase: 'night',
+      needHubDays: 2,
+      weight: 60,
+      walkers: [
+        { id: 'xiaoer', x: 280, y: 330, tx: 360, ty: 340 },
+        { id: 'qinshi', x: 560, y: 340, tx: 470, ty: 345 }
+      ],
+      beats: [
+        { at: 0, caption: '紙燈搖曳，雅座滿座', line: '掌櫃！今夜像過節——要唔要辦個小茶會？', walker: 0, life: 1.2 },
+        { at: 950, line: '燈明則心安。施主可定夺賞與義。', walker: 1, life: 1.25 },
+        { at: 1900, caption: '燈節三選', line: '銀、望，還是人情？', walker: 0, life: 1.15 },
+        { at: 2600, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'fest_silver',
+          label: '開茶會收茶資（＋銀）',
+          effects: { silver: 36, reputation: 2 },
+          resultLine: '茶客紛至。櫃上多了一筆燈節茶錢。'
+        },
+        {
+          id: 'fest_rep',
+          label: '義贈熱茶（＋望）',
+          effects: { silver: -8, reputation: 14 },
+          resultLine: '過路人傳開：此棧燈節有義。聲望遠播。'
+        },
+        {
+          id: 'fest_favor',
+          label: '邀俠客共盞（好感）',
+          effects: {
+            favorHero: 'qingyi', favor: 4,
+            favorHero2: 'qinshi', favor2: 4,
+            reputation: 3
+          },
+          resultLine: '青衣與師太各飲一盞。人情暖過紙燈。'
         }
       ]
     }
@@ -1516,6 +1561,54 @@
           resultLine: '鐵掌收膏：「聽掌櫃的。」浪人嘟囔，刀卻入了鞘。'
         }
       ]
+    },
+    {
+      id: 'duo_qin_sword',
+      title: '琴心劍膽',
+      heroes: ['qingyi', 'qinshi'],
+      favorNeed: { qingyi: 42, qinshi: 40 },
+      caption: '雅座燈下，青衣聽琴，師太拂塵輕顫…',
+      interactive: true,
+      weight: 47,
+      walkers: [
+        { id: 'qingyi', x: 300, y: 340, tx: 360, ty: 348 },
+        { id: 'qinshi', x: 540, y: 336, tx: 450, ty: 340 }
+      ],
+      beats: [
+        { at: 0, caption: '琴音似水，劍穗輕搖', line: '你這劍，心裡有音。', walker: 1, life: 1.25 },
+        { at: 900, line: '……有你琴聲，劍才不躁。', walker: 0, life: 1.2 },
+        { at: 1850, caption: '二人望向掌櫃', line: '掌櫃——琴心與劍膽，可否同行？', walker: 1, life: 1.2 },
+        { at: 2650, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'hear_qin_sword',
+          label: '靜聽琴劍（雙方好感＋）',
+          effects: {
+            favorHero: 'qingyi', favor: 5,
+            favorHero2: 'qinshi', favor2: 5,
+            combatBuff: { id: 'buff_qin_sword', label: '琴心劍膽', forceMul: 1.09, battles: 2, heroes: ['qingyi', 'qinshi'] }
+          },
+          resultLine: '琴停劍收。來日出巡，可解鎖合擊「琴心劍膽」。'
+        },
+        {
+          id: 'toast_qin_sword',
+          label: '備清茶相敬（-20 兩 · 戰意）',
+          effects: {
+            silver: -20, reputation: 2,
+            favorHero: 'qingyi', favor: 4,
+            favorHero2: 'qinshi', favor2: 4,
+            combatBuff: { id: 'buff_qin_sword_tea', label: '燈下琴劍', forceMul: 1.12, battles: 3, heroes: ['qingyi', 'qinshi'] }
+          },
+          resultLine: '清茶入喉。青衣與師太同時點頭——短暫戰意高昂。'
+        },
+        {
+          id: 'step_qin_sword',
+          label: '不便打擾（小好感）',
+          effects: { favorHero: 'qingyi', favor: 1, favorHero2: 'qinshi', favor2: 1 },
+          resultLine: '你輕步走開。雅座琴音仍緩，劍穗未停。'
+        }
+      ]
     }
   ];
 
@@ -1564,6 +1657,16 @@
       breakMit: 0.19,
       telegraph: '刀風捲藥霧',
       resultLine: '浪人劈障，鐵掌跟掌——合擊破敵！'
+    },
+    {
+      id: 'combo_qin_sword',
+      duoId: 'duo_qin_sword',
+      name: '琴心劍膽',
+      heroes: ['qingyi', 'qinshi'],
+      damageMul: 1.92,
+      breakMit: 0.21,
+      telegraph: '琴音引劍、劍膽護心',
+      resultLine: '師太梵音一撥，青衣劍光跟上——合擊破敵！'
     }
   ];
 

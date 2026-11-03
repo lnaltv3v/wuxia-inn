@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 自動即時走位戰鬥（v2.1.0：雙人合擊）
+ * 俠客棧 — 自動即時走位戰鬥（v2.2.0：合擊手感／琴心劍膽）
  * 戰場 960×540；狀態機：idle→approach→windup→strike→recover（hurt／parry／dodge）
  * 幀語意 v0.9；舞台鏡頭／VFX 加厚見 stages；僅 strike 判定幀傷害；近戰須接觸；速度 0.5–2×
  * v2.0：已解鎖雙人羈絆同隊時可一場一次合擊（額外傷害＋短暫破防）
@@ -48,6 +48,8 @@
     activeFrame: 0,
     hitStopOnHit: 1,
     hitStopOnSkill: 2,
+    hitStopOnCombo: 3,
+    hitStopOnComboWindup: 2,
     hitStopOnClash: 2,
     hitStopOnKo: 3,
     windupMoveScale: 0.22,
@@ -354,8 +356,9 @@
       if (hooks && hooks.onAction) hooks.onAction(evt);
       if (!evt) return;
       if (evt.kind === 'hit') holdTicks = Math.max(holdTicks, evt.clash ? FEEL.hitStopOnClash : FEEL.hitStopOnHit);
-      else if (evt.kind === 'skill' || evt.kind === 'combo') holdTicks = Math.max(holdTicks, FEEL.hitStopOnSkill);
-      else if (evt.kind === 'combo_windup') holdTicks = Math.max(holdTicks, 1);
+      else if (evt.kind === 'combo') holdTicks = Math.max(holdTicks, FEEL.hitStopOnCombo || 3);
+      else if (evt.kind === 'skill') holdTicks = Math.max(holdTicks, FEEL.hitStopOnSkill);
+      else if (evt.kind === 'combo_windup') holdTicks = Math.max(holdTicks, FEEL.hitStopOnComboWindup || 2);
       else if (evt.kind === 'parry' || evt.kind === 'clash') holdTicks = Math.max(holdTicks, FEEL.hitStopOnClash);
       else if (evt.kind === 'ko') holdTicks = Math.max(holdTicks, FEEL.hitStopOnKo);
     }
@@ -1078,9 +1081,9 @@
         u.atkCd = 3;
         // 微進場感
         const toward = target.x >= u.x ? 1 : -1;
-        u.vx += toward * 10;
-        u.x = clampX(u, u.x + toward * 18);
-        setState(u, STATES.WINDUP, Math.max(FEEL.windupTicks, 2));
+        u.vx += toward * 12;
+        u.x = clampX(u, u.x + toward * 20);
+        setState(u, STATES.WINDUP, Math.max(FEEL.windupTicks, 3));
         emitAction({
           kind: 'combo_windup',
           attackerId: u.id,
@@ -1099,7 +1102,8 @@
       armPartner(a, b.id, true);
       armPartner(b, a.id, false);
       log('合擊「' + cname + '」——' + (comboDef.telegraph || '二人齊進！'), 'skill');
-      holdTicks = Math.max(holdTicks, 1);
+      // v2.2：讀招略慢半拍，招名更易睇清（唔加劇烈震屏）
+      holdTicks = Math.max(holdTicks, FEEL.hitStopOnComboWindup || 2);
       return true;
     }
 

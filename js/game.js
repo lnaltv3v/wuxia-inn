@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v2.1.0：新合擊／第六章加厚／廂房）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v2.2.0：琴心劍膽／燈節茶會／合擊手感）
  */
 (function () {
   'use strict';
@@ -163,7 +163,8 @@
       roomRestAt: 0,
       metScenes: [],
       combatBuffs: [],
-      hubTourDone: false
+      hubTourDone: false,
+      hubDaysLived: 0
     };
   }
 
@@ -281,6 +282,10 @@
         (Array.isArray(s.storyRead) && s.storyRead.length > 0) ||
         (Number(s.silver) > 40);
       s.hubTourDone = !!progressed;
+    }
+    // v2.2 累計營業日（燈節等 once 節慶）
+    if (typeof s.hubDaysLived !== 'number' || !(s.hubDaysLived >= 0)) {
+      s.hubDaysLived = 0;
     }
     // 戰鬥速度：缺省／非法一律回 1×（可讀預設）
     {
@@ -1073,6 +1078,14 @@
     if (e.needChapter && !isStoryRead(e.needChapter)) return false;
     if (e.once && (state.metScenes || []).indexOf(e.id) >= 0) return false;
     if (e.outpost && !opUnlocked(state, e.outpost)) return false;
+    // v2.2 節慶：夜時辰 或 累計營業日達標，先可觸發
+    if (e.fest || e.needHubDays != null || e.preferPhase) {
+      const daysOk = e.needHubDays == null || (state.hubDaysLived || 0) >= e.needHubDays;
+      const phaseOk = e.preferPhase && currentDayPhase() === e.preferPhase;
+      if (e.fest || e.needHubDays != null) {
+        if (!daysOk && !phaseOk) return false;
+      }
+    }
     return true;
   }
 
@@ -1083,6 +1096,11 @@
     if (!list.length) return null;
     const eligible = list.filter(sceneEventEligible);
     if (!eligible.length) return null;
+    // v2.2 燈節／節慶：達標時高優先一次
+    const fests = eligible.filter(function (e) { return e.fest && e.interactive; });
+    if (fests.length && Math.random() < 0.55) {
+      return fests[Math.floor(Math.random() * fests.length)];
+    }
     // 第六章餘燼線：已解鎖時加權優先
     const ember = eligible.filter(function (e) {
       return e.needChapter === 'ch6_ember_road' && e.interactive;
@@ -1187,7 +1205,7 @@
           if (sid === 'board_secret_letter') {
             state.boardLetterDone = true;
           }
-          if (sid && (sid.indexOf('ember_') === 0 || sid.indexOf('ch6_') === 0)) {
+          if (sid && (sid.indexOf('ember_') === 0 || sid.indexOf('ch6_') === 0 || sid.indexOf('fest_') === 0)) {
             markMetScene(sid);
           }
           if (sid && String(sid).indexOf('duo_') === 0) {
@@ -1621,6 +1639,12 @@
   function ensureQuestBoard(force) {
     const today = dayKey();
     if (force || state.questDayKey !== today || !state.questBoard.length) {
+      if (state.questDayKey && state.questDayKey !== today) {
+        state.hubDaysLived = (state.hubDaysLived || 0) + 1;
+      } else if (!state.questDayKey && !force) {
+        // 首次定日：視為第 0→1 日起步
+        if (!(state.hubDaysLived > 0)) state.hubDaysLived = 1;
+      }
       state.questDayKey = today;
       state.questBoard = rollQuestBoard();
       if (!force) pushLog('任務板已按日刷新。', 'system');
