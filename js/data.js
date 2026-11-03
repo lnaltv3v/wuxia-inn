@@ -1,17 +1,17 @@
 /**
  * 俠客棧 — 靜態資料：俠客模板、敵人、武學、羈絆、據點、設施、任務、常數
- * v0.5.8
+ * v0.6.0
  */
 (function (global) {
   'use strict';
 
   const GAME = {
     name: '俠客棧',
-    version: '0.5.8',
+    version: '0.6.0',
     saveKey: 'wuxia-inn-save-v1',
     tickMs: 1200,
     offlineCapHours: 8,
-    combatTickMs: 1400,
+    combatTickMs: 900,
     dropManualChance: 0.32,
     maxParty: 3,
     questRefreshCost: 25,       // 手動刷新任務板銀兩
@@ -131,6 +131,41 @@
         { at: 0, caption: '櫃前一陣喧嘩', line: '總有一款適合您！', x: 240, y: 100, life: 1.2 },
         { at: 800, line: '江湖隱藏各路高手。', walker: 0, life: 1.15 },
         { at: 1700, line: '客官裏面請。', x: 210, y: 140, life: 1.0, end: true }
+      ]
+    },
+    {
+      id: 'wounded_seeker',
+      caption: '負傷遊俠踉蹌入門…',
+      interactive: true,
+      walkers: [
+        { id: 'langren', x: 20, y: 172, tx: 150, ty: 178 },
+        { id: 'tiezhang', x: 280, y: 186, tx: 200, ty: 180 }
+      ],
+      beats: [
+        { at: 0, caption: '大門一陣急腳步', line: '咳……可有歇腳處？', walker: 0, life: 1.25 },
+        { at: 900, line: '先坐下，我來瞧瞧傷口。', walker: 1, life: 1.2, move: { i: 0, tx: 168, ty: 176 } },
+        { at: 1800, caption: '遊俠望向掌櫃——', line: '江湖救急，後日必報。', walker: 0, life: 1.3 },
+        { at: 2600, prompt: true, end: true }
+      ],
+      choices: [
+        {
+          id: 'aid',
+          label: '贈藥療傷（-12 兩）',
+          effects: { silver: -12, reputation: 4, favorHero: 'tiezhang', favor: 3 },
+          resultLine: '醫女點頭：「善心會記在江湖簿上。」聲望＋羈絆微升。'
+        },
+        {
+          id: 'work',
+          label: '留他幫工換宿',
+          effects: { silver: 6, reputation: 1 },
+          resultLine: '遊俠抹汗：「多謝收留。」櫃上多得些散銀。'
+        },
+        {
+          id: 'turn',
+          label: '婉拒門外',
+          effects: { reputation: -2 },
+          resultLine: '遊俠苦笑拱手離去……棧聲略損。'
+        }
       ]
     }
   ];

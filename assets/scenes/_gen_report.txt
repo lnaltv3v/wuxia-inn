@@ -1,9 +1,23 @@
-# Ink-Pixel Inn Hub scenes report v1.4
+# Ink-Pixel Inn Hub scenes report v1.5
 
 SCENE hub_floor.png: size=(480, 270) opaque=58654 oob=0 oob_cols={} bytes=8546
 SCENE hub_wall.png: size=(480, 270) opaque=72000 oob=0 oob_cols={} bytes=4938
 SCENE hub_counter.png: size=(480, 270) opaque=11814 oob=0 oob_cols={} bytes=2260
-SCENE hub_furniture.png: size=(480, 270) opaque=31927 oob=0 oob_cols={} bytes=9305
-SCENE hub_lanterns.png: size=(480, 270) opaque=6666 oob=0 oob_cols={} bytes=3866
-SCENE hub_composed.png: size=(480, 270) opaque=129600 oob=0 oob_cols={} bytes=22812
+SCENE hub_furniture.png: size=(480, 270) opaque=36898 oob=0 oob_cols={} bytes=13297
+SCENE hub_lanterns.png: size=(480, 270) opaque=7575 oob=0 oob_cols={} bytes=4243
+SCENE hub_lanterns_night.png: size=(480, 270) opaque=7864 oob=0 oob_cols={} bytes=5635
+SCENE hub_fg.png: size=(480, 270) opaque=5610 oob=0 oob_cols={} bytes=2610
+SCENE hub_composed.png: size=(480, 270) opaque=129600 oob=0 oob_cols={} bytes=26371
 PREVIEWS: hub_composed_x2.png hub_read.png refreshed
+
+## z-order（由底到頂）
+wall → floor → furniture → counter → （角色）→ lanterns → fg
+夜間：lanterns 換成 hub_lanterns_night.png
+
+## 熱點錨點（維持）
+大門 6–54,82–150｜告示 108–152,92–140｜書架 108–148,112–162
+櫃檯 153–337,163–220｜地圖 362–408,91–144｜俠客席 338–410,178–212
+走廊中軸 195–275,160–250（邊緣可有零星 prop）
+
+## 重生
+python3 tools/gen_ink_pixel_assets.py --scenes-only

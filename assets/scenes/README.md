@@ -1,10 +1,10 @@
-# 客棧 Hub 分層場景 — 墨點江湖（v1.4）
+# 客棧 Hub 分層場景 — 墨點江湖（v1.5）
 
 邏輯格：**480×270**。硬邊、盤內色、透明分層（`hub_composed.png` 為預覽合成）。
 
-**v1.4 密度對齊（墨點場景）**：參考 `_ref_daxia.jpg` **密度級**（唔抄風格／資產）——樑下**旗串**、牆面**豎旗／布幌**、桌間**箱／籃／捲軸堆／攤布**、物件**硬位移陰影**（夜墨／墨褐 opaque，2–4px 右下）。熱點地標仍清楚；走廊 **x≈195–275** 暢通。
+**v1.5 密度對齊（墨點場景）**：參考 `_ref_daxia.jpg` **密度級**（唔抄風格／資產）——在 v1.4 旗串／布幌／硬影之上再加 **throng 道具**（籃／陶壺／酒罈／卷軸堆／小箱／布包／蔬果籃），塞桌腳、牆腳、櫃旁、走廊**兩側邊緣**；新增可選前景層 `hub_fg.png`；新增夜燈變體 `hub_lanterns_night.png`。走廊中軸 **x≈195–275** 仍可走（邊緣可有零星小 prop）。
 
-上一版備份：`assets/scenes/_prev_v13/`（再早：`_prev_v11/`）
+上一版備份：`assets/scenes/_prev_v14/`（再早：`_prev_v13/`、`_prev_v11/`）
 
 ## 檔案與 z-order（由底到頂）
 
@@ -12,12 +12,17 @@
 |---|------|------|
 | 0 | `hub_wall.png` | 青空、遠山、木牆、窗格／字畫／楹聯、**大門＋門匾＋門環**、**告示板**、**地圖架**、樑金邊、**豎旗／布幌** |
 | 1 | `hub_floor.png` | 木地板格／木紋、門檻、走廊亮帶、客用地毯、**俠客席地毯**、櫃檯／地毯**硬影** |
-| 2 | `hub_furniture.png` | 多枱凳、酒架、**書架**、屏風、兵器架、灶火／鍋、側櫃、**箱／籃／捲軸／攤布／掛飾**＋物件硬影 |
+| 2 | `hub_furniture.png` | 多枱凳、酒架、**書架**、屏風、兵器架、灶火／鍋、側櫃、**箱／籃／捲軸／攤布／掛飾／布包／蔬果籃／陶壺**＋物件硬影 |
 | 3 | `hub_counter.png` | 櫃檯＋賬本／茶具／算盤／銀兩／酒罈／筆筒／硯／籃／捲軸；頂面金點可點帶；櫃身硬影 |
-| 4 | `hub_lanterns.png` | **旗串**＋懸吊燈籠（流蘇）＋櫃檯／席區落地燈；焰心 `#FFF8EE` 1px |
-| — | `hub_composed.png` | 以上合成預覽（開發對位用） |
+| 4 | （角色／客人精靈） | 由遊戲疊加 |
+| 5 | `hub_lanterns.png` | **旗串**＋懸吊燈籠（流蘇）＋櫃檯／席區落地燈；焰心 `#FFF8EE` 1px（**日間預設**） |
+| 5′ | `hub_lanterns_night.png` | 同構圖夜變體：焰心更大／多 cream＋硃紅亮格；夜墨／墨褐 **硬色塊光暈**（唔半透明柔暈）。遊戲未接夜循環前可先留檔 |
+| 6 | `hub_fg.png` | **最前景**：半身桌角／凳、屏風一角、燈籠下緣流蘇、前緣 throng 道具；透明底 |
+| — | `hub_composed.png` | wall→floor→furniture→counter→lanterns→**fg** 合成預覽（開發對位用；日間 lanterns） |
 
-建議繪製／碰撞順序：`wall → floor → furniture → counter → （角色／客人精靈）→ lanterns`
+建議繪製／碰撞順序：`wall → floor → furniture → counter → （角色／客人精靈）→ lanterns → fg`
+
+夜景用法：用 `hub_lanterns_night.png` 取代 `hub_lanterns.png`（其餘層不變）；`composed` 預設仍用日間。
 
 客人坐姿請用 `assets/sprites/guest_sit.png` 疊在凳位附近（約桌心偏下）。
 
@@ -31,11 +36,11 @@
 | 櫃檯 | 153–337，163–220 | 經營／點菜／結賬 | 賬本、茶壺、算盤、銀兩；頂面 y≈163–177 |
 | 地圖架 | 362–408，91–144 | 據點熱點 | 遠山＋路徑色塊掛圖 |
 | 俠客席 | 338–410，178–212 | 俠客互動／席位 | 青綠席紋地毯＋貴桌；近兵器架 |
-| 走廊可走帶 | **195–275**，**160–250** | 小二 walk | 少家具；亮木紋＋邊線 |
+| 走廊可走帶 | **195–275**，**160–250** | 小二 walk | 中軸少家具；亮木紋＋邊線；**邊緣**可有零星小 prop |
 | 酒架 | 48–105，118–156 | 裝飾／氣氛 | 三層彩罈 |
-| 屏風／兵器架 | 416–476，108–166 | 氣氛／俠客席旁 | 右牆屏風＋兵器架 |
+| 屏風／兵器架 | 416–476，108–166 | 氣氛／俠客席旁 | 右牆屏風＋兵器架（fg 另有右前屏風角） |
 | 灶火 | 150–183，140–170 | 氣氛 | 灶＋鍋＋焰點 |
-| 客桌群 | 左下／右下／中下多組 | serve／wipe | 可坐 `guest_sit` |
+| 客桌群 | 左下／右下／中下多組 | serve／wipe | 可坐 `guest_sit`；fg 另有最前桌角 |
 
 ## 色與風格
 
@@ -49,7 +54,7 @@
 python3 tools/gen_ink_pixel_assets.py --scenes-only
 ```
 
-會覆寫 `assets/scenes/hub_*.png`，並更新 `assets/_preview/hub_composed_x2.png`、`hub_read.png`。  
+會覆寫 `assets/scenes/hub_*.png`（含 `hub_fg.png`、`hub_lanterns_night.png`），並更新 `assets/_preview/hub_composed_x2.png`、`hub_read.png`。  
 預設 `python3 tools/gen_ink_pixel_assets.py`（無旗標）**唔會**動 scenes。
 
 Audit：每個 scene opaque 像素必須 `oob=0`（見 `assets/scenes/_gen_report.txt`）。

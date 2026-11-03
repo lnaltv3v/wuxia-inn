@@ -1,4 +1,4 @@
-/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.5.7（見 ART.md／DESIGN.md／AUDIO.md） */
+/* 俠客棧 — 墨點江湖 Ink-Pixel Inn · v0.6.0（見 ART.md／DESIGN.md／AUDIO.md） */
 :root {
   /* 嚴格色盤 — 禁止盤外色 */
   --ink: #1A1510;
@@ -1102,4 +1102,84 @@ body.hub-mode .app { max-width: 1100px; }
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   display: block;
+}
+
+
+/* —— v0.6.0 木框宣紙 overlay／選擇條 —— */
+.sheet.px-frame,
+.px-frame.sheet {
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(26,21,16,0.03) 3px, rgba(26,21,16,0.03) 4px),
+    var(--paper);
+  border: 5px solid var(--ink);
+  box-shadow:
+    0 0 0 3px var(--wood),
+    0 0 0 6px var(--ink),
+    8px 8px 0 var(--ink);
+}
+.sheet-head {
+  background: linear-gradient(180deg, var(--wood-light, #6B5344) 0%, var(--night) 100%);
+  border-bottom: 4px solid var(--gold);
+}
+.sheet-body .panel,
+.combat-overlay .combat-panel {
+  background: var(--paper);
+  border: 3px solid var(--frame);
+  box-shadow: inset 0 0 0 2px var(--paper-light, #F3E6C8);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.hub-hint-hot {
+  border-left-color: var(--cinnabar, #C0402A) !important;
+  color: var(--ink);
+  background: var(--cream);
+}
+.hub-choice-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0 8px;
+  padding: 10px 12px;
+  background: var(--paper);
+  border: 4px solid var(--ink);
+  box-shadow: 0 0 0 3px var(--wood), 4px 4px 0 var(--ink);
+}
+.hub-choice-bar.hidden { display: none !important; }
+.hub-choice-title {
+  width: 100%;
+  font-family: var(--font-title);
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+.hub-choice-btn {
+  border: 3px solid var(--ink);
+  background: var(--paper-light, #F3E6C8);
+  color: var(--ink);
+  font-family: var(--font-title);
+  font-size: 0.85rem;
+  padding: 8px 12px;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--ink);
+  border-radius: 0;
+}
+.hub-choice-btn:hover { background: var(--cream); }
+.hub-choice-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+.hub-menu .tab-btn .px-ico {
+  display: inline-block;
+  min-width: 1.1em;
+  text-align: center;
+  font-style: normal;
+  border: 2px solid var(--ink);
+  background: var(--paper-dark);
+  padding: 0 3px;
+  margin-right: 2px;
+  image-rendering: pixelated;
+}
+.combat-overlay-head {
+  border: 4px solid var(--ink);
+  box-shadow: 0 0 0 3px var(--wood);
+  background: var(--night);
 }

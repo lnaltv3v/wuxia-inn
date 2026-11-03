@@ -1407,26 +1407,6 @@ def draw_stool(img, sx, sy):
     px(img, sx + 8, sy + 12, INK)
 
 
-def draw_lantern(img, lx, ly, hanging=True):
-    if hanging:
-        vline(img, lx + 4, ly - 10, ly, INK)
-        hline(img, lx + 2, lx + 7, ly - 10, INK)
-        px(img, lx + 4, ly - 11, FRAME)
-    fill_rect(img, lx, ly, lx + 9, ly + 12, CINN)
-    fill_rect(img, lx + 1, ly + 1, lx + 8, ly + 11, CINN_B)
-    fill_rect(img, lx, ly, lx + 9, ly + 2, GOLD)
-    fill_rect(img, lx, ly + 10, lx + 9, ly + 12, GOLD)
-    # 1px flame white highlight
-    px(img, lx + 4, ly + 5, CREAM)
-    px(img, lx + 3, ly + 6, PAPER_L)
-    px(img, lx + 5, ly + 6, LOESS)
-    # tassels longer
-    vline(img, lx + 2, ly + 12, ly + 18, GOLD)
-    vline(img, lx + 6, ly + 12, ly + 18, GOLD)
-    px(img, lx + 2, ly + 18, LOESS)
-    px(img, lx + 6, ly + 18, LOESS)
-
-
 def draw_rug(img, x, y, w, h):
     fill_rect(img, x, y, x + w, y + h, CINN)
     outline_rect(img, x, y, x + w, y + h, INK)
@@ -1645,8 +1625,79 @@ def draw_stall_cloth(img, tx, ty, tw, cloth=MIST):
     px(img, tx + tw // 2, ty + 9, PAPER_D)
 
 
+def draw_cloth_bag(img, x, y, w=12, h=10, cloth=PAPER_D):
+    """Tied cloth bundle / 布包 on floor."""
+    fill_rect(img, x, y + 2, x + w, y + h, cloth)
+    outline_rect(img, x, y + 2, x + w, y + h, INK)
+    fill_rect(img, x + 2, y, x + w - 2, y + 4, cloth)
+    px(img, x + w // 2, y, INK_SOFT)  # knot
+    px(img, x + w // 2 - 1, y + 1, GOLD)
+    px(img, x + 2, y + h - 2, NIGHT)
+
+
+def draw_produce_basket(img, x, y, w=16, h=11, fills=None):
+    """Basket with multi-color produce blocks (蔬果籃)."""
+    if fills is None:
+        fills = [JADE_B, LOESS, CINN_B, PAPER_L]
+    fill_rect(img, x, y + 3, x + w, y + h, WOOD_L)
+    outline_rect(img, x, y + 3, x + w, y + h, INK)
+    for i in range(x + 2, x + w - 2, 3):
+        vline(img, i, y + 4, y + h - 1, WOOD)
+    # peeking produce
+    for i, col in enumerate(fills[:4]):
+        px0 = x + 2 + i * 3
+        if px0 + 3 >= x + w:
+            break
+        fill_rect(img, px0, y, px0 + 3, y + 5, col)
+        px(img, px0 + 1, y + 1, CREAM if col != CREAM else PAPER_L)
+
+
+def draw_small_pot(img, x, y, col=FRAME):
+    """Tiny ceramic pot / 陶壺 (smaller than floor jar)."""
+    fill_rect(img, x, y, x + 7, y + 9, col)
+    fill_rect(img, x + 1, y + 1, x + 6, y + 8, WOOD if col == FRAME else CINN_B)
+    fill_rect(img, x + 2, y - 2, x + 5, y, GOLD)
+    outline_rect(img, x, y, x + 7, y + 9, INK)
+    px(img, x + 3, y + 3, CREAM)
+
+
+def draw_lantern(img, lx, ly, hanging=True, night=False):
+    if hanging:
+        vline(img, lx + 4, ly - 10, ly, INK)
+        hline(img, lx + 2, lx + 7, ly - 10, INK)
+        px(img, lx + 4, ly - 11, FRAME)
+    fill_rect(img, lx, ly, lx + 9, ly + 12, CINN)
+    fill_rect(img, lx + 1, ly + 1, lx + 8, ly + 11, CINN_B)
+    fill_rect(img, lx, ly, lx + 9, ly + 2, GOLD)
+    fill_rect(img, lx, ly + 10, lx + 9, ly + 12, GOLD)
+    # flame
+    px(img, lx + 4, ly + 5, CREAM)
+    px(img, lx + 3, ly + 6, PAPER_L)
+    px(img, lx + 5, ly + 6, LOESS)
+    if night:
+        # larger flame core + extra cream / cinnabar bright cells
+        px(img, lx + 4, ly + 4, CREAM)
+        px(img, lx + 3, ly + 5, CREAM)
+        px(img, lx + 5, ly + 5, CREAM)
+        px(img, lx + 4, ly + 6, PAPER_L)
+        px(img, lx + 2, ly + 6, CINN_B)
+        px(img, lx + 6, ly + 6, CINN_B)
+        px(img, lx + 4, ly + 7, LOESS)
+        # hard-block night "glow" halo (opaque night ink / wood, NOT soft alpha)
+        for ox, oy in [(-2, 4), (-1, 3), (9, 4), (10, 3), (3, -1), (5, -1),
+                       (-2, 8), (9, 8), (1, 13), (7, 13)]:
+            px(img, lx + ox, ly + oy, NIGHT)
+        for ox, oy in [(-1, 4), (9, 4), (4, -1), (2, 13), (6, 13)]:
+            px(img, lx + ox, ly + oy, INK_SOFT)
+    # tassels longer
+    vline(img, lx + 2, ly + 12, ly + 18, GOLD)
+    vline(img, lx + 6, ly + 12, ly + 18, GOLD)
+    px(img, lx + 2, ly + 18, LOESS)
+    px(img, lx + 6, ly + 18, LOESS)
+
+
 def make_hub_layers():
-    """Hub v1.4 — pennants / banners / props / hard shadows; keep hotspot + corridor."""
+    """Hub v1.5 — throng props / hub_fg / night lanterns; keep hotspot + corridor."""
     W, H = 480, 270
     layers = {}
 
@@ -2011,12 +2062,18 @@ def make_hub_layers():
     outline_rect(furn, 132, 176, 142, 186, INK)
     vline(furn, 135, 172, 178, INK)
     vline(furn, 138, 173, 178, INK_SOFT)
-    # ===== v1.4 props: crates / baskets / scroll stacks (fill blanks, not corridor) =====
+    # ===== v1.4+ v1.5 throng props: crates / baskets / scrolls / bags / pots =====
     for cx0, cy0, cw0, ch0 in [
         (18, 218, 16, 12), (18, 236, 14, 10),
         (148, 232, 16, 12), (278, 210, 15, 11),
         (440, 248, 18, 12), (462, 210, 14, 10),
         (72, 248, 14, 10), (400, 228, 16, 11),
+        # v1.5 extra crates — wall feet / table gaps / counter flanks
+        (8, 205, 14, 10), (8, 252, 16, 11),
+        (132, 248, 15, 11), (278, 248, 14, 10),
+        (420, 215, 14, 10), (450, 175, 15, 11),
+        (50, 185, 13, 10), (175, 235, 14, 10),
+        (285, 175, 14, 10), (330, 255, 16, 11),
     ]:
         draw_hard_shadow(furn, cx0, cy0 + 2, cw0, ch0 - 2, ox=2, oy=2, col=NIGHT)
         draw_crate(furn, cx0, cy0, cw0, ch0)
@@ -2024,23 +2081,75 @@ def make_hub_layers():
         (40, 196, JADE_B), (120, 200, LOESS), (300, 196, JADE),
         (380, 248, CINN_B), (430, 230, JADE_B), (100, 248, TEAL_B),
         (160, 236, LOESS), (290, 236, JADE),
+        # v1.5 throng baskets
+        (22, 185, JADE), (58, 230, LOESS), (110, 175, CINN_B),
+        (145, 200, JADE_B), (175, 220, TEAL_B), (280, 190, LOESS),
+        (310, 230, JADE), (360, 255, CINN_B), (390, 210, JADE_B),
+        (450, 240, TEAL), (470, 200, LOESS), (85, 210, JADE),
+        (188, 250, LOESS), (276, 250, JADE_B),  # corridor EDGE only
     ]:
         draw_hard_shadow(furn, bx0, by0 + 3, 14, 7, ox=2, oy=2, col=NIGHT)
         draw_basket(furn, bx0, by0, 14, 10, fill=fill)
-    draw_scroll_stack(furn, 88, 170, n=3)
-    draw_scroll_stack(furn, 140, 170, n=2)
-    draw_scroll_stack(furn, 330, 168, n=3)
-    draw_scroll_stack(furn, 420, 168, n=2)
-    draw_scroll_stack(furn, 60, 240, n=2)
-    draw_scroll_stack(furn, 400, 252, n=2)
+    # produce baskets (蔬果)
+    for px0, py0, fills in [
+        (35, 240, [JADE_B, LOESS, CINN_B, PAPER_L]),
+        (125, 220, [LOESS, JADE, CINN_B, CREAM]),
+        (305, 255, [JADE_B, TEAL_B, LOESS, PAPER]),
+        (415, 195, [CINN_B, JADE, LOESS, PAPER_L]),
+        (70, 260, [JADE, LOESS, CINN_B]),
+        (340, 220, [TEAL_B, JADE_B, PAPER_L]),
+        (188, 258, [LOESS, JADE_B]),  # corridor left edge
+        (276, 258, [CINN_B, JADE]),  # corridor right edge
+    ]:
+        draw_hard_shadow(furn, px0, py0 + 4, 16, 7, ox=2, oy=2, col=NIGHT)
+        draw_produce_basket(furn, px0, py0, 16, 11, fills=fills)
+    # cloth bags 布包
+    for gx, gy, cloth in [
+        (28, 210, PAPER_D), (95, 195, MIST), (140, 255, PAPER),
+        (285, 220, PAPER_D), (370, 235, FRAME), (445, 255, PAPER_D),
+        (160, 255, MIST), (320, 185, PAPER), (455, 185, PAPER_D),
+        (188, 240, FRAME), (276, 240, PAPER_D),  # corridor edges
+    ]:
+        draw_hard_shadow(furn, gx, gy + 3, 12, 7, ox=2, oy=2, col=NIGHT)
+        draw_cloth_bag(furn, gx, gy, 12, 10, cloth=cloth)
+    # tiny ceramic pots 陶壺 — table feet / wall feet
+    for qx, qy, col in [
+        (45, 205, FRAME), (80, 240, WOOD), (115, 235, FRAME),
+        (155, 210, CINN), (170, 245, FRAME), (290, 205, WOOD),
+        (335, 230, FRAME), (375, 200, CINN), (405, 245, FRAME),
+        (460, 220, WOOD), (20, 195, FRAME), (100, 260, WOOD),
+        (188, 230, FRAME), (276, 230, WOOD),  # corridor edges
+        (240, 255, FRAME), (250, 255, WOOD),  # bottom edge near corridor (y high, sparse)
+    ]:
+        draw_hard_shadow(furn, qx, qy + 3, 7, 6, ox=2, oy=1, col=NIGHT)
+        draw_small_pot(furn, qx, qy, col=col)
+    # more floor jars v1.5
+    for jx, jy, col in [
+        (12, 230, TEAL), (55, 215, ROBE_R), (135, 255, JADE),
+        (285, 255, CINN), (355, 170, JADE_B), (430, 255, VIOLET),
+        (165, 175, TEAL), (310, 175, ROBE_R),
+    ]:
+        draw_hard_shadow(furn, jx, jy + 4, 10, 10, ox=2, oy=2, col=NIGHT)
+        draw_floor_jar(furn, jx, jy, col)
+    # scroll stacks denser
+    for sx, sy, n in [
+        (88, 170, 3), (140, 170, 2), (330, 168, 3), (420, 168, 2),
+        (60, 240, 2), (400, 252, 2),
+        (25, 170, 3), (100, 230, 2), (150, 175, 2),
+        (280, 175, 3), (350, 255, 2), (440, 200, 2),
+        (175, 230, 2), (290, 250, 2), (75, 195, 2),
+        (188, 215, 2), (276, 215, 2),  # corridor edge scrolls (low height)
+    ]:
+        draw_scroll_stack(furn, sx, sy, n=n)
     # small hanging ornaments on furniture posts (掛飾)
-    for hx, hy, col in [(45, 160, GOLD), (295, 160, LOESS), (355, 170, GOLD), (435, 168, CINN_B)]:
+    for hx, hy, col in [(45, 160, GOLD), (295, 160, LOESS), (355, 170, GOLD), (435, 168, CINN_B),
+                        (110, 160, GOLD), (320, 160, CINN_B), (70, 165, LOESS)]:
         vline(furn, hx, hy, hy + 8, INK_SOFT)
         fill_rect(furn, hx - 2, hy + 8, hx + 3, hy + 14, col)
         px(furn, hx, hy + 10, CREAM)
     layers["hub_furniture.png"] = furn
 
-    # ----- LANTERNS + 旗串 (overhead density) -----
+    # ----- LANTERNS + 旗串 (overhead density) — day default -----
     lan = Image.new("RGBA", (W, H), TRANS)
     # pennant strings across beam / under lanterns (市集旗串感)
     draw_pennant_string(lan, 20, 74, 160, n=16, drop=9,
@@ -2059,22 +2168,90 @@ def make_hub_layers():
         (275, 70), (320, 72), (365, 76), (410, 80), (450, 84),
         (75, 98), (160, 92), (250, 88), (340, 92), (430, 98),
         (30, 100), (470, 100),
-        # extras near landmarks
         (120, 88), (380, 86),
-        # v1.4 denser lanterns
         (200, 84), (290, 86), (100, 70), (400, 70),
+        # v1.5 a few more hanging lanterns
+        (45, 90), (215, 78), (355, 80), (465, 92),
     ]
+    floor_lamps = (148, 250, 328, 360, 180, 300)
     for lx, ly in lanterns:
-        draw_lantern(lan, lx, ly, hanging=True)
-    # floor lamps near counter + hero seat
-    for lx in (148, 250, 328, 360):
+        draw_lantern(lan, lx, ly, hanging=True, night=False)
+    for lx in floor_lamps:
         draw_hard_shadow(lan, lx - 1, 168, 6, 6, ox=2, oy=2, col=NIGHT)
         fill_rect(lan, lx, 150, lx + 4, 172, WOOD)
-        draw_lantern(lan, lx - 2, 140, hanging=False)
+        draw_lantern(lan, lx - 2, 140, hanging=False, night=False)
     layers["hub_lanterns.png"] = lan
 
+    # ----- NIGHT LANTERNS variant (same layout, brighter flame + hard glow blocks) -----
+    lan_n = Image.new("RGBA", (W, H), TRANS)
+    draw_pennant_string(lan_n, 20, 74, 160, n=16, drop=9,
+                        colors=[CINN, JADE, GOLD, PAPER_L, TEAL, CINN_B])
+    draw_pennant_string(lan_n, 170, 68, 310, n=18, drop=8,
+                        colors=[JADE, CINN, LOESS, TEAL, PAPER, BLOOD])
+    draw_pennant_string(lan_n, 320, 72, 470, n=16, drop=9,
+                        colors=[CINN_B, TEAL, GOLD, PAPER_L, VIOLET, JADE])
+    draw_pennant_string(lan_n, 60, 90, 140, n=10, drop=7,
+                        colors=[PAPER_L, CINN, JADE, GOLD])
+    draw_pennant_string(lan_n, 340, 88, 430, n=10, drop=7,
+                        colors=[TEAL, CINN_B, PAPER, LOESS])
+    for lx, ly in lanterns:
+        draw_lantern(lan_n, lx, ly, hanging=True, night=True)
+    for lx in floor_lamps:
+        draw_hard_shadow(lan_n, lx - 1, 168, 6, 6, ox=2, oy=2, col=NIGHT)
+        fill_rect(lan_n, lx, 150, lx + 4, 172, WOOD)
+        draw_lantern(lan_n, lx - 2, 140, hanging=False, night=True)
+    layers["hub_lanterns_night.png"] = lan_n
+
+    # ----- FOREGROUND hub_fg (closest to camera; after lanterns in z-order) -----
+    fg = Image.new("RGBA", (W, H), TRANS)
+    # bottom near-camera table corners / half tables
+    draw_hard_shadow(fg, 8, 258, 48, 10, ox=2, oy=2, col=NIGHT)
+    draw_table(fg, 8, 252, 52, 16, fancy=False, dishes="cup")
+    draw_hard_shadow(fg, 70, 260, 40, 8, ox=2, oy=2, col=NIGHT)
+    draw_table(fg, 70, 256, 44, 14, fancy=False, dishes="bowl")
+    draw_hard_shadow(fg, 380, 258, 48, 10, ox=2, oy=2, col=NIGHT)
+    draw_table(fg, 380, 252, 50, 16, fancy=True, dishes="full")
+    draw_hard_shadow(fg, 430, 260, 40, 8, ox=2, oy=2, col=NIGHT)
+    draw_table(fg, 430, 256, 42, 14, fancy=False, dishes="cup")
+    # stools peeking at bottom
+    for sx, sy in [(20, 262), (55, 262), (100, 262), (400, 262), (445, 262), (460, 262)]:
+        draw_hard_shadow(fg, sx, sy + 3, 12, 6, ox=2, oy=1, col=NIGHT)
+        draw_stool(fg, sx, sy)
+    # screen corner peek (right foreground)
+    fill_rect(fg, 460, 200, 480, 270, PAPER_D)
+    outline_rect(fg, 460, 200, 480, 270, INK)
+    vline(fg, 470, 200, 270, WOOD)
+    for sy in range(210, 265, 6):
+        hline(fg, 462, 468, sy, MIST)
+        hline(fg, 472, 478, sy, MIST)
+    fill_rect(fg, 463, 220, 468, 250, MTN)
+    fill_rect(fg, 473, 225, 478, 255, JADE)
+    # lantern lower tassels / near-camera hanging lantern bottoms (partial)
+    for lx, ly in [(40, 230), (120, 235), (360, 232), (440, 228)]:
+        fill_rect(fg, lx, ly, lx + 9, ly + 10, CINN_B)
+        fill_rect(fg, lx, ly, lx + 9, ly + 2, GOLD)
+        fill_rect(fg, lx, ly + 8, lx + 9, ly + 10, GOLD)
+        px(fg, lx + 4, ly + 4, CREAM)
+        vline(fg, lx + 2, ly + 10, ly + 18, GOLD)
+        vline(fg, lx + 6, ly + 10, ly + 18, GOLD)
+        px(fg, lx + 2, ly + 18, LOESS)
+        px(fg, lx + 6, ly + 18, LOESS)
+    # throng props at very front edge (not mid-corridor)
+    draw_basket(fg, 12, 245, 14, 10, fill=JADE_B)
+    draw_crate(fg, 150, 258, 16, 12)
+    draw_cloth_bag(fg, 300, 258, 12, 10, cloth=PAPER_D)
+    draw_produce_basket(fg, 330, 255, 16, 11, fills=[LOESS, JADE_B, CINN_B])
+    draw_scroll_stack(fg, 90, 262, n=2)
+    draw_small_pot(fg, 175, 260, col=FRAME)
+    draw_small_pot(fg, 285, 260, col=WOOD)
+    # left door-side broom tip / prop peek
+    fill_rect(fg, 0, 240, 6, 270, WOOD)
+    fill_rect(fg, 0, 255, 10, 268, FRAME)
+    layers["hub_fg.png"] = fg
+
     composed = Image.new("RGBA", (W, H), NIGHT)
-    for key in ["hub_wall.png", "hub_floor.png", "hub_furniture.png", "hub_counter.png", "hub_lanterns.png"]:
+    for key in ["hub_wall.png", "hub_floor.png", "hub_furniture.png", "hub_counter.png",
+                "hub_lanterns.png", "hub_fg.png"]:
         composed.alpha_composite(layers[key])
     layers["hub_composed.png"] = composed
     return layers
@@ -2150,7 +2327,7 @@ def write_scenes_only():
     """Regenerate Hub layers only — owned by 墨點場景. Does not touch sprites."""
     SCENES.mkdir(parents=True, exist_ok=True)
     PREVIEW.mkdir(parents=True, exist_ok=True)
-    report = ["# Ink-Pixel Inn Hub scenes report v1.4", ""]
+    report = ["# Ink-Pixel Inn Hub scenes report v1.5", ""]
     layers = make_hub_layers()
     for name, im in layers.items():
         assert im.size == (480, 270), f"{name} size {im.size}"
@@ -2166,9 +2343,21 @@ def write_scenes_only():
     hub.resize((hub.width * 2, hub.height * 2), Image.NEAREST).save(PREVIEW / "hub_composed_x2.png")
     hub.resize((hub.width * 2, hub.height * 2), Image.NEAREST).save(PREVIEW / "hub_read.png")
     report.append("PREVIEWS: hub_composed_x2.png hub_read.png refreshed")
+    report.append("")
+    report.append("## z-order（由底到頂）")
+    report.append("wall → floor → furniture → counter → （角色）→ lanterns → fg")
+    report.append("夜間：lanterns 換成 hub_lanterns_night.png")
+    report.append("")
+    report.append("## 熱點錨點（維持）")
+    report.append("大門 6–54,82–150｜告示 108–152,92–140｜書架 108–148,112–162")
+    report.append("櫃檯 153–337,163–220｜地圖 362–408,91–144｜俠客席 338–410,178–212")
+    report.append("走廊中軸 195–275,160–250（邊緣可有零星 prop）")
+    report.append("")
+    report.append("## 重生")
+    report.append("python3 tools/gen_ink_pixel_assets.py --scenes-only")
     print("PREVIEWS: hub_composed_x2.png hub_read.png refreshed")
     (SCENES / "_gen_report.txt").write_text("\n".join(report) + "\n", encoding="utf-8")
-    print("DONE v1.4 scenes-only")
+    print("DONE v1.5 scenes-only")
 
 
 def main(scenes_only=False):

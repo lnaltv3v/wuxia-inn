@@ -756,7 +756,64 @@
       ? SCENE_EVENTS
       : (WuxiaData && WuxiaData.SCENE_EVENTS) || [];
     if (!list.length) return null;
+    // 約 40% 優先抽互動事件（有選擇影響銀兩／聲望／羈絆）
+    const interactive = list.filter(function (e) { return e.interactive && e.choices; });
+    if (interactive.length && Math.random() < 0.4) {
+      return interactive[Math.floor(Math.random() * interactive.length)];
+    }
     return list[Math.floor(Math.random() * list.length)];
+  }
+
+  function hideHubChoices() {
+    const bar = document.getElementById('hub-choice-bar');
+    if (bar) {
+      bar.classList.add('hidden');
+      bar.innerHTML = '';
+    }
+  }
+
+  function applySceneChoiceEffects(effects) {
+    if (!effects) return;
+    if (effects.silver) {
+      state.silver = Math.max(0, state.silver + effects.silver);
+      if (effects.silver > 0) state.totalEarned += effects.silver;
+    }
+    if (effects.reputation) {
+      state.reputation = Math.max(0, (state.reputation || 0) + effects.reputation);
+    }
+    if (effects.favorHero && effects.favor) {
+      const h = state.heroes[effects.favorHero];
+      if (h) {
+        h.favor = (h.favor || 0) + effects.favor;
+        checkBondEvents(effects.favorHero);
+      }
+    }
+    updateTopbar();
+    save(true);
+  }
+
+  function showHubChoices(choices) {
+    const bar = document.getElementById('hub-choice-bar');
+    if (!bar || !choices || !choices.length) return;
+    bar.classList.remove('hidden');
+    bar.innerHTML = '<div class="hub-choice-title">掌櫃定夺</div>' + choices.map(function (c) {
+      return '<button type="button" class="hub-choice-btn" data-choice="' + c.id + '">' + c.label + '</button>';
+    }).join('');
+    bar.querySelectorAll('[data-choice]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const id = btn.getAttribute('data-choice');
+        const picked = WuxiaStages.Inn.resolveSceneChoice
+          ? WuxiaStages.Inn.resolveSceneChoice(id)
+          : null;
+        hideHubChoices();
+        if (picked) {
+          applySceneChoiceEffects(picked.effects);
+          pushLog('【江湖一景】' + (picked.resultLine || picked.label), 'system');
+          const hint = document.getElementById('hub-hint');
+          if (hint) hint.textContent = picked.resultLine || picked.label;
+        }
+      });
+    });
   }
 
   function maybeHubFlavor() {
@@ -769,6 +826,7 @@
       const sc = pickSceneEvent();
       if (sc && WuxiaStages.Inn.playSceneEvent) {
         lastSceneAt = now;
+        hideHubChoices();
         WuxiaStages.Inn.playSceneEvent(sc);
         pushLog('【江湖一景】' + (sc.caption || sc.id), 'system');
         const hint = document.getElementById('hub-hint');
@@ -1826,8 +1884,8 @@
     if (mul) mul.textContent = '×' + (inn.incomeMul * cellarIncomeMul()).toFixed(2);
     ensureHubStage();
     const hint = document.getElementById('hub-hint');
-    if (hint && !battle) {
-      hint.textContent = inn.name + ' · 已接客 ' + state.guestsServed + ' · 點場景熱點開啟功能';
+    if (hint && !battle && !hint.classList.contains('hub-hint-hot')) {
+      hint.textContent = inn.name + ' · 已接客 ' + state.guestsServed + ' · 移近熱點睇提示';
     }
   }
 
@@ -1878,6 +1936,25 @@
           lastHubBgm = id;
           audioSetBgm(id);
         }
+      });
+    }
+    if (WuxiaStages.Inn.setHintHandler) {
+      WuxiaStages.Inn.setHintHandler(function (h) {
+        const hint = document.getElementById('hub-hint');
+        if (!hint || battle) return;
+        if (h && h.label) {
+          hint.textContent = '熱點：' + h.label + ' — 點擊開啟';
+          hint.classList.add('hub-hint-hot');
+        } else {
+          hint.classList.remove('hub-hint-hot');
+          const inn = innInfo(state.innLevel);
+          hint.textContent = inn.name + ' · 已接客 ' + state.guestsServed + ' · 移近熱點睇提示';
+        }
+      });
+    }
+    if (WuxiaStages.Inn.setChoiceHandler) {
+      WuxiaStages.Inn.setChoiceHandler(function (choices) {
+        showHubChoices(choices || []);
       });
     }
     refreshHubBgm(false);

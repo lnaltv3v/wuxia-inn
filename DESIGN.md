@@ -1,4 +1,4 @@
-# 俠客棧 — 設計說明（v0.5.7）
+# 俠客棧 — 設計說明（v0.6.0）
 
 ## 產品定位（上市方向）
 目標做成**可上市**的武俠經營遊戲，模式對齊《大俠立志傳》：**場景驅動**，而非文字 Tab 網頁模擬。
@@ -155,6 +155,14 @@
 - **存檔相容**
 
 ## 版本進度
+### v0.6.0-realtime-hub15（本輪）
+- [x] 戰鬥改**自動即時走位**：靠近→近戰普攻；技能／遠程可遠放；AI 閃避／招架／後退  
+- [x] 招架雙向 `parry_flash`；Boss 更大 slash／多 spark  
+- [x] Hub **v1.5**：`hub_fg` 前景、`hub_lanterns_night` 夜燈；z＝wall→floor→furniture→counter→角色→lanterns→fg  
+- [x] 場景互動事件「負傷遊俠」選擇影響銀兩／聲望／羈絆；熱點提示＋進場略加速  
+- [x] overlay 木框宣紙 CSS；選單減 emoji  
+- [x] `GAME.version`／footer → **0.6.0**；音效暫緩  
+
 ### v0.5.7-scene-fx（本輪）
 - [x] Hub **場景化江湖事件**（多泡泡＋行人短暫演出；`SCENE_EVENTS`／`playSceneEvent`）  
 - [x] 戰鬥 **VFX 精靈** `assets/sprites/fx/`（slash／spark／parry_flash／hit_ring）；無檔退回 canvas 弧  

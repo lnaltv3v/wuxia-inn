@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.5.8：Hub v1.4／guest_walk 六色／多段刀光打擊感）
+ * 俠客棧 — 墨點江湖舞台（v0.6.0：即時走位戰鬥／雙向招架閃／Boss 加強 VFX）
  * Hub 480×270：場景分層、小二／俠客 spritesheet；戰鬥 400×180：attack／hurt／parry 幀
  */
 (function (global) {
@@ -56,7 +56,10 @@
 
   const SHEET_IDS = ['qingyi', 'tiezhang', 'langren', 'qinshi', 'xiaoer'];
   const LAYER_ORDER = ['hub_wall', 'hub_floor', 'hub_furniture', 'hub_counter'];
+  // z: … → 角色 → lanterns → fg（夜用 hub_lanterns_night）
   const LAYER_TOP = ['hub_lanterns'];
+  const LAYER_FG = ['hub_fg'];
+  const LAYER_NIGHT = ['hub_lanterns_night'];
 
   const Assets = {
     sheets: {},
@@ -76,7 +79,7 @@
   /** 資產快取戳：跟 GAME.version 對齊，確保 v1.2.1 精靈表換檔後瀏覽器重拉 */
   const ASSET_VER = (typeof global !== 'undefined' && global.WuxiaData && global.WuxiaData.GAME && global.WuxiaData.GAME.version)
     ? global.WuxiaData.GAME.version
-    : '0.5.8';
+    : '0.6.0';
 
   function loadImg(src) {
     return new Promise(function (resolve) {
@@ -107,7 +110,7 @@
     jobs.push(loadImg('assets/sprites/guest_walk.png').then(function (img) {
       if (img) Assets.sheets.guest_walk = img;
     }));
-    LAYER_ORDER.concat(LAYER_TOP).forEach(function (name) {
+    LAYER_ORDER.concat(LAYER_TOP).concat(LAYER_FG).concat(LAYER_NIGHT).forEach(function (name) {
       jobs.push(loadImg('assets/scenes/' + name + '.png').then(function (img) {
         if (img) Assets.layers[name] = img;
       }));
@@ -309,6 +312,8 @@
     let idleBlink = 0;
     let hoverId = null;
     let hotspotHandler = null;
+    let hintHandler = null;
+    let choiceHandler = null;
     let tipHandler = null;
     let ambientHeroes = ['qingyi'];
     let innTitle = '俠客棧';
@@ -332,7 +337,7 @@
     let guestSeated = false;
     let seatTarget = { x: 228, y: 188 };
     let seatOccupiedKey = null; // 進場佔用嘅座位 key，畫坐客時跳過
-    const PHASE_MS = { enter: 1800, serve: 1800, pay: 1400, leave: 1600 };
+    const PHASE_MS = { enter: 1400, serve: 1600, pay: 1200, leave: 1300 };
     const ALL_SEATS = [
       { x: 54, y: 198, key: 'a' }, { x: 108, y: 206, key: 'b' }, { x: 168, y: 212, key: 'c' },
       { x: 248, y: 214, key: 'd' }, { x: 318, y: 200, key: 'e' }, { x: 378, y: 208, key: 'f' }
@@ -414,6 +419,8 @@
     }
 
     function setHotspotHandler(fn) { hotspotHandler = typeof fn === 'function' ? fn : null; }
+    function setHintHandler(fn) { hintHandler = typeof fn === 'function' ? fn : null; }
+    function setChoiceHandler(fn) { choiceHandler = typeof fn === 'function' ? fn : null; }
     function setTipHandler(fn) { tipHandler = typeof fn === 'function' ? fn : null; }
     function setAmbientHeroes(ids) {
       ambientHeroes = Array.isArray(ids) && ids.length ? ids.slice(0, 4) : ['qingyi'];
@@ -455,13 +462,37 @@
         i: 0,
         t0: performance.now(),
         walkers: walkers,
-        done: false
+        done: false,
+        awaitChoice: false,
+        choices: def.choices || null,
+        caption: def.caption || '',
+        interactive: !!def.interactive
       };
       if (def.caption) setCaption(def.caption);
     }
 
+    function resolveSceneChoice(choiceId) {
+      if (!sceneEvt || !sceneEvt.awaitChoice) return null;
+      const choices = sceneEvt.choices || [];
+      let picked = null;
+      for (let i = 0; i < choices.length; i++) {
+        if (choices[i].id === choiceId) { picked = choices[i]; break; }
+      }
+      if (!picked && choices.length) picked = choices[0];
+      sceneEvt.awaitChoice = false;
+      sceneEvt.done = true;
+      if (picked && picked.resultLine) {
+        pushBubble(picked.resultLine, 220, 110, 1.6);
+        setCaption(picked.resultLine);
+      }
+      const out = picked;
+      setTimeout(function () { sceneEvt = null; }, 900);
+      return out;
+    }
+
     function updateSceneEvent(now) {
       if (!sceneEvt || sceneEvt.done) return;
+      if (sceneEvt.awaitChoice) return;
       const elapsed = now - sceneEvt.t0;
       // 行人緩移
       sceneEvt.walkers.forEach(function (w) {
@@ -494,7 +525,14 @@
           if (beat.move.tx != null) w.tx = beat.move.tx;
           if (beat.move.ty != null) w.ty = beat.move.ty;
         }
-        if (beat.end) {
+        if (beat.prompt && sceneEvt.choices && sceneEvt.choices.length) {
+          sceneEvt.awaitChoice = true;
+          sceneEvt.done = false;
+          setCaption(sceneEvt.caption || '掌櫃，如何處置？');
+          if (choiceHandler) {
+            try { choiceHandler(sceneEvt.choices, sceneEvt); } catch (e) { /* ignore */ }
+          }
+        } else if (beat.end) {
           sceneEvt.done = true;
           setTimeout(function () {
             if (sceneEvt && sceneEvt.done) sceneEvt = null;
@@ -570,6 +608,9 @@
       const h = hitTest(p.x, p.y);
       hoverId = h ? h.id : null;
       if (canvas) canvas.style.cursor = h ? 'pointer' : 'default';
+      if (hintHandler) {
+        try { hintHandler(h); } catch (e) { /* ignore */ }
+      }
     }
 
     function handleHotspot(h) {
@@ -732,14 +773,27 @@
     }
 
     function drawLanternsAndNight(now) {
-      const img = Assets.layers.hub_lanterns;
+      const night = isNightNow(now);
+      const dayImg = Assets.layers.hub_lanterns;
+      const nightImg = Assets.layers.hub_lanterns_night;
+      const img = night && nightImg ? nightImg : dayImg;
       if (img) ctx.drawImage(img, 0, 0);
       const skyT = skyTintFactor(now);
-      if (skyT > 0.55) {
+      // 夜燈層已有硬色塊光暈；只保留極淡天色罩，唔再厚蓋
+      if (skyT > 0.55 && !(night && nightImg)) {
         ctx.globalAlpha = (skyT - 0.55) * 0.28;
         drawRect(ctx, 0, 0, W, H, C.night);
         ctx.globalAlpha = 1;
+      } else if (skyT > 0.7 && night && nightImg) {
+        ctx.globalAlpha = (skyT - 0.7) * 0.12;
+        drawRect(ctx, 0, 0, W, H, C.night);
+        ctx.globalAlpha = 1;
       }
+    }
+
+    function drawForeground() {
+      const fg = Assets.layers.hub_fg;
+      if (fg) ctx.drawImage(fg, 0, 0);
     }
 
     function drawBgFallback(now) {
@@ -769,16 +823,18 @@
           drawRect(ctx, h.x + h.w - 2, h.y, 2, h.h, C.cream);
           drawPixelText(ctx, h.label, h.x + 4, Math.max(8, h.y - 12), C.cream);
         } else if (!isTable) {
-          // 主熱點：半透明提示框，易睇易點
-          ctx.globalAlpha = 0.16;
+          // 主熱點：半透明框＋短標籤（常駐提示，易睇易點）
+          ctx.globalAlpha = 0.18;
           drawRect(ctx, h.x, h.y, h.w, h.h, C.gold);
-          ctx.globalAlpha = 0.7;
+          ctx.globalAlpha = 0.75;
           drawRect(ctx, h.x, h.y, h.w, 1, C.cream);
           drawRect(ctx, h.x, h.y + h.h - 1, h.w, 1, C.cream);
           drawRect(ctx, h.x, h.y, 1, h.h, C.cream);
           drawRect(ctx, h.x + h.w - 1, h.y, 1, h.h, C.cream);
-          ctx.globalAlpha = 0.85;
+          ctx.globalAlpha = 0.9;
           drawRect(ctx, h.x + 2, h.y + 2, 5, 5, C.gold);
+          const short = (h.label || '').split('·')[0];
+          if (short) drawPixelText(ctx, short, h.x + 4, Math.max(8, h.y - 10), C.inkSoft);
           ctx.globalAlpha = 1;
         } else {
           ctx.globalAlpha = 0.35;
@@ -1093,7 +1149,10 @@
         drawRect(ctx, 18, 150, 10, 22, C.inkSoft);
       }
 
-      if (layered) drawLanternsAndNight(now);
+      if (layered) {
+        drawLanternsAndNight(now);
+        drawForeground(); // z6 最前景（角色／燈籠之後）
+      }
 
       if ((phase === 'pay' || tipBurst) && coinAlpha > 0) {
         const cx = tipBurst ? tipBurst.x : 270;
@@ -1127,7 +1186,7 @@
     return {
       mount, destroy, isMounted, playGuest, enqueueGuest,
       setHotspotHandler, setTipHandler, setAmbientHeroes, setInnTitle,
-      setAmbientChange, isNight, setRumor, greetXiaoer, showBubble, playSceneEvent,
+      setAmbientChange, isNight, setRumor, greetXiaoer, showBubble, playSceneEvent, resolveSceneChoice, setHintHandler, setChoiceHandler,
       HOTSPOTS, getPhase: function () { return phase; },
       isScenePlaying: function () { return !!(sceneEvt && !sceneEvt.done); }
     };
@@ -1229,6 +1288,20 @@
       allies.forEach((u, i) => {
         const prev = units.find((p) => p.id === u.id);
         const slot = aSlots[i];
+        const tx = (u.x != null) ? u.x : slot.x;
+        const ty = (u.y != null) ? u.y : slot.y;
+        // 平滑跟上邏輯座標；攻擊動畫中暫用 ox 作基準
+        let x = tx;
+        let y = ty;
+        if (prev && !anims[u.id]) {
+          x = prev.x + (tx - prev.x) * 0.45;
+          y = prev.y + (ty - prev.y) * 0.45;
+          if (Math.abs(tx - x) < 0.8) x = tx;
+          if (Math.abs(ty - y) < 0.8) y = ty;
+        } else if (prev && anims[u.id]) {
+          x = prev.x;
+          y = prev.y;
+        }
         next.push({
           id: u.id,
           name: u.name,
@@ -1237,10 +1310,12 @@
           maxHp: u.maxHp,
           shield: u.shield || 0,
           heroId: u.id,
-          x: prev && !anims[u.id] ? prev.x : slot.x,
-          y: slot.y,
-          ox: slot.x,
-          oy: slot.y,
+          intent: u.intent || 'hold',
+          ranged: !!u.ranged,
+          x: x,
+          y: y,
+          ox: tx,
+          oy: ty,
           flash: prev ? prev.flash : 0,
           dead: u.hp <= 0
         });
@@ -1253,6 +1328,19 @@
         else if (u.id && String(u.id).indexOf('boss_xieyi') >= 0) heroId = 'boss_xieyi';
         else if (u.name && u.name.indexOf('黑風寨主') >= 0) heroId = 'boss_heifeng';
         else if (u.name && u.name.indexOf('邪醫') >= 0) heroId = 'boss_xieyi';
+        const tx = (u.x != null) ? u.x : slot.x;
+        const ty = (u.y != null) ? u.y : slot.y;
+        let x = tx;
+        let y = ty;
+        if (prev && !anims[u.id]) {
+          x = prev.x + (tx - prev.x) * 0.45;
+          y = prev.y + (ty - prev.y) * 0.45;
+          if (Math.abs(tx - x) < 0.8) x = tx;
+          if (Math.abs(ty - y) < 0.8) y = ty;
+        } else if (prev && anims[u.id]) {
+          x = prev.x;
+          y = prev.y;
+        }
         next.push({
           id: u.id,
           name: u.name,
@@ -1261,10 +1349,12 @@
           maxHp: u.maxHp,
           shield: u.shield || 0,
           heroId: heroId,
-          x: prev && !anims[u.id] ? prev.x : slot.x,
-          y: slot.y,
-          ox: slot.x,
-          oy: slot.y,
+          intent: u.intent || 'hold',
+          ranged: !!u.ranged,
+          x: x,
+          y: y,
+          ox: tx,
+          oy: ty,
           flash: prev ? prev.flash : 0,
           dead: u.hp <= 0
         });
@@ -1296,11 +1386,16 @@
 
       if (atk && (evt.kind === 'hit' || evt.kind === 'skill' || evt.kind === 'miss' || evt.kind === 'parry')) {
         const dir = atk.side === 'ally' ? 1 : -1;
-        anims[atk.id] = { kind: 'lunge', t: 0, dur: 64, dir: dir };
+        // 對齊實際距離：遠程／技能少衝刺，近戰大步撲上
+        const dx = tgt ? Math.abs((tgt.x) - (atk.x)) : 40;
+        const lungeDur = evt.ranged ? 48 : (dx > 70 ? 70 : 64);
+        anims[atk.id] = { kind: 'lunge', t: 0, dur: lungeDur, dir: dir, ranged: !!evt.ranged, reach: Math.min(28, Math.max(8, dx * 0.35)) };
         if (evt.skillName) {
           fx.push({ kind: 'burst', x: atk.x + 6, y: atk.y + 4, life: 24, max: 24, color: evt.kind === 'skill' ? C.cinnabarBright : C.gold });
           fx.push({ kind: 'text', text: '「' + evt.skillName + '」', x: atk.x - 12, y: atk.y - 20, life: 58, max: 58, color: C.gold });
         }
+        const bossBoost = (atk.heroId && String(atk.heroId).indexOf('boss') >= 0)
+          || (tgt && tgt.heroId && String(tgt.heroId).indexOf('boss') >= 0);
         if (tgt && (evt.kind === 'hit' || evt.kind === 'skill')) {
           fx.push({
             kind: 'trail',
@@ -1311,10 +1406,9 @@
             life: 28, max: 28,
             color: evt.kind === 'skill' ? C.cinnabarBright : C.cream
           });
-          spawnBladeFx(atk, tgt, evt.kind === 'skill');
+          spawnBladeFx(atk, tgt, evt.kind === 'skill', bossBoost);
         } else if (evt.kind === 'parry' || evt.kind === 'miss') {
-          // 揮空／招架亦見刀弧
-          spawnBladeFx(atk, tgt, false);
+          spawnBladeFx(atk, tgt, false, bossBoost);
         }
       }
 
@@ -1327,11 +1421,12 @@
 
       if (evt.kind === 'parry' && tgt) {
         anims[tgt.id] = { kind: 'parry', t: 0, dur: 52, dir: tgt.side === 'ally' ? -1 : 1 };
+        if (atk) anims[atk.id] = { kind: 'parry', t: 0, dur: 40, dir: atk.side === 'ally' ? 1 : -1 };
         tgt.flash = 16;
-        if (atk) atk.flash = Math.max(atk.flash || 0, 8);
+        if (atk) atk.flash = Math.max(atk.flash || 0, 10);
         fx.push({ kind: 'text', text: '架', x: tgt.x + 2, y: tgt.y - 6, life: 34, max: 34, color: C.gold });
         fx.push({ kind: 'slash', x: tgt.x, y: tgt.y + 2, life: 20, max: 20, color: C.gold });
-        // 招架火花軌跡：攻防之間＋外彈
+        // 招架對撞：雙向 parry_flash
         if (atk) {
           const mx = (atk.x + tgt.x) / 2 + 4;
           const my = (atk.y + tgt.y) / 2 + 4;
@@ -1348,18 +1443,21 @@
             life: 20, max: 20, color: C.cream
           });
           fx.push({ kind: 'burst', x: mx, y: my, life: 16, max: 16, color: C.gold });
-          if (!pushFxSheet('parry_flash', mx - 8, my - 8, { dur: 14, scale: 1.1 })) {
-            fx.push({ kind: 'sparks', x: mx, y: my, n: 9, life: 20, max: 20, color: C.gold });
+          const f1 = pushFxSheet('parry_flash', atk.x - 4, atk.y - 6, { dur: 16, scale: 1.15, flip: atk.side === 'enemy' });
+          const f2 = pushFxSheet('parry_flash', tgt.x - 4, tgt.y - 6, { dur: 16, scale: 1.2, flip: tgt.side === 'enemy' });
+          pushFxSheet('parry_flash', mx - 10, my - 10, { dur: 18, scale: 1.35 });
+          if (!f1 && !f2) {
+            fx.push({ kind: 'sparks', x: mx, y: my, n: 12, life: 22, max: 22, color: C.gold });
             fx.push({
               kind: 'arc', x: mx, y: my, dir: atk.side === 'ally' ? 1 : -1,
-              r: 16, start: -0.6, end: 0.6, life: 14, max: 14,
+              r: 18, start: -0.7, end: 0.7, life: 16, max: 16,
               color: C.gold, tipColor: C.cream
             });
           }
         }
-        screenFlash = Math.max(screenFlash, 5);
-        hitStop = Math.max(hitStop, 12);
-        shake = Math.max(shake, 2.8);
+        screenFlash = Math.max(screenFlash, 6);
+        hitStop = Math.max(hitStop, 13);
+        shake = Math.max(shake, 3.2);
         return;
       }
 
@@ -1425,21 +1523,23 @@
       if (an) {
         const p = an.t / an.dur;
         if (an.kind === 'lunge') {
+          const reach = an.reach != null ? an.reach : 28;
+          const back = an.ranged ? 4 : 8;
           if (p < 0.25) {
             const w = p / 0.25;
-            dx = u.ox - an.dir * 8 * w;
+            dx = u.ox - an.dir * back * w;
             arm = 0;
             pose = 'idle';
             frameOverride = ANIM.attack[0];
           } else if (p < 0.55) {
             const sp = (p - 0.25) / 0.3;
-            dx = u.ox + an.dir * (8 + 20 * sp);
+            dx = u.ox + an.dir * (back * 0.4 + reach * sp);
             arm = 1;
             pose = 'strike';
             frameOverride = ANIM.attack[1 + Math.min(2, Math.floor(sp * 3))];
           } else {
             const rp = (p - 0.55) / 0.45;
-            dx = u.ox + an.dir * 28 * (1 - rp);
+            dx = u.ox + an.dir * reach * (1 - rp);
             arm = rp < 0.4 ? 1 : 0;
             pose = rp < 0.35 ? 'strike' : 'idle';
             frameOverride = rp < 0.35 ? ANIM.attack[3] : ANIM.idle[0];
@@ -1478,7 +1578,12 @@
           frameOverride = ANIM.parry[Math.min(2, Math.floor(p * 3))];
         }
       } else {
-        frameOverride = ANIM.idle[Math.floor(tick / 18) % 2];
+        if (u.intent === 'approach' || u.intent === 'retreat' || u.intent === 'strafe') {
+          animName = 'walk';
+          frameOverride = ANIM.walk[Math.floor(tick / 8) % 4];
+        } else {
+          frameOverride = ANIM.idle[Math.floor(tick / 18) % 2];
+        }
       }
 
       if (u.dead) ctx.globalAlpha = 0.35;
@@ -1611,27 +1716,37 @@
       return true;
     }
 
-    function spawnBladeFx(atk, tgt, heavy) {
+    function spawnBladeFx(atk, tgt, heavy, bossBoost) {
       if (!atk) return;
       const dir = atk.side === 'ally' ? 1 : -1;
+      const boss = !!bossBoost || (atk.heroId && String(atk.heroId).indexOf('boss') >= 0)
+        || (tgt && tgt.heroId && String(tgt.heroId).indexOf('boss') >= 0);
       const ax = atk.x + (dir > 0 ? 8 : -4);
       const ay = atk.y;
-      // 多段刀光：起手 → 中弧 →（重擊）刃尖；敵我都有（flip）
+      const sMul = boss ? 1.35 : 1;
+      // 多段刀光：起手 → 中弧 →（重擊／Boss）刃尖
       const usedSlash = pushFxSheet('slash', ax, ay, {
         flip: dir < 0,
         dur: heavy ? 18 : 12,
-        scale: heavy ? 1.2 : 1.05
+        scale: (heavy ? 1.2 : 1.05) * sMul
       });
       pushFxSheet('slash', ax + dir * 10, ay - 4, {
         flip: dir < 0,
         dur: heavy ? 24 : 18,
-        scale: heavy ? 1.45 : 1.22
+        scale: (heavy ? 1.45 : 1.22) * sMul
       });
-      if (heavy) {
+      if (heavy || boss) {
         pushFxSheet('slash', ax + dir * 18, ay + 2, {
           flip: dir < 0,
           dur: 16,
-          scale: 1.18
+          scale: (boss ? 1.55 : 1.18) * sMul
+        });
+      }
+      if (boss) {
+        pushFxSheet('slash', ax + dir * 6, ay - 10, {
+          flip: dir < 0,
+          dur: 20,
+          scale: 1.6
         });
       }
       if (!usedSlash) {
@@ -1639,7 +1754,7 @@
           kind: 'arc',
           x: atk.x + (dir > 0 ? 12 : 0), y: atk.y + 8,
           dir: dir,
-          r: heavy ? 30 : 24,
+          r: (heavy ? 30 : 24) * (boss ? 1.25 : 1),
           start: -1.1 * dir,
           end: 0.75 * dir,
           life: heavy ? 26 : 18,
@@ -1651,7 +1766,7 @@
           kind: 'arc',
           x: atk.x + (dir > 0 ? 16 : -2), y: atk.y + 4,
           dir: dir,
-          r: heavy ? 22 : 16,
+          r: (heavy ? 22 : 16) * (boss ? 1.2 : 1),
           start: -0.6 * dir,
           end: 0.9 * dir,
           life: heavy ? 20 : 14,
@@ -1663,22 +1778,26 @@
       if (tgt) {
         const hx = tgt.x + 2;
         const hy = tgt.y + 2;
-        // 受擊火花：sheet 雙層＋ canvas 粒子（敵方受擊同樣）
-        pushFxSheet('spark', hx, hy, { dur: heavy ? 18 : 14, scale: heavy ? 1.4 : 1.18 });
-        pushFxSheet('spark', hx - dir * 5, hy - 5, { dur: heavy ? 14 : 10, scale: 1.0 });
-        pushFxSheet('hit_ring', hx - 4, hy - 4, { dur: heavy ? 16 : 12, scale: heavy ? 1.35 : 1.12 });
+        const sparkN = boss ? (heavy ? 4 : 3) : 2;
+        pushFxSheet('spark', hx, hy, { dur: heavy ? 18 : 14, scale: (heavy ? 1.4 : 1.18) * sMul });
+        pushFxSheet('spark', hx - dir * 5, hy - 5, { dur: heavy ? 14 : 10, scale: 1.0 * sMul });
+        if (boss) {
+          pushFxSheet('spark', hx + dir * 6, hy - 8, { dur: 16, scale: 1.5 });
+          pushFxSheet('spark', hx - 2, hy + 4, { dur: 12, scale: 1.25 });
+        }
+        pushFxSheet('hit_ring', hx - 4, hy - 4, { dur: heavy ? 16 : 12, scale: (heavy ? 1.35 : 1.12) * sMul });
         fx.push({
           kind: 'sparks',
           x: tgt.x + 8, y: tgt.y + 10,
-          n: heavy ? 12 : 7,
+          n: (heavy ? 12 : 7) + (boss ? 6 : 0),
           life: heavy ? 22 : 14,
           max: heavy ? 22 : 14,
           color: C.cinnabarBright
         });
-        // 碰撞中點再噴一層
         const mx = (atk.x + tgt.x) / 2 + 2;
         const my = (atk.y + tgt.y) / 2 + 4;
-        pushFxSheet('spark', mx - 8, my - 8, { dur: 12, scale: 1.12 });
+        pushFxSheet('spark', mx - 8, my - 8, { dur: 12, scale: 1.12 * sMul });
+        if (boss) pushFxSheet('spark', mx + 4, my - 6, { dur: 14, scale: 1.3 });
         fx.push({ kind: 'burst', x: mx, y: my, life: heavy ? 14 : 10, max: heavy ? 14 : 10, color: C.cream });
       }
     }
