@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v0.5.4：xiaoer wipe／guest_sit／加密度 Hub）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v0.5.5：sprites v1.2／guest_sit 6 幀）
  */
 (function () {
   'use strict';

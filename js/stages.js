@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v0.5.4：xiaoer wipe／加密度 Hub／guest_sit）
+ * 俠客棧 — 墨點江湖舞台（v0.5.5：sprites v1.2／guest_sit 6 幀）
  * Hub 480×270：場景分層、小二／俠客 spritesheet；戰鬥 400×180：attack／hurt／parry 幀
  */
 (function (global) {
@@ -539,13 +539,14 @@
     }
 
     function seedSeated() {
-      // 對齊 denser furniture（約桌心偏下）；顏色由 guest_sit 幀 0–3 輪換
+      // 對齊 denser furniture；guest_sit v1.2 幀 0–5（teal／robe-red／ink-soft／violet／jade／wood-hat）
       seatedGuests = [
-        { x: 62, y: 198, robe: C.teal },
-        { x: 118, y: 206, robe: C.robeRed },
-        { x: 228, y: 214, robe: C.inkSoft },
-        { x: 318, y: 200, robe: C.violet },
-        { x: 372, y: 208, robe: C.mist }
+        { x: 54, y: 198, robe: C.teal, frame: 0 },
+        { x: 108, y: 206, robe: C.robeRed, frame: 1 },
+        { x: 168, y: 212, robe: C.inkSoft, frame: 2 },
+        { x: 248, y: 214, robe: C.violet, frame: 3 },
+        { x: 318, y: 200, robe: C.jade, frame: 4 },
+        { x: 378, y: 208, robe: C.mist, frame: 5 }
       ];
     }
 
@@ -811,11 +812,11 @@
         ctx.globalAlpha = 1;
       }
 
-      // 坐客：guest_sit 幀 0–3（青／紅／褐／紫）
+      // 坐客：guest_sit v1.2 幀 0–5（teal／robe-red／ink-soft／violet／jade／wood-hat）
       seatedGuests.forEach(function (g, gi) {
         const gsheet = Assets.sheets.guest_sit;
         if (gsheet) {
-          const fi = Math.min(3, gi % 4);
+          const fi = (typeof g.frame === 'number') ? (g.frame % 6) : (gi % 6);
           drawSheetFrame(ctx, gsheet, fi, g.x, g.y - 4, { scale: 1 });
         } else {
           drawFigure(ctx, g.x, g.y, { robe: g.robe, accent: C.gold, skin: C.skin, hair: C.inkSoft }, { scale: 1 });
