@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 主循環、狀態、存檔、UI（v2.8.0：日誌「而家可合擊」快捷摘要）
+ * 俠客棧 — 主循環、狀態、存檔、UI（v2.9.0：戰鬥飄字加厚）
  */
 (function () {
   'use strict';
@@ -4387,7 +4387,7 @@
       try { WuxiaAudio.preload(); } catch (e) { /* ignore */ }
     }
 
-    const verLabel = (GAME && GAME.version) ? String(GAME.version) : '2.8.0';
+    const verLabel = (GAME && GAME.version) ? String(GAME.version) : '2.9.0';
     const footVer = $('footer-version');
     if (footVer) footVer.textContent = 'v' + verLabel;
     try {

@@ -1,5 +1,5 @@
 /**
- * 俠客棧 — 墨點江湖舞台（v2.6.0：合擊成功提示／短景）
+ * 俠客棧 — 墨點江湖舞台（v2.9.0：戰鬥飄字加厚／Fortias 級可讀）
  * Hub 面板開仍呼吸；熱點墨框／硃標；戰鬥 shake 下調；招名飄字；戰場分層
  */
 (function (global) {
@@ -359,6 +359,44 @@
     ctx.font = '8px monospace';
     ctx.textBaseline = 'top';
     ctx.fillText(String(text), Math.round(x), Math.round(y));
+  }
+
+  /** v2.9：戰鬥飄字——墨邊＋芯色，硬邊像素可讀（對齊 Fortias 級外框，唔抄 IP） */
+  function drawOutlinedPixelText(ctx, text, x, y, fill, outline, fontPx, outlineW) {
+    const t = String(text);
+    const px = Math.round(x);
+    const py = Math.round(y);
+    const size = fontPx || 12;
+    const ow = outlineW == null ? 2 : outlineW;
+    ctx.font = size + 'px monospace';
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    // 墨邊：整數偏移疊字（唔用 blur）
+    ctx.fillStyle = outline || C.ink;
+    for (let dy = -ow; dy <= ow; dy++) {
+      for (let dx = -ow; dx <= ow; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        if (Math.abs(dx) + Math.abs(dy) > ow + 1) continue; // 略圓角外框
+        ctx.fillText(t, px + dx, py + dy);
+      }
+    }
+    ctx.fillStyle = fill || C.cream;
+    ctx.fillText(t, px, py);
+  }
+
+  function measurePixelText(ctx, text, fontPx) {
+    const t = String(text);
+    const size = fontPx || 8;
+    ctx.font = size + 'px monospace';
+    let w = 0;
+    try { w = Math.ceil(ctx.measureText(t).width); } catch (e) { w = 0; }
+    // CJK／括號喺部分環境 measure 偏窄：用碼點寬兜底
+    let approx = 0;
+    for (let i = 0; i < t.length; i++) {
+      const c = t.charCodeAt(i);
+      approx += (c > 0x2E80 ? size : Math.round(size * 0.62));
+    }
+    return Math.max(w, approx);
   }
 
   function drawBubble(ctx, text, x, y, life) {
@@ -1919,14 +1957,14 @@
           kind: 'text', text: '合擊「' + (evt.skillName || '同心') + '」',
           x: (tgt ? tgt.x : atk.x) - 30, y: (tgt ? tgt.y : atk.y) - 60,
           life: scaleDur(68), max: scaleDur(68),
-          color: C.gold, strong: true
+          color: C.gold, strong: true, big: true
         });
         if (evt.breakMit) {
           fx.push({
             kind: 'text', text: '破防',
             x: (tgt ? tgt.x : atk.x) + 8, y: (tgt ? tgt.y : atk.y) - 36,
             life: scaleDur(46), max: scaleDur(46),
-            color: C.cinnabarBright, strong: true
+            color: C.cinnabarBright, strong: true, big: true
           });
         }
         screenFlash = Math.max(screenFlash, 9);
@@ -1976,7 +2014,7 @@
         fx.push({
           kind: 'text', text: '合擊「' + (evt.skillName || '同心') + '」',
           x: atk.x - 28, y: atk.y - 56, life: scaleDur(64), max: scaleDur(64),
-          color: C.gold, strong: true
+          color: C.gold, strong: true, big: true
         });
         pushFxSheet('slash', atk.x + (dir > 0 ? 10 : -18), atk.y - 4, {
           flip: dir < 0, dur: scaleDur(26), scale: 1.35
@@ -1986,7 +2024,7 @@
           fx.push({
             kind: 'text', text: '齊進！',
             x: 430, y: 112, life: scaleDur(42), max: scaleDur(42),
-            color: C.cinnabarBright, strong: true
+            color: C.cinnabarBright, strong: true, big: true
           });
         }
         hitStop = Math.max(hitStop, scaleStop(12));
@@ -2025,7 +2063,7 @@
         pushFxSheet('slash', mx - 10, my - 8, { dur: scaleDur(16), scale: 1.25 });
         pushFxSheet('spark', mx - 8, my - 8, { dur: scaleDur(18), scale: 1.45 });
         fx.push({ kind: 'burst', x: mx, y: my, life: scaleDur(18), max: scaleDur(18), color: C.gold });
-        fx.push({ kind: 'text', text: '撞刃', x: mx - 16, y: my - 28, life: scaleDur(38), max: scaleDur(38), color: C.gold });
+        fx.push({ kind: 'text', text: '撞刃', x: mx - 16, y: my - 28, life: scaleDur(40), max: scaleDur(40), color: C.gold, strong: true });
         screenFlash = Math.max(screenFlash, 9);
         hitStop = Math.max(hitStop, scaleStop(16));
         bumpCamera('clash');
@@ -2036,7 +2074,7 @@
 
       if (evt.kind === 'heal' || evt.kind === 'shield') {
         if (atk) {
-          fx.push({ kind: 'text', text: evt.kind === 'heal' ? ('+' + (evt.heal || 0)) : '盾', x: atk.x + 8, y: atk.y - 16, life: 36, max: 36, color: C.jadeBright });
+          fx.push({ kind: 'text', text: evt.kind === 'heal' ? ('+' + (evt.heal || 0)) : '盾', x: atk.x + 8 + (((Math.random() * 10) | 0) - 4), y: atk.y - 16, life: 40, max: 40, color: C.jadeBright, bold: true, big: evt.kind === 'heal' });
           atk.flash = 14;
         }
         if (evt.skillName) {
@@ -2066,7 +2104,7 @@
         if (evt.skillName && !alreadyLunging) {
           const isCtr = evt.kind === 'counter';
           fx.push({ kind: 'burst', x: atk.x + 12, y: atk.y + 8, life: 24, max: 24, color: (evt.kind === 'skill' || isCtr) ? C.cinnabarBright : C.gold });
-          fx.push({ kind: 'text', text: isCtr ? '「反！」' : ('「' + evt.skillName + '」'), x: atk.x - 24, y: atk.y - 40, life: 58, max: 58, color: isCtr ? C.cinnabarBright : C.gold });
+          fx.push({ kind: 'text', text: isCtr ? '「反！」' : ('「' + evt.skillName + '」'), x: atk.x - 24, y: atk.y - 40, life: 58, max: 58, color: isCtr ? C.cinnabarBright : C.gold, strong: true });
         }
         const bossBoost = (atk.heroId && String(atk.heroId).indexOf('boss') >= 0)
           || (tgt && tgt.heroId && String(tgt.heroId).indexOf('boss') >= 0);
@@ -2109,14 +2147,14 @@
           pushFxSheet('slash', atk.x + (dir > 0 ? 20 : -24), atk.y, {
             flip: dir < 0, dur: scaleDur(12), scale: 0.75
           });
-          fx.push({ kind: 'text', text: '空', x: atk.x + 8, y: atk.y - 20, life: scaleDur(28), max: scaleDur(28), color: C.mist });
+          fx.push({ kind: 'text', text: '空', x: atk.x + 8, y: atk.y - 20, life: scaleDur(28), max: scaleDur(28), color: C.mist, soft: true });
           bumpCamera('light');
           hitStop = Math.max(hitStop, scaleStop(4));
           return;
         }
         if (tgt) {
           anims[tgt.id] = { kind: 'dodge', t: 0, dur: scaleDur(52), dir: tgt.side === 'ally' ? -1 : 1 };
-          fx.push({ kind: 'text', text: '閃', x: tgt.x + 4, y: tgt.y - 12, life: scaleDur(30), max: scaleDur(30), color: C.sky });
+          fx.push({ kind: 'text', text: '閃', x: tgt.x + 4 + (((Math.random() * 10) | 0) - 4), y: tgt.y - 12, life: scaleDur(30), max: scaleDur(30), color: C.sky, soft: true });
           hitStop = Math.max(hitStop, scaleStop(5));
           bumpCamera('light');
         }
@@ -2128,7 +2166,7 @@
         if (atk) anims[atk.id] = { kind: 'parry', t: 0, dur: scaleDur(40), dir: atk.side === 'ally' ? 1 : -1 };
         tgt.flash = 16;
         if (atk) atk.flash = Math.max(atk.flash || 0, 10);
-        fx.push({ kind: 'text', text: '架', x: tgt.x + 4, y: tgt.y - 12, life: scaleDur(34), max: scaleDur(34), color: C.gold });
+        fx.push({ kind: 'text', text: '架', x: tgt.x + 4 + (((Math.random() * 8) | 0) - 3), y: tgt.y - 12, life: scaleDur(34), max: scaleDur(34), color: C.gold, bold: true });
         fx.push({ kind: 'slash', x: tgt.x, y: tgt.y + 4, life: scaleDur(20), max: scaleDur(20), color: C.gold });
         // 招架對撞：clash 接觸點＋parry_flash（可錯 0–1 tick）
         if (atk) {
@@ -2179,11 +2217,20 @@
           knock: meleeContact ? (heavy ? 28 : 20) : (heavy ? 16 : 10)
         };
         tgt.flash = heavy ? 26 : 20;
-        fx.push({ kind: 'text', text: '-' + dmg, x: tgt.x + 4, y: tgt.y - 24, life: scaleDur(56), max: scaleDur(56), color: C.cinnabarBright });
+        // v2.9：傷害飄字加厚；輕微隨機 x 防疊；技能／連擊略大
+        const dmgJitter = ((Math.random() * 18) | 0) - 8;
+        const dmgBig = heavy || (evt.combo || 0) >= 2 || !!evt.comboSkill;
+        fx.push({
+          kind: 'text', text: '-' + dmg, dmg: true, big: dmgBig,
+          x: tgt.x + 4 + dmgJitter, y: tgt.y - 24,
+          vx: (dmgJitter >= 0 ? 0.08 : -0.08),
+          life: scaleDur(dmgBig ? 64 : 56), max: scaleDur(dmgBig ? 64 : 56),
+          color: C.cinnabarBright
+        });
         if (evt.kind === 'counter') {
-          fx.push({ kind: 'text', text: '反打', x: tgt.x - 8, y: tgt.y - 48, life: scaleDur(44), max: scaleDur(44), color: C.gold, strong: true });
+          fx.push({ kind: 'text', text: '反打', x: tgt.x - 8, y: tgt.y - 52, life: scaleDur(48), max: scaleDur(48), color: C.gold, strong: true, big: true });
         } else if ((evt.combo || 0) >= 2) {
-          fx.push({ kind: 'text', text: '連×' + evt.combo, x: tgt.x - 6, y: tgt.y - 46, life: scaleDur(40), max: scaleDur(40), color: C.gold });
+          fx.push({ kind: 'text', text: '連×' + evt.combo, x: tgt.x - 6 + (dmgJitter >> 1), y: tgt.y - 50, life: scaleDur(44), max: scaleDur(44), color: C.gold, strong: true });
         }
         fx.push({ kind: 'slash', x: tgt.x + 8, y: tgt.y + 8, life: scaleDur(18), max: scaleDur(18), color: C.cream });
         fx.push({ kind: 'burst', x: tgt.x + 12, y: tgt.y + 16, life: scaleDur(14), max: scaleDur(14), color: C.cream });
@@ -2211,7 +2258,7 @@
       }
 
       if (evt.kind === 'ko' && tgt) {
-        fx.push({ kind: 'text', text: '倒', x: tgt.x + 2, y: tgt.y - 20, life: scaleDur(48), max: scaleDur(48), color: C.blood });
+        fx.push({ kind: 'text', text: '倒', x: tgt.x + 2, y: tgt.y - 20, life: scaleDur(48), max: scaleDur(48), color: C.blood, strong: true });
         pushFxSheet('hit_ring', tgt.x - 8, tgt.y, { dur: scaleDur(18), scale: 1.55 });
         fx.push({ kind: 'sparks', x: tgt.x + 8, y: tgt.y + 12, n: 16, life: scaleDur(26), max: scaleDur(26), color: C.blood });
         screenFlash = Math.max(screenFlash, 12);
@@ -2248,10 +2295,29 @@
       mountain(780, 135, 260, 145, C.mtn);
       drawRect(ctx, 0, 250, W, 30, C.mist);
       for (let x = 0; x < W; x += 48) drawRect(ctx, x, 258, 28, 8, C.paper);
-      // ground
+      // ground（v2.9：程式後備略加石磚縫／草點密度；唔取代 PNG 層）
       drawRect(ctx, 0, 270, W, 50, C.loess);
+      for (let gx = 8; gx < W; gx += 22) {
+        const gy = 278 + ((gx * 3) % 17);
+        drawRect(ctx, gx, gy, 3, 3, C.woodLight);
+        if ((gx % 44) === 8) drawRect(ctx, gx + 6, gy + 8, 2, 4, C.mtn);
+      }
+      for (let sx = 12; sx < W; sx += 36) {
+        drawRect(ctx, sx, 292, 28, 2, C.inkSoft);
+        drawRect(ctx, sx + 4, 300, 18, 2, C.wood);
+      }
       drawRect(ctx, 0, 310, W, 16, C.woodLight);
       drawRect(ctx, 0, 320, W, 220, C.wood);
+      // 石磚縫網格
+      for (let by = 330; by < 520; by += 28) {
+        for (let bx = 4; bx < W; bx += 52) {
+          const ox = (by % 56 === 330) ? 0 : 26;
+          drawRect(ctx, bx + ox, by, 46, 24, C.woodLight);
+          drawRect(ctx, bx + ox + 2, by + 2, 42, 20, C.wood);
+          drawRect(ctx, bx + ox + 6, by + 8, 10, 3, C.inkSoft);
+          drawRect(ctx, bx + ox + 22, by + 14, 8, 2, C.loess);
+        }
+      }
       for (let i = 0; i < 14; i++) {
         const x = 20 + i * 70;
         drawRect(ctx, x, 348, 48, 10, C.woodLight);
@@ -2795,7 +2861,14 @@
         if (!frozen || keepFx) {
           f.life -= 1;
           if (f.kind === 'fxsheet') f.t = (f.t || 0) + 1;
-          if (f.kind === 'text') f.y -= frozen ? 0.1 : 0.32;
+          if (f.kind === 'text') {
+            // v2.9：上飄＋輕彈（前段略快、後段減速）；硬邊整數 y
+            const p = f.max > 0 ? (1 - f.life / f.max) : 0;
+            const base = f.dmg ? 0.55 : (f.strong ? 0.42 : 0.28);
+            const pop = p < 0.18 ? 1.35 : (p < 0.45 ? 1.0 : 0.72);
+            f.y -= (frozen ? 0.08 : base * pop);
+            if (f.vx) f.x += frozen ? 0 : f.vx;
+          }
         }
         return f.life > 0;
       });
@@ -2870,14 +2943,65 @@
         }
         ctx.globalAlpha = clamp(a, 0, 1);
         if (f.kind === 'text') {
+          // v2.9：傷害數字／招名／合擊 — 墨邊＋芯色；輕量 scale 彈
           let ta = a;
           if (f.soft) ta = a * a;           // 讀招：更快淡出
           if (f.strong) ta = Math.min(1, a * 1.25 + 0.15); // 判定：更醒目
+          if (f.dmg) ta = Math.min(1, a * 1.15 + 0.1);
           ctx.globalAlpha = clamp(ta, 0, 1);
-          if (f.strong) {
-            drawRect(ctx, f.x - 2, f.y - 1, Math.min(120, 8 + String(f.text).length * 7), 12, C.ink);
+          const p = f.max > 0 ? (1 - f.life / f.max) : 0;
+          // 前 ~18% 輕彈放大，之後回落；整數像素感覺
+          let sc = 1;
+          if (f.dmg || f.strong) {
+            if (p < 0.16) sc = 1 + (0.16 - p) * (f.dmg ? 1.8 : 1.2);
+            else if (p < 0.35) sc = 1.08;
+            else sc = 1;
           }
-          drawPixelText(ctx, f.text, f.x, f.y, f.color || C.cream);
+          const isDmg = !!f.dmg;
+          const isStrong = !!f.strong && !isDmg;
+          const isWeak = !!f.soft || (!isDmg && !isStrong && !f.bold);
+          let fontPx = 10;
+          let ow = 1;
+          if (isDmg) {
+            fontPx = f.big ? 18 : 15;
+            ow = f.big ? 3 : 2;
+          } else if (isStrong) {
+            fontPx = f.big ? 14 : 12;
+            ow = 2;
+          } else if (isWeak) {
+            fontPx = 9;
+            ow = 1;
+          } else {
+            fontPx = f.big ? 13 : 11;
+            ow = f.big ? 2 : 1;
+          }
+          fontPx = Math.max(8, Math.round(fontPx * sc));
+          const fill = f.color || (isDmg ? C.cinnabarBright : C.cream);
+          // 傷害：乳白芯優先，硃作備；招名：原色芯＋墨邊
+          const core = isDmg ? C.cream : fill;
+          const edge = C.ink;
+          const tw = measurePixelText(ctx, f.text, fontPx);
+          const th = fontPx + 2;
+          const bx = Math.round(f.x);
+          const by = Math.round(f.y);
+          if (isStrong) {
+            // 更大墨底框＋硃／金內邊（雙描邊感）
+            const padX = 4;
+            const padY = 2;
+            const bw = Math.min(200, tw + padX * 2);
+            const bh = th + padY * 2;
+            drawRect(ctx, bx - padX - 1, by - padY - 1, bw + 2, bh + 2, C.ink);
+            drawRect(ctx, bx - padX, by - padY, bw, bh, C.night);
+            drawRect(ctx, bx - padX + 1, by - padY + 1, bw - 2, 1, fill);
+            drawRect(ctx, bx - padX + 1, by + bh - padY - 2, bw - 2, 1, fill);
+          }
+          // 傷害數字：外一層硃邊再墨邊，醒目如現代像素戰報
+          if (isDmg) {
+            drawOutlinedPixelText(ctx, f.text, bx, by, core, C.cinnabar, fontPx, ow + 1);
+            drawOutlinedPixelText(ctx, f.text, bx, by, core, edge, fontPx, ow);
+          } else {
+            drawOutlinedPixelText(ctx, f.text, bx, by, core, edge, fontPx, ow);
+          }
           ctx.globalAlpha = 1;
         } else if (f.kind === 'burst') {
           drawRect(ctx, f.x - 5, f.y - 5, 12, 12, f.color || C.gold);
@@ -2976,7 +3100,7 @@
       fx.push({
         kind: 'text', text: '來了',
         x: 430, y: 160, life: scaleDur(48), max: scaleDur(48),
-        color: C.cinnabarBright, strong: true
+        color: C.cinnabarBright, strong: true, big: true
       });
       bindBossIntroSkip();
       if (!running) startLoop();
